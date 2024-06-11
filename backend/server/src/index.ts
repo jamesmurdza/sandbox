@@ -18,7 +18,7 @@ import {
   renameFile,
   saveFile,
 } from "./utils";
-import { IDisposable, IPty, spawn } from "node-pty";
+import { Sandbox, Process, ProcessMessage } from "e2b";
 import {
   MAX_BODY_SIZE,
   createFileRL,
@@ -44,7 +44,10 @@ let inactivityTimeout: NodeJS.Timeout | null = null;
 let isOwnerConnected = false;
 
 const terminals: {
-  [id: string]: { terminal: IPty; onData: IDisposable; onExit: IDisposable };
+  [id: string]: Process;
+} = {};
+const containers: {
+  [id: string]: Sandbox;
 } = {};
 
 const dirName = path.join(__dirname, "..");
@@ -100,6 +103,32 @@ io.use(async (socket, next) => {
   next();
 });
 
+class LockManager {
+  private locks: { [key: string]: Promise<any> };
+
+  constructor() {
+    this.locks = {};
+  }
+
+  async acquireLock<T>(key: string, task: () => Promise<T>): Promise<T> {
+    if (!this.locks[key]) {
+      this.locks[key] = new Promise<T>(async (resolve, reject) => {
+        try {
+          const result = await task();
+          resolve(result);
+        } catch (error) {
+          reject(error);
+        } finally {
+          delete this.locks[key];
+        }
+      });
+    }
+    return await this.locks[key];
+  }
+}
+
+const lockManager = new LockManager();
+
 io.on("connection", async (socket) => {
   if (inactivityTimeout) clearTimeout(inactivityTimeout);
 
@@ -117,6 +146,16 @@ io.on("connection", async (socket) => {
       return;
     }
   }
+
+  await lockManager.acquireLock(data.sandboxId, async () => {
+    if (!containers[data.sandboxId]) {
+      console.log("Creating container ", data.sandboxId);
+      containers[data.sandboxId] = await Sandbox.create({
+        template: "terminal",
+      });
+      console.log("Created.");
+    }
+  });
 
   const sandboxFiles = await getSandboxFiles(data.sandboxId);
   sandboxFiles.fileData.forEach((file) => {
@@ -319,42 +358,55 @@ io.on("connection", async (socket) => {
     callback(newFiles.files);
   });
 
-  socket.on("createTerminal", (id: string, callback) => {
+  function toBackslashNotation(input: string) {
+    return input
+      .replace(/\\/g, "\\\\") // Escape backslashes
+      .replace(/\n/g, "\\n") // Escape newlines
+      .replace(/\r/g, "\\r") // Escape carriage returns
+      .replace(/\t/g, "\\t") // Escape tabs
+      .replace(/"/g, '\\"') // Escape double quotes
+      .replace(/'/g, "\\'") // Escape single quotes
+      .replace(/\f/g, "\\f") // Escape form feeds
+      .replace(/\b/g, "\\b") // Escape backspaces
+      .replace(/\v/g, "\\v") // Escape vertical tabs
+      .replace(/\0/g, "\\0") // Escape null characters
+      .replace(/\a/g, "\\a") // Escape alert (bell)
+      .replace(/\e/g, "\\e"); // Escape escape
+  }
+
+  socket.on("createTerminal", async (id: string, callback) => {
     if (terminals[id] || Object.keys(terminals).length >= 4) {
       return;
     }
 
-    const pty = spawn(os.platform() === "win32" ? "cmd.exe" : "bash", [], {
-      name: "xterm",
-      cols: 100,
-      cwd: path.join(dirName, "projects", data.sandboxId),
-    });
-
-    const onData = pty.onData((data) => {
+    const onData = (data: ProcessMessage) => {
+      console.log("process", toBackslashNotation(data.toString()));
       io.emit("terminalResponse", {
         id,
-        data,
+        data: data.toString(),
       });
-    });
-
-    const onExit = pty.onExit((code) => console.log("exit :(", code));
-
-    pty.write("export PS1='\\u > '\r");
-    pty.write("clear\r");
-
-    terminals[id] = {
-      terminal: pty,
-      onData,
-      onExit,
     };
+
+    await lockManager.acquireLock(data.sandboxId, async () => {
+      console.log("Creating terminal", id);
+      terminals[id] = await containers[data.sandboxId].process.start({
+        cmd: 'TERM=xterm script -c "screen" /dev/null', // xterm vt100
+        onStdout: onData,
+        onStderr: onData,
+        onExit: (code) => console.log("exit :(", code),
+      });
+      terminals[id].sendStdin("export PS1='\\u > '\r\n");
+      terminals[id].sendStdin("clear\r\n");
+      console.log("Created terminal", id);
+    });
 
     callback();
   });
 
   socket.on("resizeTerminal", (dimensions: { cols: number; rows: number }) => {
-    Object.values(terminals).forEach((t) => {
+    /*Object.values(terminals).forEach((t) => {
       t.terminal.resize(dimensions.cols, dimensions.rows);
-    });
+    });*/
   });
 
   socket.on("terminalData", (id: string, data: string) => {
@@ -363,19 +415,19 @@ io.on("connection", async (socket) => {
     }
 
     try {
-      terminals[id].terminal.write(data);
+      console.log(`Writing ${toBackslashNotation(data)} to ${id}`);
+      terminals[id].sendStdin(data);
     } catch (e) {
       console.log("Error writing to terminal", e);
     }
   });
 
-  socket.on("closeTerminal", (id: string, callback) => {
+  socket.on("closeTerminal", async (id: string, callback) => {
     if (!terminals[id]) {
       return;
     }
 
-    terminals[id].onData.dispose();
-    terminals[id].onExit.dispose();
+    await terminals[id].kill();
     delete terminals[id];
 
     callback();
@@ -429,10 +481,18 @@ io.on("connection", async (socket) => {
   socket.on("disconnect", async () => {
     if (data.isOwner) {
       Object.entries(terminals).forEach((t) => {
-        const { terminal, onData, onExit } = t[1];
-        onData.dispose();
-        onExit.dispose();
+        const terminal = t[1];
+        terminal.kill();
         delete terminals[t[0]];
+      });
+
+      await lockManager.acquireLock(data.sandboxId, async () => {
+        if (containers[data.sandboxId]) {
+          console.log("Closing container", data.sandboxId);
+          await containers[data.sandboxId].close();
+          delete containers[data.sandboxId];
+          console.log("Closed");
+        }
       });
 
       socket.broadcast.emit(
