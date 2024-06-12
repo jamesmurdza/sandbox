@@ -383,7 +383,7 @@ io.on("connection", async (socket) => {
       console.log("process", toBackslashNotation(data.toString()));
       io.emit("terminalResponse", {
         id,
-        data: data.toString(),
+        data: data.toString() + "\r\n",
       });
     };
 
@@ -395,8 +395,9 @@ io.on("connection", async (socket) => {
         onStderr: onData,
         onExit: (code) => console.log("exit :(", code),
       });
-      terminals[id].sendStdin("export PS1='\\u > '\r\n");
-      terminals[id].sendStdin("clear\r\n");
+      await terminals[id].sendStdin("clear\r\n");
+      await terminals[id].sendStdin("export PS1='user> '\r\n");
+      await terminals[id].sendStdin("clear\r\n");
       console.log("Created terminal", id);
     });
 
