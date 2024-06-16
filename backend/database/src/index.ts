@@ -128,12 +128,6 @@ export default {
 					.returning()
 					.get()
 
-				// Create a new association record in the users_to_sandboxes table
-				await db
-					.insert(usersToSandboxes)
-					.values({ userId, sandboxId: sb.id, sharedOn: new Date() })
-					.get();
-
 				const initStorageRequest = new Request(
 					`${env.STORAGE_WORKER_URL}/api/init`,
 					{
