@@ -31,8 +31,8 @@ export const sandbox = sqliteTable("sandbox", {
 	createdAt: integer("createdAt", { mode: "timestamp_ms" }),
 	userId: text("user_id")
 		.notNull()
-		.references(() => user.id),
-});
+		.references(() => user.id, { onDelete: "cascade" }),
+	});
 
 export type Sandbox = typeof sandbox.$inferSelect;
 
