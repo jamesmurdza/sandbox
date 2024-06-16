@@ -132,11 +132,19 @@ io.on("connection", async (socket) => {
       if (!containers[data.sandboxId]) {
         containers[data.sandboxId] = await Sandbox.create();
         console.log("Created container ", data.sandboxId);
+        io.emit("previewURL", "https://" + containers[data.sandboxId].getHostname(5173));
       }
     } catch (error) {
       console.error("Error creating container ", data.sandboxId, error);
     }
   });
+
+  // Change the owner of the project directory to user
+  const fixPermissions = async () => {
+    await containers[data.sandboxId].process.startAndWait(
+      `sudo chown -R user "${path.join(dirName, "projects", data.sandboxId)}"`
+    );
+  }
 
   const sandboxFiles = await getSandboxFiles(data.sandboxId);
   sandboxFiles.fileData.forEach(async (file) => {
@@ -144,6 +152,7 @@ io.on("connection", async (socket) => {
     await containers[data.sandboxId].filesystem.makeDir(path.dirname(filePath));
     await containers[data.sandboxId].filesystem.write(filePath, file.data);
   });
+  fixPermissions();
 
   socket.emit("loaded", sandboxFiles.files);
 
@@ -177,6 +186,7 @@ io.on("connection", async (socket) => {
       file.data = body;
 
       await containers[data.sandboxId].filesystem.write(path.join(dirName, file.id), body);
+      fixPermissions();
       await saveFile(fileId, body);
     } catch (e) {
       io.emit("rateLimit", "Rate limited: file saving. Please slow down.");
@@ -195,6 +205,7 @@ io.on("connection", async (socket) => {
       path.join(dirName, fileId),
       path.join(dirName, newFileId)
     )
+    fixPermissions();
 
     file.id = newFileId;
 
@@ -221,6 +232,7 @@ io.on("connection", async (socket) => {
       const id = `projects/${data.sandboxId}/${name}`;
 
       await containers[data.sandboxId].filesystem.write(path.join(dirName, id), "");
+      fixPermissions();
 
       sandboxFiles.files.push({
         id,
@@ -273,6 +285,7 @@ io.on("connection", async (socket) => {
         path.join(dirName, fileId),
         path.join(dirName, newFileId)
       )
+      fixPermissions();
       await renameFile(fileId, newFileId, file.data);
     } catch (e) {
       io.emit("rateLimit", "Rate limited: file renaming. Please slow down.");
