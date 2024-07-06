@@ -325,50 +325,99 @@ export default function CodeEditor({
     };
   }, [activeFileId, tabs, debouncedSaveData]);
 
-  // Liveblocks live collaboration setup effect
+// Liveblocks live collaboration setup effect
+
+type ProviderData = {
+    provider: LiveblocksProvider<never, never, never, never>;
+    yDoc: Y.Doc;
+    yText: Y.Text;
+    binding?: MonacoBinding;
+    onSync: (isSynced: boolean) => void;
+  };
+  
+  const providersMap = useRef(new Map<string, ProviderData>());
+  
   useEffect(() => {
-    const tab = tabs.find((t) => t.id === activeFileId)
-    const model = editorRef?.getModel()
+    const tab = tabs.find((t) => t.id === activeFileId);
+    const model = editorRef?.getModel();
+  
+    if (!editorRef || !tab || !model) return;
+  
+    let providerData: ProviderData;
+  
+    if (!providersMap.current.has(tab.id)) {
+      const yDoc = new Y.Doc();
+      const yText = yDoc.getText(tab.id);
+      const yProvider = new LiveblocksProvider(room, yDoc);
 
-    if (!editorRef || !tab || !model) return
+      // const onSync = (isSynced: boolean) => {
+      //   if (isSynced) {
+      //     const text = yText.toString()
+      //     if (text === "") {
+      //       if (activeFileContent) {
+      //         yText.insert(0, activeFileContent)
+      //       } else {
+      //         setTimeout(() => {
+      //           yText.insert(0, editorRef.getValue())
+      //         }, 0)
+      //       }
+      //     }
+      //   }
+      // }
 
-    const yDoc = new Y.Doc()
-    const yText = yDoc.getText(tab.id)
-    const yProvider: any = new LiveblocksProvider(room, yDoc)
-
-    const onSync = (isSynced: boolean) => {
-      if (isSynced) {
-        const text = yText.toString()
-        if (text === "") {
-          if (activeFileContent) {
-            yText.insert(0, activeFileContent)
-          } else {
-            setTimeout(() => {
-              yText.insert(0, editorRef.getValue())
-            }, 0)
+      const onSync = (isSynced: boolean) => {
+        if (isSynced) {
+          const text = yText.toString()
+          if (text === "") {
+            // Not inserting any initial content
           }
         }
       }
+
+      yProvider.on("sync", onSync);
+  
+      providerData = { provider: yProvider, yDoc, yText, onSync };
+      providersMap.current.set(tab.id, providerData);
+    } else {
+      providerData = providersMap.current.get(tab.id)!;
     }
-
-    yProvider.on("sync", onSync)
-
-    setProvider(yProvider)
-
+    
     const binding = new MonacoBinding(
-      yText,
+      providerData.yText,
       model,
       new Set([editorRef]),
-      yProvider.awareness as Awareness
-    )
-
+      providerData.provider.awareness as unknown as Awareness
+    );
+  
+    providerData.binding = binding;
+  
+    setProvider(providerData.provider);
+  
     return () => {
-      yDoc.destroy()
-      yProvider.destroy()
-      binding.destroy()
-      yProvider.off("sync", onSync)
-    }
-  }, [editorRef, room, activeFileContent])
+      // Cleanup logic
+      if (binding) {
+        binding.destroy();
+      }
+      if (providerData.binding) {
+        providerData.binding = undefined;
+      }
+    };
+  }, [editorRef, room, activeFileContent, activeFileId, tabs]);
+
+    // Added this effect to clean up when the component unmounts
+    useEffect(() => {
+      return () => {
+        // Clean up all providers when the component unmounts
+        providersMap.current.forEach((data) => {
+          if (data.binding) {
+            data.binding.destroy();
+          }
+          data.provider.disconnect();
+          data.yDoc.destroy();
+        });
+        providersMap.current.clear();
+      };
+    }, []);
 
   // Connection/disconnection effect
   useEffect(() => {
@@ -435,7 +484,7 @@ export default function CodeEditor({
   // Select file and load content
 
   // Initialize debounced function once
-  const fileCache = useRef(new Map());
+  // const fileCache = useRef(new Map());
 
   // Debounced function to get file content
   const debouncedGetFile = useCallback(
@@ -459,14 +508,17 @@ export default function CodeEditor({
       return [...prev, tab];
     });
 
-    if (fileCache.current.has(tab.id)) {
-      setActiveFileContent(fileCache.current.get(tab.id));
-    } else {
-      debouncedGetFile(tab.id, (response: SetStateAction<string>) => {
-        fileCache.current.set(tab.id, response);
-        setActiveFileContent(response);
-      });
-    }
+    // if (fileCache.current.has(tab.id)) {
+    //   setActiveFileContent(fileCache.current.get(tab.id));
+    // } else {
+    //   debouncedGetFile(tab.id, (response: SetStateAction<string>) => {
+    //     fileCache.current.set(tab.id, response);
+    //     setActiveFileContent(response);
+    //   });
+    // }
+
+    // Always set empty content for new files
+    setActiveFileContent("");
 
     setEditorLanguage(processFileType(tab.name));
     setActiveFileId(tab.id);
