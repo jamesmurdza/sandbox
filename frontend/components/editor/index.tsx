@@ -350,26 +350,17 @@ type ProviderData = {
       const yText = yDoc.getText(tab.id);
       const yProvider = new LiveblocksProvider(room, yDoc);
 
-      // const onSync = (isSynced: boolean) => {
-      //   if (isSynced) {
-      //     const text = yText.toString()
-      //     if (text === "") {
-      //       if (activeFileContent) {
-      //         yText.insert(0, activeFileContent)
-      //       } else {
-      //         setTimeout(() => {
-      //           yText.insert(0, editorRef.getValue())
-      //         }, 0)
-      //       }
-      //     }
-      //   }
-      // }
-
       const onSync = (isSynced: boolean) => {
         if (isSynced) {
           const text = yText.toString()
           if (text === "") {
-            // Not inserting any initial content
+            if (activeFileContent) {
+              yText.insert(0, activeFileContent)
+            } else {
+              setTimeout(() => {
+                yText.insert(0, editorRef.getValue())
+              }, 0)
+            }
           }
         }
       }
@@ -484,7 +475,7 @@ type ProviderData = {
   // Select file and load content
 
   // Initialize debounced function once
-  // const fileCache = useRef(new Map());
+  const fileCache = useRef(new Map());
 
   // Debounced function to get file content
   const debouncedGetFile = useCallback(
@@ -499,26 +490,28 @@ type ProviderData = {
 
     setGenerate((prev) => ({ ...prev, show: false }));
 
-    const exists = tabs.find((t) => t.id === tab.id);
-    setTabs((prev) => {
-      if (exists) {
-        setActiveFileId(exists.id);
-        return prev;
-      }
-      return [...prev, tab];
-    });
-
-    // if (fileCache.current.has(tab.id)) {
-    //   setActiveFileContent(fileCache.current.get(tab.id));
-    // } else {
-    //   debouncedGetFile(tab.id, (response: SetStateAction<string>) => {
-    //     fileCache.current.set(tab.id, response);
-    //     setActiveFileContent(response);
-    //   });
-    // }
-
-    // Always set empty content for new files
-    setActiveFileContent("");
+    //editor windows fix
+    function updateTabs(){
+      const exists = tabs.find((t) => t.id === tab.id);
+      setTabs((prev) => {
+        if (exists) {
+          setActiveFileId(exists.id);
+          return prev;
+        }
+        return [...prev, tab];
+      });
+    }
+    
+    if (fileCache.current.has(tab.id)) {
+      setActiveFileContent(fileCache.current.get(tab.id));
+      updateTabs();
+    } else {
+      debouncedGetFile(tab.id, (response: SetStateAction<string>) => {
+        fileCache.current.set(tab.id, response);
+        setActiveFileContent(response);
+        updateTabs();
+      });
+    }
 
     setEditorLanguage(processFileType(tab.name));
     setActiveFileId(tab.id);
