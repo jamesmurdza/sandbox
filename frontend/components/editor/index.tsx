@@ -829,11 +829,7 @@ type ProviderData = {
               className="p-2 flex flex-col"
             >
               {isOwner ? (
-                <Terminals
-                  terminals={terminals}
-                  setTerminals={setTerminals}
-                  socket={socketRef.current}
-                />
+                <Terminals/>
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-lg font-medium text-muted-foreground/50 select-none">
                   <TerminalSquare className="w-4 h-4 mr-2" />

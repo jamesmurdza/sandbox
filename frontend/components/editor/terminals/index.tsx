@@ -2,30 +2,16 @@
 
 import { Button } from "@/components/ui/button";
 import Tab from "@/components/ui/tab";
-import { closeTerminal, createTerminal } from "@/lib/terminal";
+import { closeTerminal } from "@/lib/terminal";
 import { Terminal } from "@xterm/xterm";
 import { Loader2, Plus, SquareTerminal, TerminalSquare } from "lucide-react";
-import { Socket } from "socket.io-client";
 import { toast } from "sonner";
 import EditorTerminal from "./terminal";
 import { useState } from "react";
+import { useTerminal } from "@/context/TerminalContext";
 
-export default function Terminals({
-  terminals,
-  setTerminals,
-  socket,
-}: {
-  terminals: { id: string; terminal: Terminal | null }[];
-  setTerminals: React.Dispatch<
-    React.SetStateAction<
-      {
-        id: string;
-        terminal: Terminal | null;
-      }[]
-    >
-  >;
-  socket: Socket;
-}) {
+export default function Terminals() {
+  const { terminals, setTerminals, socket, createNewTerminal } = useTerminal();
   const [activeTerminalId, setActiveTerminalId] = useState("");
   const [creatingTerminal, setCreatingTerminal] = useState(false);
   const [closingTerminal, setClosingTerminal] = useState("");
@@ -46,7 +32,7 @@ export default function Terminals({
                 setTerminals,
                 setActiveTerminalId,
                 setClosingTerminal,
-                socket,
+                socket: socket!, 
                 activeTerminalId,
               })
             }
@@ -64,12 +50,7 @@ export default function Terminals({
               toast.error("You reached the maximum # of terminals.");
               return;
             }
-            createTerminal({
-              setTerminals,
-              setActiveTerminalId,
-              setCreatingTerminal,
-              socket,
-            });
+            createNewTerminal();
           }}
           size="smIcon"
           variant={"secondary"}

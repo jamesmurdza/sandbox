@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Logo from "@/assets/logo.svg";
-import { Pencil, Users } from "lucide-react";
+import { Pencil, Users, Play, StopCircle } from "lucide-react";
 import Link from "next/link";
 import { Sandbox, User } from "@/lib/types";
 import UserButton from "@/components/ui/userButton";
@@ -11,23 +11,30 @@ import { useState } from "react";
 import EditSandboxModal from "./edit";
 import ShareSandboxModal from "./share";
 import { Avatars } from "../live/avatars";
+import RunButtonModal from "./run";
+import { Terminal } from "@xterm/xterm";
+import { Socket } from "socket.io-client";
+import Terminals from "../terminals";
 
 export default function Navbar({
   userData,
   sandboxData,
   shared,
+  socket,
 }: {
   userData: User;
   sandboxData: Sandbox;
-  shared: {
-    id: string;
-    name: string;
-  }[];
+  shared: { id: string; name: string }[];
+  socket: Socket;
 }) {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
+  const [isRunning, setIsRunning] = useState(false);
+  const [terminals, setTerminals] = useState<{ id: string; terminal: Terminal | null }[]>([]);
+  const [activeTerminalId, setActiveTerminalId] = useState("");
+  const [creatingTerminal, setCreatingTerminal] = useState(false);
 
-  const isOwner = sandboxData.userId === userData.id;
+  const isOwner = sandboxData.userId === userData.id;;
 
   return (
     <>
@@ -62,6 +69,10 @@ export default function Navbar({
             ) : null}
           </div>
         </div>
+        <RunButtonModal
+          isRunning={isRunning}
+          setIsRunning={setIsRunning}
+        />
         <div className="flex items-center h-full space-x-4">
           <Avatars />
 

@@ -6,6 +6,7 @@ import { ThemeProvider } from "@/components/layout/themeProvider"
 import { ClerkProvider } from "@clerk/nextjs"
 import { Toaster } from "@/components/ui/sonner"
 import { Analytics } from "@vercel/analytics/react"
+import { TerminalProvider } from '@/context/TerminalContext';
 
 export const metadata: Metadata = {
   title: "Sandbox",
@@ -27,7 +28,9 @@ export default function RootLayout({
             forcedTheme="dark"
             disableTransitionOnChange
           >
+            <TerminalProvider>
             {children}
+            </TerminalProvider>
             <Analytics />
             <Toaster position="bottom-left" richColors />
           </ThemeProvider>
