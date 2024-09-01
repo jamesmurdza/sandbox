@@ -50,9 +50,9 @@ export default function Dashboard({
   const router = useRouter()
 
   useEffect(() => {
-    if (!sandboxes) {
-      router.refresh()
-    }
+    // if (!sandboxes) {
+      router.refresh() // fix: update the dashboard to show the new project
+    // }
   }, [sandboxes])
 
   return (
