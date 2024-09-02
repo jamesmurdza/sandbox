@@ -45,13 +45,11 @@ export default function CodeEditor({
   const { socket, setUserAndSandboxId } = useSocket();
 
   useEffect(() => {
-    console.log('Effect triggered:', { socket, userData, sandboxData });
     // Ensure userData.id and sandboxData.id are available before attempting to connect
     if (userData.id && sandboxData.id) {
       // Check if the socket is not initialized or not connected
       if (!socket || (socket && !socket.connected)) {
         // Initialize socket connection
-        console.log('Initializing socket...');
         setUserAndSandboxId(userData.id, sandboxData.id);
       }
     }
@@ -445,7 +443,6 @@ export default function CodeEditor({
 
     const onLoadedEvent = (files: (TFolder | TFile)[]) => {
       setFiles(files)
-      console.log("loaded", files)
     }
 
     const onError = (message: string) => {
@@ -484,7 +481,6 @@ export default function CodeEditor({
       socket?.off("disableAccess", onDisableAccess)
       socket?.off("previewURL", loadPreviewURL)
     }
-    // }, []);
   }, [socket, terminals, setTerminals, setFiles, toast, setDisableAccess, isOwner, loadPreviewURL]);
 
   // Helper functions for tabs:

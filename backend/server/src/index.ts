@@ -143,8 +143,6 @@ io.on("connection", async (socket) => {
       isOwner: boolean;
     };
 
-    console.log("user:",data)
-
     if (data.isOwner) {
       isOwnerConnected = true;
       connections[data.sandboxId] = (connections[data.sandboxId] ?? 0) + 1;
@@ -185,7 +183,6 @@ io.on("connection", async (socket) => {
     fixPermissions();
 
     socket.emit("loaded", sandboxFiles.files);
-    console.log("files got", sandboxFiles.files)
 
     socket.on("getFile", (fileId: string, callback) => {
       console.log(fileId);
