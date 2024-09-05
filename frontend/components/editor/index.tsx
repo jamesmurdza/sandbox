@@ -1,37 +1,48 @@
 "use client"
 
 import { SetStateAction, useCallback, useEffect, useRef, useState } from "react"
-import monaco from "monaco-editor"
-import Editor, { BeforeMount, OnMount } from "@monaco-editor/react"
-import { toast } from "sonner"
+
+import { Sandbox, User, TFile, TFolder, TTab } from "@/lib/types"
+
+// Authentication
 import { useClerk } from "@clerk/nextjs"
 
+// Liveblocks
 import * as Y from "yjs"
 import LiveblocksProvider from "@liveblocks/yjs"
 import { MonacoBinding } from "y-monaco"
 import { Awareness } from "y-protocols/awareness"
 import { TypedLiveblocksProvider, useRoom, useSelf } from "@/liveblocks.config"
 
+// Icons
+import { FileJson, Loader2, TerminalSquare } from "lucide-react"
+
+// Contexts
+import { PreviewProvider, usePreview } from '@/context/PreviewContext';
+import { useSocket } from "@/context/SocketContext"
+
+// External Components
+import monaco from "monaco-editor"
+import { Terminal } from "@xterm/xterm"
+import Editor, { BeforeMount, OnMount } from "@monaco-editor/react"
+import { toast } from "sonner"
 import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable"
-import { FileJson, Loader2, TerminalSquare } from "lucide-react"
+import { ImperativePanelHandle } from "react-resizable-panels"
+
+// Editor Components
 import Tab from "../ui/tab"
 import Sidebar from "./sidebar"
 import GenerateInput from "./generate"
-import { Sandbox, User, TFile, TFolder, TTab } from "@/lib/types"
 import { addNew, processFileType, validateName, debounce } from "@/lib/utils"
 import { Cursors } from "./live/cursors"
-import { Terminal } from "@xterm/xterm"
 import DisableAccessModal from "./live/disableModal"
 import Loading from "./loading"
 import PreviewWindow from "./preview"
 import Terminals from "./terminals"
-import { ImperativePanelHandle } from "react-resizable-panels"
-import { PreviewProvider, usePreview } from '@/context/PreviewContext';
-import { useSocket } from "@/context/SocketContext"
 
 export default function CodeEditor({
   userData,
@@ -41,22 +52,17 @@ export default function CodeEditor({
   sandboxData: Sandbox
 }) {
 
-  //SocketContext functions and effects
+  // Socket to the backend server
   const { socket, setUserAndSandboxId } = useSocket();
-
   useEffect(() => {
-    // Ensure userData.id and sandboxData.id are available before attempting to connect
-    if (userData.id && sandboxData.id) {
-      // Check if the socket is not initialized or not connected
-      if (!socket || (socket && !socket.connected)) {
-        // Initialize socket connection
-        setUserAndSandboxId(userData.id, sandboxData.id);
-      }
-    }
-  }, [socket, userData.id, sandboxData.id, setUserAndSandboxId]);
+    // Pass the user and sandbox ID to the socket, causing the socket to be created and to connect.
+    setUserAndSandboxId(userData.id, sandboxData.id);
+  }, []);
 
-  //Preview Button state
+  // Preview panel state
   const [isPreviewCollapsed, setIsPreviewCollapsed] = useState(true)
+
+  // When the owner closes the project, isDisabled gets set for the other users.
   const [disableAccess, setDisableAccess] = useState({
     isDisabled: false,
     message: "",

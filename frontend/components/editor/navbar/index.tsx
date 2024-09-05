@@ -27,7 +27,7 @@ export default function Navbar({
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
 
-  const isOwner = sandboxData.userId === userData.id;;
+  const isOwner = sandboxData.userId === userData.id;
 
   return (
     <>
