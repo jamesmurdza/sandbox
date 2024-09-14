@@ -32,9 +32,7 @@ export default function RootLayout({
           >
             <SocketProvider>
             <PreviewProvider>
-            <TerminalProvider>
             {children}
-            </TerminalProvider>
             </PreviewProvider>
             </SocketProvider>
             <Analytics />
