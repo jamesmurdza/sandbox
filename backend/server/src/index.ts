@@ -202,9 +202,14 @@ io.on("connection", async (socket) => {
     socket.emit("loaded", sandboxFiles.files);
 
     socket.on("heartbeat", () => {
-      // This keeps the container alive for another CONTAINER_TIMEOUT seconds.
-      // The E2B docs are unclear, but the timeout is relative to the time of this method call. 
-      containers[data.sandboxId].setTimeout(CONTAINER_TIMEOUT);
+      try {
+        // This keeps the container alive for another CONTAINER_TIMEOUT seconds.
+        // The E2B docs are unclear, but the timeout is relative to the time of this method call. 
+        containers[data.sandboxId].setTimeout(CONTAINER_TIMEOUT);
+      } catch (e: any) {
+        console.error("Error setting timeout:", e);
+        io.emit("error", `Error: set timeout. ${e.message ?? e}`);
+      }
     });
 
     socket.on("getFile", (fileId: string, callback) => {
