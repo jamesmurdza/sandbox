@@ -1,0 +1,15 @@
+# This is a config for E2B sandbox template.
+# You can use 'template_id' (7qqypzcji6u1zmwpowzc) or 'template_name (laravel-sandbox) from this config to spawn a sandbox:
+
+# Python SDK
+# from e2b import Sandbox
+# sandbox = Sandbox(template='laravel-sandbox')
+
+# JS SDK
+# import { Sandbox } from 'e2b'
+# const sandbox = await Sandbox.create({ template: 'laravel-sandbox' })
+
+team_id = "6080eb88-ff65-40a8-b550-10491e269b99"
+dockerfile = "e2b.Dockerfile"
+template_name = "laravel-sandbox"
+template_id = "7qqypzcji6u1zmwpowzc"
