@@ -33,4 +33,11 @@ export const projectTemplates: {
     description: "A JavaScript runtime built on the V8 JavaScript engine",
     disabled: false,
   },
+  {
+    id: "Laravel",
+    name: "Laravel",
+    icon: "/project-icons/laravel.svg",
+    description: "A PHP framework for building web applications",
+    disabled: false,
+  },
 ]
