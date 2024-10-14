@@ -98,3 +98,28 @@ export const deepMerge = (target: any, source: any) => {
 const isObject = (item: any) => {
   return item && typeof item === "object" && !Array.isArray(item)
 }
+
+export function sortFileExplorer(
+  items: (TFile | TFolder)[]
+): (TFile | TFolder)[] {
+  return items
+    .sort((a, b) => {
+      // First, sort by type (folders before files)
+      if (a.type !== b.type) {
+        return a.type === "folder" ? -1 : 1
+      }
+
+      // Then, sort alphabetically by name
+      return a.name.localeCompare(b.name, undefined, { sensitivity: "base" })
+    })
+    .map((item) => {
+      // If it's a folder, recursively sort its children
+      if (item.type === "folder") {
+        return {
+          ...item,
+          children: sortFileExplorer(item.children),
+        }
+      }
+      return item
+    })
+}

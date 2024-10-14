@@ -9,7 +9,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import Image from "next/image"
-import { useState } from "react"
+import { useState, useCallback, useEffect, useMemo } from "react"
 import { set, z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
@@ -34,10 +34,20 @@ import {
 import { useUser } from "@clerk/nextjs"
 import { createSandbox } from "@/lib/actions"
 import { useRouter } from "next/navigation"
-import { Loader2 } from "lucide-react"
+import {
+  Loader2,
+  ChevronRight,
+  ChevronLeft,
+  Search,
+  SlashSquare,
+} from "lucide-react"
 import { Button } from "../ui/button"
 import { projectTemplates } from "@/lib/data"
 
+import useEmblaCarousel from "embla-carousel-react"
+import type { EmblaCarouselType } from "embla-carousel"
+import { WheelGesturesPlugin } from "embla-carousel-wheel-gestures"
+import { cn } from "@/lib/utils"
 const formSchema = z.object({
   name: z
     .string()
@@ -57,11 +67,20 @@ export default function NewProjectModal({
   open: boolean
   setOpen: (open: boolean) => void
 }) {
+  const router = useRouter()
+  const user = useUser()
   const [selected, setSelected] = useState("reactjs")
   const [loading, setLoading] = useState(false)
-  const router = useRouter()
-
-  const user = useUser()
+  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false }, [
+    WheelGesturesPlugin(),
+  ])
+  const {
+    prevBtnDisabled,
+    nextBtnDisabled,
+    onPrevButtonClick,
+    onNextButtonClick,
+  } = usePrevNextButtons(emblaApi)
+  const [search, setSearch] = useState("")
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -71,6 +90,26 @@ export default function NewProjectModal({
     },
   })
 
+  const handleTemplateClick = useCallback(
+    ({ id, index }: { id: string; index: number }) => {
+      setSelected(id)
+      emblaApi?.scrollTo(index)
+    },
+    [emblaApi]
+  )
+  const filteredTemplates = useMemo(
+    () =>
+      projectTemplates.filter(
+        (item) =>
+          item.name.toLowerCase().includes(search.toLowerCase()) ||
+          item.description.toLowerCase().includes(search.toLowerCase())
+      ),
+    [search, projectTemplates]
+  )
+  const emptyTemplates = useMemo(
+    () => filteredTemplates.length === 0,
+    [filteredTemplates]
+  )
   async function onSubmit(values: z.infer<typeof formSchema>) {
     if (!user.isSignedIn) return
 
@@ -80,7 +119,6 @@ export default function NewProjectModal({
     const id = await createSandbox(sandboxData)
     router.push(`/code/${id}`)
   }
-
   return (
     <Dialog
       open={open}
@@ -92,25 +130,89 @@ export default function NewProjectModal({
         <DialogHeader>
           <DialogTitle>Create A Sandbox</DialogTitle>
         </DialogHeader>
-        <div className="grid grid-cols-2 w-full gap-2 mt-2">
-          {projectTemplates.map((item) => (
-            <button
-              disabled={item.disabled || loading}
-              key={item.id}
-              onClick={() => setSelected(item.id)}
-              className={`${
-                selected === item.id ? "border-foreground" : "border-border"
-              } rounded-md border bg-card text-card-foreground shadow text-left p-4 flex flex-col transition-all focus-visible:outline-none focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed`}
+        <div className="flex flex-col gap-2 max-w-full overflow-hidden">
+          <div className="flex items-center justify-end">
+            <SearchInput
+              {...{
+                value: search,
+                onValueChange: setSearch,
+              }}
+            />
+          </div>
+          <div className="overflow-hidden relative" ref={emblaRef}>
+            <div
+              className={cn(
+                "grid grid-flow-col gap-x-2  min-h-[97px]",
+                emptyTemplates ? "auto-cols-[100%]" : "auto-cols-[200px]"
+              )}
             >
-              <div className="space-x-2 flex items-center justify-start w-full">
-                <Image alt="" src={item.icon} width={20} height={20} />
-                <div className="font-medium">{item.name}</div>
-              </div>
-              <div className="mt-2 text-muted-foreground text-sm">
-                {item.description}
-              </div>
-            </button>
-          ))}
+              {filteredTemplates.map((item, i) => (
+                <button
+                  disabled={item.disabled || loading}
+                  key={item.id}
+                  onClick={handleTemplateClick.bind(null, {
+                    id: item.id,
+                    index: i,
+                  })}
+                  className={cn(
+                    selected === item.id
+                      ? "shadow-foreground"
+                      : "shadow-border",
+                    "shadow-[0_0_0_1px_inset] rounded-md border bg-card text-card-foreground text-left p-4 flex flex-col transition-all focus-visible:outline-none focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
+                  )}
+                >
+                  <div className="space-x-2 flex items-center justify-start w-full">
+                    <Image alt="" src={item.icon} width={20} height={20} />
+                    <div className="font-medium">{item.name}</div>
+                  </div>
+                  <div className="mt-2 text-muted-foreground text-xs line-clamp-2">
+                    {item.description}
+                  </div>
+                </button>
+              ))}
+              {emptyTemplates && (
+                <div className="flex flex-col gap-2 items-center text-center justify-center text-muted-foreground text-sm">
+                  <p>No templates found</p>
+                  <Button size="xs" asChild>
+                    <a
+                      href="https://github.com/jamesmurdza/sandbox"
+                      target="_blank"
+                    >
+                      Contribute
+                    </a>
+                  </Button>
+                </div>
+              )}
+            </div>
+            <div
+              className={cn(
+                "absolute transition-all opacity-100 duration-400 bg-gradient-to-r from-background via-background to-transparent w-14 pl-1 left-0 top-0 -translate-x-1 bottom-0 h-full flex items-center",
+                prevBtnDisabled && "opacity-0 pointer-events-none"
+              )}
+            >
+              <Button
+                size="smIcon"
+                className="rounded-full"
+                onClick={onPrevButtonClick}
+              >
+                <ChevronLeft className="size-5" />
+              </Button>
+            </div>
+            <div
+              className={cn(
+                "absolute transition-all opacity-100 duration-400 bg-gradient-to-l from-background via-background to-transparent w-14 pl-1 right-0 top-0 translate-x-1 bottom-0 h-full flex items-center",
+                nextBtnDisabled && "opacity-0 pointer-events-none"
+              )}
+            >
+              <Button
+                size="smIcon"
+                className="rounded-full"
+                onClick={onNextButtonClick}
+              >
+                <ChevronRight className="size-5" />
+              </Button>
+            </div>
+          </div>
         </div>
 
         <Form {...form}>
@@ -177,4 +279,69 @@ export default function NewProjectModal({
       </DialogContent>
     </Dialog>
   )
+}
+
+function SearchInput({
+  value,
+  onValueChange,
+}: {
+  value?: string
+  onValueChange?: (value: string) => void
+}) {
+  const onSubmit = useCallback((e: React.FormEvent) => {
+    e.preventDefault()
+    console.log("searching")
+  }, [])
+  return (
+    <form {...{ onSubmit }} className="w-40 h-8 ">
+      <label
+        htmlFor="template-search"
+        className="flex gap-2 rounded-sm transition-colors bg-[#2e2e2e] border border-[--s-color] [--s-color:hsl(var(--muted-foreground))]  focus-within:[--s-color:#fff]  h-full items-center px-2"
+      >
+        <Search className="size-4 text-[--s-color] transition-colors" />
+        <input
+          id="template-search"
+          type="text"
+          name="search"
+          placeholder="Search templates"
+          value={value}
+          onChange={(e) => onValueChange?.(e.target.value)}
+          className="bg-transparent placeholder:text-muted-foreground text-white w-full focus:outline-none text-xs"
+        />
+      </label>
+    </form>
+  )
+}
+const usePrevNextButtons = (emblaApi: EmblaCarouselType | undefined) => {
+  const [prevBtnDisabled, setPrevBtnDisabled] = useState(true)
+  const [nextBtnDisabled, setNextBtnDisabled] = useState(true)
+
+  const onPrevButtonClick = useCallback(() => {
+    if (!emblaApi) return
+    emblaApi.scrollPrev()
+  }, [emblaApi])
+
+  const onNextButtonClick = useCallback(() => {
+    if (!emblaApi) return
+    emblaApi.scrollNext()
+  }, [emblaApi])
+
+  const onSelect = useCallback((emblaApi: EmblaCarouselType) => {
+    setPrevBtnDisabled(!emblaApi.canScrollPrev())
+    setNextBtnDisabled(!emblaApi.canScrollNext())
+  }, [])
+
+  useEffect(() => {
+    if (!emblaApi) return
+
+    onSelect(emblaApi)
+    emblaApi.on("reInit", onSelect).on("select", onSelect)
+  }, [emblaApi, onSelect])
+
+  return {
+    prevBtnDisabled,
+    nextBtnDisabled,
+    onPrevButtonClick,
+    onNextButtonClick,
+  }
 }

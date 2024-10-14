@@ -1,4 +1,4 @@
-"use client";
+"use client"
 
 import {
   FilePlus,
@@ -7,20 +7,22 @@ import {
   MonitorPlay,
   Search,
   Sparkles,
-} from "lucide-react";
-import SidebarFile from "./file";
-import SidebarFolder from "./folder";
-import { Sandbox, TFile, TFolder, TTab } from "@/lib/types";
-import { useEffect, useRef, useState } from "react";
-import New from "./new";
-import { Socket } from "socket.io-client";
-import { Switch } from "@/components/ui/switch";
+} from "lucide-react"
+import SidebarFile from "./file"
+import SidebarFolder from "./folder"
+import { Sandbox, TFile, TFolder, TTab } from "@/lib/types"
+import { useEffect, useMemo, useRef, useState } from "react"
+import New from "./new"
+import { Socket } from "socket.io-client"
+import { Switch } from "@/components/ui/switch"
 
 import {
   dropTargetForElements,
   monitorForElements,
-} from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
-import Button from "@/components/ui/customButton";
+} from "@atlaskit/pragmatic-drag-and-drop/element/adapter"
+import Button from "@/components/ui/customButton"
+import { Skeleton } from "@/components/ui/skeleton"
+import { sortFileExplorer } from "@/lib/utils"
 
 export default function Sidebar({
   sandboxData,
@@ -34,75 +36,75 @@ export default function Sidebar({
   addNew,
   deletingFolderId,
 }: {
-  sandboxData: Sandbox;
-  files: (TFile | TFolder)[];
-  selectFile: (tab: TTab) => void;
+  sandboxData: Sandbox
+  files: (TFile | TFolder)[]
+  selectFile: (tab: TTab) => void
   handleRename: (
     id: string,
     newName: string,
     oldName: string,
     type: "file" | "folder"
-  ) => boolean;
-  handleDeleteFile: (file: TFile) => void;
-  handleDeleteFolder: (folder: TFolder) => void;
-  socket: Socket;
-  setFiles: (files: (TFile | TFolder)[]) => void;
-  addNew: (name: string, type: "file" | "folder") => void;
-  deletingFolderId: string;
+  ) => boolean
+  handleDeleteFile: (file: TFile) => void
+  handleDeleteFolder: (folder: TFolder) => void
+  socket: Socket
+  setFiles: (files: (TFile | TFolder)[]) => void
+  addNew: (name: string, type: "file" | "folder") => void
+  deletingFolderId: string
 }) {
-  const ref = useRef(null); // drop target
+  const ref = useRef(null) // drop target
 
-  const [creatingNew, setCreatingNew] = useState<"file" | "folder" | null>(
-    null
-  );
-  const [movingId, setMovingId] = useState("");
-
+  const [creatingNew, setCreatingNew] = useState<"file" | "folder" | null>(null)
+  const [movingId, setMovingId] = useState("")
+  const sortedFiles = useMemo(() => {
+    return sortFileExplorer(files)
+  }, [files])
   useEffect(() => {
-    const el = ref.current;
+    const el = ref.current
 
     if (el) {
       return dropTargetForElements({
         element: el,
         getData: () => ({ id: `projects/${sandboxData.id}` }),
         canDrop: ({ source }) => {
-          const file = files.find((child) => child.id === source.data.id);
-          return !file;
+          const file = files.find((child) => child.id === source.data.id)
+          return !file
         },
-      });
+      })
     }
-  }, [files]);
+  }, [files])
 
   useEffect(() => {
     return monitorForElements({
       onDrop({ source, location }) {
-        const destination = location.current.dropTargets[0];
+        const destination = location.current.dropTargets[0]
         if (!destination) {
-          return;
+          return
         }
 
-        const fileId = source.data.id as string;
-        const folderId = destination.data.id as string;
+        const fileId = source.data.id as string
+        const folderId = destination.data.id as string
 
-        const fileFolder = fileId.split("/").slice(0, -1).join("/");
+        const fileFolder = fileId.split("/").slice(0, -1).join("/")
         if (fileFolder === folderId) {
-          return;
+          return
         }
 
-        console.log("move file", fileId, "to folder", folderId);
+        console.log("move file", fileId, "to folder", folderId)
 
-        setMovingId(fileId);
+        setMovingId(fileId)
         socket.emit(
           "moveFile",
           fileId,
           folderId,
           (response: (TFolder | TFile)[]) => {
-            setFiles(response);
-            setMovingId("");
+            setFiles(response)
+            setMovingId("")
           }
-        );
+        )
       },
-    });
-  }, []);
+    })
+  }, [])
 
   return (
     <div className="h-full w-56 select-none flex flex-col text-sm items-start justify-between p-2">
@@ -137,13 +139,15 @@ export default function Sidebar({
             isDraggedOver ? "bg-secondary/50" : ""
           } rounded-sm w-full mt-1 flex flex-col`}
         > */}
-          {files.length === 0 ? (
-            <div className="w-full flex justify-center">
-              <Loader2 className="w-4 h-4 animate-spin" />
+          {sortedFiles.length === 0 ? (
+            <div className="w-full flex flex-col justify-center">
+              {new Array(6).fill(0).map((_, i) => (
+                <Skeleton key={i} className="h-[1.625rem] mb-0.5 rounded-sm" />
+              ))}
             </div>
           ) : (
             <>
-              {files.map((child) =>
+              {sortedFiles.map((child) =>
                 child.type === "file" ? (
                   <SidebarFile
                     key={child.id}
@@ -172,7 +176,7 @@ export default function Sidebar({
                   socket={socket}
                   type={creatingNew}
                   stopEditing={() => {
-                    setCreatingNew(null);
+                    setCreatingNew(null)
                   }}
                   addNew={addNew}
                 />
@@ -187,5 +191,5 @@ export default function Sidebar({
         </Button> */}
       </div>
     </div>
-  );
+  )
 }
