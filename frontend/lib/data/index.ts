@@ -33,4 +33,11 @@ export const projectTemplates: {
     description: "A faster way to build and share data apps",
     disabled: false,
   },
+  {
+    id: "Laravel",
+    name: "Laravel",
+    icon: "/project-icons/laravel.svg",
+    description: "A PHP framework for building web applications",
+    disabled: false,
+  },
 ]
