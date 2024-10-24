@@ -7,6 +7,7 @@ import { createServer } from "http"
 import { Server } from "socket.io"
 import { z } from "zod"
 import { AIWorker } from "./AIWorker"
+import { CONTAINER_TIMEOUT } from "./constants"
 import { DokkuClient } from "./DokkuClient"
 import { FileManager, SandboxFiles } from "./FileManager"
 import {
@@ -17,6 +18,7 @@ import {
   saveFileRL,
 } from "./ratelimit"
 import { SecureGitClient } from "./SecureGitClient"
+import { handleCloseTerminal, handleCreateFile, handleCreateFolder, handleCreateTerminal, handleDeleteFile, handleDeleteFolder, handleDeploy, handleDisconnect, handleGenerateCode, handleGetFile, handleGetFolder, handleHeartbeat, handleListApps, handleMoveFile, handleRenameFile, handleResizeTerminal, handleSaveFile, handleTerminalData } from "./SocketHandlers"
 import { TerminalManager } from "./TerminalManager"
 import { DokkuResponse, User } from "./types"
 import { LockManager } from "./utils"
@@ -35,9 +37,6 @@ process.on("unhandledRejection", (reason, promise) => {
   // You can also handle the rejected promise here if needed
 })
 
-// The amount of time in ms that a container will stay alive without a hearbeat.
-const CONTAINER_TIMEOUT = 120_000
-
 // Load environment variables
 dotenv.config()
 
@@ -55,14 +54,6 @@ const io = new Server(httpServer, {
 // Check if the sandbox owner is connected
 function isOwnerConnected(sandboxId: string): boolean {
   return (connections[sandboxId] ?? 0) > 0
-}
-
-// Extract port number from a string
-function extractPortNumber(inputString: string): number | null {
-  const cleanedString = inputString.replace(/\x1B\[[0-9;]*m/g, "")
-  const regex = /http:\/\/localhost:(\d+)/
-  const match = cleanedString.match(regex)
-  return match ? parseInt(match[1]) : null
 }
 
 // Initialize containers and managers
@@ -169,125 +160,6 @@ const aiWorker = new AIWorker(
   process.env.DATABASE_WORKER_URL!,
   process.env.WORKERS_KEY!
 )
-// Handle heartbeat from a socket connection
-function handleHeartbeat(socket: any, data: any, containers: any) {
-  containers[data.sandboxId].setTimeout(CONTAINER_TIMEOUT)
-}
-
-// Handle getting a file
-function handleGetFile(fileManager: FileManager, fileId: string) {
-  return fileManager.getFile(fileId)
-}
-
-// Handle getting a folder
-function handleGetFolder(fileManager: FileManager, folderId: string) {
-  return fileManager.getFolder(folderId)
-}
-
-// Handle saving a file
-function handleSaveFile(fileManager: FileManager, fileId: string, body: string) {
-  return fileManager.saveFile(fileId, body)
-}
-
-// Handle moving a file
-function handleMoveFile(fileManager: FileManager, fileId: string, folderId: string) {
-  return fileManager.moveFile(fileId, folderId)
-}
-
-// Handle listing apps
-async function handleListApps(client: DokkuClient | null) {
-  if (!client) throw Error("Failed to retrieve apps list: No Dokku client")
-  return { success: true, apps: await client.listApps() }
-}
-
-// Handle deploying code
-async function handleDeploy(git: SecureGitClient | null, fileManager: FileManager, sandboxId: string) {
-  if (!git) throw Error("Failed to retrieve apps list: No git client")
-  const fixedFilePaths = fileManager.sandboxFiles.fileData.map((file) => ({
-    ...file,
-    id: file.id.split("/").slice(2).join("/"),
-  }))
-  await git.pushFiles(fixedFilePaths, sandboxId)
-  return { success: true }
-}
-
-// Handle creating a file
-function handleCreateFile(fileManager: FileManager, name: string) {
-  return fileManager.createFile(name)
-}
-
-// Handle creating a folder
-function handleCreateFolder(fileManager: FileManager, name: string) {
-  return fileManager.createFolder(name)
-}
-
-// Handle renaming a file
-function handleRenameFile(fileManager: FileManager, fileId: string, newName: string) {
-  return fileManager.renameFile(fileId, newName)
-}
-
-// Handle deleting a file
-function handleDeleteFile(fileManager: FileManager, fileId: string) {
-  return fileManager.deleteFile(fileId)
-}
-
-// Handle deleting a folder
-function handleDeleteFolder(fileManager: FileManager, folderId: string) {
-  return fileManager.deleteFolder(folderId)
-}
-
-// Handle creating a terminal session
-async function handleCreateTerminal(terminalManager: TerminalManager, id: string, socket: any, containers: any, data: any) {
-  await lockManager.acquireLock(data.sandboxId, async () => {
-    await terminalManager.createTerminal(id, (responseString: string) => {
-      socket.emit("terminalResponse", { id, data: responseString })
-      const port = extractPortNumber(responseString)
-      if (port) {
-        socket.emit(
-          "previewURL",
-          "https://" + containers[data.sandboxId].getHost(port)
-        )
-      }
-    })
-  })
-}
-
-// Handle resizing a terminal
-function handleResizeTerminal(terminalManager: TerminalManager, dimensions: { cols: number; rows: number }) {
-  terminalManager.resizeTerminal(dimensions)
-}
-
-// Handle sending data to a terminal
-function handleTerminalData(terminalManager: TerminalManager, id: string, data: string) {
-  return terminalManager.sendTerminalData(id, data)
-}
-
-// Handle closing a terminal
-function handleCloseTerminal(terminalManager: TerminalManager, id: string) {
-  return terminalManager.closeTerminal(id)
-}
-
-// Handle generating code
-function handleGenerateCode(aiWorker: AIWorker, userId: string, fileName: string, code: string, line: number, instructions: string) {
-  return aiWorker.generateCode(userId, fileName, code, line, instructions)
-}
-
-// Handle a client disconnecting from the server
-async function handleDisconnect(data: any, connections: any, terminalManager: TerminalManager, fileManager: FileManager, socket: any) {
-  if (data.isOwner) {
-    connections[data.sandboxId]--
-  }
-
-  await terminalManager.closeAllTerminals()
-  await fileManager.closeWatchers()
-
-  if (data.isOwner && connections[data.sandboxId] <= 0) {
-    socket.broadcast.emit(
-      "disableAccess",
-      "The sandbox owner has disconnected."
-    )
-  }
-}
 
 // Handle a client connecting to the server
 io.on("connection", async (socket) => {
@@ -479,7 +351,7 @@ io.on("connection", async (socket) => {
 
     socket.on("createTerminal", async (id: string, callback) => {
       try {
-        await handleCreateTerminal(terminalManager, id, socket, containers, data)
+        await handleCreateTerminal(lockManager, terminalManager, id, socket, containers, data)
         callback()
       } catch (e: any) {
         console.error(`Error creating terminal ${id}:`, e)
