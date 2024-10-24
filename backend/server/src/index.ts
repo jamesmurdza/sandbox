@@ -398,7 +398,19 @@ io.on("connection", async (socket) => {
 
     socket.on("disconnect", async () => {
       try {
-        await handleDisconnect(data, connections, terminalManager, fileManager, socket)
+        if (data.isOwner) {
+          connections[data.sandboxId]--
+        }
+
+        await terminalManager.closeAllTerminals()
+        await fileManager.closeWatchers()
+
+        if (data.isOwner && connections[data.sandboxId] <= 0) {
+          socket.broadcast.emit(
+            "disableAccess",
+            "The sandbox owner has disconnected."
+          )
+        }
       } catch (e: any) {
         console.log("Error disconnecting:", e)
         socket.emit("error", `Error: disconnecting. ${e.message ?? e}`)

@@ -116,20 +116,4 @@ export function handleCloseTerminal(terminalManager: TerminalManager, id: string
 export function handleGenerateCode(aiWorker: AIWorker, userId: string, fileName: string, code: string, line: number, instructions: string) {
     return aiWorker.generateCode(userId, fileName, code, line, instructions)
 }
-
-// Handle a client disconnecting from the server
-export async function handleDisconnect(data: any, connections: any, terminalManager: TerminalManager, fileManager: FileManager, socket: any) {
-    if (data.isOwner) {
-        connections[data.sandboxId]--
-    }
-
-    await terminalManager.closeAllTerminals()
-    await fileManager.closeWatchers()
-
-    if (data.isOwner && connections[data.sandboxId] <= 0) {
-        socket.broadcast.emit(
-            "disableAccess",
-            "The sandbox owner has disconnected."
-        )
-    }
 }
