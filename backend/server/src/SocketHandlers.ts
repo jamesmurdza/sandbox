@@ -6,13 +6,13 @@ import { SecureGitClient } from "./SecureGitClient"
 import { TerminalManager } from "./TerminalManager"
 import { LockManager } from "./utils"
 
-interface HandlerContext {
+export interface HandlerContext {
     fileManager: FileManager;
     terminalManager: TerminalManager;
     sandboxManager: any;
     aiWorker: AIWorker;
-    dokkuClient: DokkuClient | undefined;
-    gitClient: SecureGitClient | undefined;
+    dokkuClient: DokkuClient | null;
+    gitClient: SecureGitClient | null;
     lockManager: LockManager
 }
 
