@@ -18,7 +18,7 @@ import {
   saveFileRL,
 } from "./ratelimit"
 import { SecureGitClient } from "./SecureGitClient"
-import { handleCloseTerminal, handleCreateFile, handleCreateFolder, handleCreateTerminal, handleDeleteFile, handleDeleteFolder, handleDeploy, handleDisconnect, handleGenerateCode, handleGetFile, handleGetFolder, handleHeartbeat, handleListApps, handleMoveFile, handleRenameFile, handleResizeTerminal, handleSaveFile, handleTerminalData } from "./SocketHandlers"
+import { handleCloseTerminal, handleCreateFile, handleCreateFolder, handleCreateTerminal, handleDeleteFile, handleDeleteFolder, handleDeploy, handleGenerateCode, handleGetFile, handleGetFolder, handleHeartbeat, handleListApps, handleMoveFile, HandlerContext, handleRenameFile, handleResizeTerminal, handleSaveFile, handleTerminalData } from "./SocketHandlers"
 import { TerminalManager } from "./TerminalManager"
 import { DokkuResponse, User } from "./types"
 import { LockManager } from "./utils"
@@ -134,7 +134,7 @@ if (!process.env.DOKKU_KEY)
   console.error("Environment variable DOKKU_KEY is not defined")
 
 // Initialize Dokku client
-const client =
+const dokkuClient =
   process.env.DOKKU_HOST && process.env.DOKKU_KEY && process.env.DOKKU_USERNAME
     ? new DokkuClient({
       host: process.env.DOKKU_HOST,
@@ -142,10 +142,10 @@ const client =
       privateKey: fs.readFileSync(process.env.DOKKU_KEY),
     })
     : null
-client?.connect()
+dokkuClient?.connect()
 
 // Initialize Git client used to deploy Dokku apps
-const git =
+const gitClient =
   process.env.DOKKU_HOST && process.env.DOKKU_KEY
     ? new SecureGitClient(
       `dokku@${process.env.DOKKU_HOST}`,
@@ -228,10 +228,20 @@ io.on("connection", async (socket) => {
     // Load file list from the file manager into the editor
     sendLoadedEvent(fileManager.sandboxFiles)
 
+    const handlerContext: HandlerContext = {
+      fileManager,
+      terminalManager,
+      aiWorker,
+      dokkuClient,
+      gitClient,
+      lockManager,
+      sandboxManager: containers[data.sandboxId],
+    }
+
     // Handle various socket events (heartbeat, file operations, terminal operations, etc.)
     socket.on("heartbeat", async () => {
       try {
-        handleHeartbeat(socket, data, containers)
+        handleHeartbeat(data, handlerContext)
       } catch (e: any) {
         console.error("Error setting timeout:", e)
         socket.emit("error", `Error: set timeout. ${e.message ?? e}`)
@@ -240,7 +250,7 @@ io.on("connection", async (socket) => {
 
     socket.on("getFile", async (fileId: string, callback) => {
       try {
-        callback(await handleGetFile(fileManager, fileId))
+        callback(await handleGetFile(fileId, handlerContext))
       } catch (e: any) {
         console.error("Error getting file:", e)
         socket.emit("error", `Error: get file. ${e.message ?? e}`)
@@ -249,7 +259,7 @@ io.on("connection", async (socket) => {
 
     socket.on("getFolder", async (folderId: string, callback) => {
       try {
-        callback(await handleGetFolder(fileManager, folderId))
+        callback(await handleGetFolder(folderId, handlerContext))
       } catch (e: any) {
         console.error("Error getting folder:", e)
         socket.emit("error", `Error: get folder. ${e.message ?? e}`)
@@ -259,7 +269,7 @@ io.on("connection", async (socket) => {
     socket.on("saveFile", async (fileId: string, body: string) => {
       try {
         await saveFileRL.consume(data.userId, 1)
-        await handleSaveFile(fileManager, fileId, body)
+        await handleSaveFile(fileId, body, handlerContext)
       } catch (e: any) {
         console.error("Error saving file:", e)
         socket.emit("error", `Error: file saving. ${e.message ?? e}`)
@@ -268,7 +278,7 @@ io.on("connection", async (socket) => {
 
     socket.on("moveFile", async (fileId: string, folderId: string, callback) => {
       try {
-        callback(await handleMoveFile(fileManager, fileId, folderId))
+        callback(await handleMoveFile(fileId, folderId, handlerContext))
       } catch (e: any) {
         console.error("Error moving file:", e)
         socket.emit("error", `Error: file moving. ${e.message ?? e}`)
@@ -278,7 +288,7 @@ io.on("connection", async (socket) => {
     socket.on("list", async (callback: (response: DokkuResponse) => void) => {
       console.log("Retrieving apps list...")
       try {
-        callback(await handleListApps(client))
+        callback(await handleListApps(handlerContext))
       } catch (error) {
         callback({
           success: false,
@@ -290,7 +300,7 @@ io.on("connection", async (socket) => {
     socket.on("deploy", async (callback: (response: DokkuResponse) => void) => {
       try {
         console.log("Deploying project ${data.sandboxId}...")
-        callback(await handleDeploy(git, fileManager, data.sandboxId))
+        callback(await handleDeploy(data.sandboxId, handlerContext))
       } catch (error) {
         callback({
           success: false,
@@ -302,7 +312,7 @@ io.on("connection", async (socket) => {
     socket.on("createFile", async (name: string, callback) => {
       try {
         await createFileRL.consume(data.userId, 1)
-        callback({ success: await handleCreateFile(fileManager, name) })
+        callback({ success: await handleCreateFile(name, handlerContext) })
       } catch (e: any) {
         console.error("Error creating file:", e)
         socket.emit("error", `Error: file creation. ${e.message ?? e}`)
@@ -312,7 +322,7 @@ io.on("connection", async (socket) => {
     socket.on("createFolder", async (name: string, callback) => {
       try {
         await createFolderRL.consume(data.userId, 1)
-        await handleCreateFolder(fileManager, name)
+        await handleCreateFolder(name, handlerContext)
         callback()
       } catch (e: any) {
         console.error("Error creating folder:", e)
@@ -323,7 +333,7 @@ io.on("connection", async (socket) => {
     socket.on("renameFile", async (fileId: string, newName: string) => {
       try {
         await renameFileRL.consume(data.userId, 1)
-        await handleRenameFile(fileManager, fileId, newName)
+        await handleRenameFile(fileId, newName, handlerContext)
       } catch (e: any) {
         console.error("Error renaming file:", e)
         socket.emit("error", `Error: file renaming. ${e.message ?? e}`)
@@ -333,7 +343,7 @@ io.on("connection", async (socket) => {
     socket.on("deleteFile", async (fileId: string, callback) => {
       try {
         await deleteFileRL.consume(data.userId, 1)
-        callback(await handleDeleteFile(fileManager, fileId))
+        callback(await handleDeleteFile(fileId, handlerContext))
       } catch (e: any) {
         console.error("Error deleting file:", e)
         socket.emit("error", `Error: file deletion. ${e.message ?? e}`)
@@ -342,7 +352,7 @@ io.on("connection", async (socket) => {
 
     socket.on("deleteFolder", async (folderId: string, callback) => {
       try {
-        callback(await handleDeleteFolder(fileManager, folderId))
+        callback(await handleDeleteFolder(folderId, handlerContext))
       } catch (e: any) {
         console.error("Error deleting folder:", e)
         socket.emit("error", `Error: folder deletion. ${e.message ?? e}`)
@@ -351,7 +361,7 @@ io.on("connection", async (socket) => {
 
     socket.on("createTerminal", async (id: string, callback) => {
       try {
-        await handleCreateTerminal(lockManager, terminalManager, id, socket, containers, data)
+        await handleCreateTerminal(id, socket, data, handlerContext)
         callback()
       } catch (e: any) {
         console.error(`Error creating terminal ${id}:`, e)
@@ -361,7 +371,7 @@ io.on("connection", async (socket) => {
 
     socket.on("resizeTerminal", (dimensions: { cols: number; rows: number }) => {
       try {
-        handleResizeTerminal(terminalManager, dimensions)
+        handleResizeTerminal(dimensions, handlerContext)
       } catch (e: any) {
         console.error("Error resizing terminal:", e)
         socket.emit("error", `Error: terminal resizing. ${e.message ?? e}`)
@@ -370,7 +380,7 @@ io.on("connection", async (socket) => {
 
     socket.on("terminalData", async (id: string, data: string) => {
       try {
-        await handleTerminalData(terminalManager, id, data)
+        await handleTerminalData(id, data, handlerContext)
       } catch (e: any) {
         console.error("Error writing to terminal:", e)
         socket.emit("error", `Error: writing to terminal. ${e.message ?? e}`)
@@ -379,7 +389,7 @@ io.on("connection", async (socket) => {
 
     socket.on("closeTerminal", async (id: string, callback) => {
       try {
-        await handleCloseTerminal(terminalManager, id)
+        await handleCloseTerminal(id, handlerContext)
         callback()
       } catch (e: any) {
         console.error("Error closing terminal:", e)
@@ -389,7 +399,7 @@ io.on("connection", async (socket) => {
 
     socket.on("generateCode", async (fileName: string, code: string, line: number, instructions: string, callback) => {
       try {
-        callback(await handleGenerateCode(aiWorker, data.userId, fileName, code, line, instructions))
+        callback(await handleGenerateCode(data.userId, fileName, code, line, instructions, handlerContext))
       } catch (e: any) {
         console.error("Error generating code:", e)
         socket.emit("error", `Error: code generation. ${e.message ?? e}`)

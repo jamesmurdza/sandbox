@@ -6,6 +6,16 @@ import { SecureGitClient } from "./SecureGitClient"
 import { TerminalManager } from "./TerminalManager"
 import { LockManager } from "./utils"
 
+interface HandlerContext {
+    fileManager: FileManager;
+    terminalManager: TerminalManager;
+    sandboxManager: any;
+    aiWorker: AIWorker;
+    dokkuClient: DokkuClient | undefined;
+    gitClient: SecureGitClient | undefined;
+    lockManager: LockManager
+}
+
 // Extract port number from a string
 function extractPortNumber(inputString: string): number | null {
     const cleanedString = inputString.replace(/\x1B\[[0-9;]*m/g, "")
@@ -15,82 +25,82 @@ function extractPortNumber(inputString: string): number | null {
 }
 
 // Handle heartbeat from a socket connection
-export function handleHeartbeat(socket: any, data: any, containers: any) {
-    containers[data.sandboxId].setTimeout(CONTAINER_TIMEOUT)
+export function handleHeartbeat(data: any, context: HandlerContext) {
+    context.sandboxManager.setTimeout(CONTAINER_TIMEOUT)
 }
 
 // Handle getting a file
-export function handleGetFile(fileManager: FileManager, fileId: string) {
-    return fileManager.getFile(fileId)
+export function handleGetFile(fileId: string, context: HandlerContext) {
+    return context.fileManager.getFile(fileId)
 }
 
 // Handle getting a folder
-export function handleGetFolder(fileManager: FileManager, folderId: string) {
-    return fileManager.getFolder(folderId)
+export function handleGetFolder(folderId: string, context: HandlerContext) {
+    return context.fileManager.getFolder(folderId)
 }
 
 // Handle saving a file
-export function handleSaveFile(fileManager: FileManager, fileId: string, body: string) {
-    return fileManager.saveFile(fileId, body)
+export function handleSaveFile(fileId: string, body: string, context: HandlerContext) {
+    return context.fileManager.saveFile(fileId, body)
 }
 
 // Handle moving a file
-export function handleMoveFile(fileManager: FileManager, fileId: string, folderId: string) {
-    return fileManager.moveFile(fileId, folderId)
+export function handleMoveFile(fileId: string, folderId: string, context: HandlerContext) {
+    return context.fileManager.moveFile(fileId, folderId)
 }
 
 // Handle listing apps
-export async function handleListApps(client: DokkuClient | null) {
-    if (!client) throw Error("Failed to retrieve apps list: No Dokku client")
-    return { success: true, apps: await client.listApps() }
+export async function handleListApps(context: HandlerContext) {
+    if (!context.dokkuClient) throw Error("Failed to retrieve apps list: No Dokku client")
+    return { success: true, apps: await context.dokkuClient.listApps() }
 }
 
 // Handle deploying code
-export async function handleDeploy(git: SecureGitClient | null, fileManager: FileManager, sandboxId: string) {
-    if (!git) throw Error("Failed to retrieve apps list: No git client")
-    const fixedFilePaths = fileManager.sandboxFiles.fileData.map((file) => ({
+export async function handleDeploy(sandboxId: string, context: HandlerContext) {
+    if (!context.gitClient) throw Error("Failed to retrieve apps list: No git client")
+    const fixedFilePaths = context.fileManager.sandboxFiles.fileData.map((file) => ({
         ...file,
         id: file.id.split("/").slice(2).join("/"),
     }))
-    await git.pushFiles(fixedFilePaths, sandboxId)
+    await context.gitClient.pushFiles(fixedFilePaths, sandboxId)
     return { success: true }
 }
 
 // Handle creating a file
-export function handleCreateFile(fileManager: FileManager, name: string) {
-    return fileManager.createFile(name)
+export function handleCreateFile(name: string, context: HandlerContext) {
+    return context.fileManager.createFile(name)
 }
 
 // Handle creating a folder
-export function handleCreateFolder(fileManager: FileManager, name: string) {
-    return fileManager.createFolder(name)
+export function handleCreateFolder(name: string, context: HandlerContext) {
+    return context.fileManager.createFolder(name)
 }
 
 // Handle renaming a file
-export function handleRenameFile(fileManager: FileManager, fileId: string, newName: string) {
-    return fileManager.renameFile(fileId, newName)
+export function handleRenameFile(fileId: string, newName: string, context: HandlerContext) {
+    return context.fileManager.renameFile(fileId, newName)
 }
 
 // Handle deleting a file
-export function handleDeleteFile(fileManager: FileManager, fileId: string) {
-    return fileManager.deleteFile(fileId)
+export function handleDeleteFile(fileId: string, context: HandlerContext) {
+    return context.fileManager.deleteFile(fileId)
 }
 
 // Handle deleting a folder
-export function handleDeleteFolder(fileManager: FileManager, folderId: string) {
-    return fileManager.deleteFolder(folderId)
+export function handleDeleteFolder(folderId: string, context: HandlerContext) {
+    return context.fileManager.deleteFolder(folderId)
 }
 
 // Handle creating a terminal session
-export async function handleCreateTerminal(lockManager: LockManager, terminalManager: TerminalManager, id: string, socket: any, containers: any, data: any) {
-    await lockManager.acquireLock(data.sandboxId, async () => {
-        await terminalManager.createTerminal(id, (responseString: string) => {
+export async function handleCreateTerminal(id: string, socket: any, data: any, context: HandlerContext) {
+    await context.lockManager.acquireLock(data.sandboxId, async () => {
+        await context.terminalManager.createTerminal(id, (responseString: string) => {
             socket.emit("terminalResponse", { id, data: responseString })
             const port = extractPortNumber(responseString)
             if (port) {
                 socket.emit(
                     "previewURL",
-                    "https://" + containers[data.sandboxId].getHost(port)
+                    "https://" + context.sandboxManager.getHost(port)
                 )
             }
         })
@@ -98,22 +108,21 @@ export async function handleCreateTerminal(lockManager: LockManager, terminalMan
 }
 
 // Handle resizing a terminal
-export function handleResizeTerminal(terminalManager: TerminalManager, dimensions: { cols: number; rows: number }) {
-    terminalManager.resizeTerminal(dimensions)
+export function handleResizeTerminal(dimensions: { cols: number; rows: number }, context: HandlerContext) {
+    context.terminalManager.resizeTerminal(dimensions)
 }
 
 // Handle sending data to a terminal
-export function handleTerminalData(terminalManager: TerminalManager, id: string, data: string) {
-    return terminalManager.sendTerminalData(id, data)
+export function handleTerminalData(id: string, data: string, context: HandlerContext) {
+    return context.terminalManager.sendTerminalData(id, data)
 }
 
 // Handle closing a terminal
-export function handleCloseTerminal(terminalManager: TerminalManager, id: string) {
-    return terminalManager.closeTerminal(id)
+export function handleCloseTerminal(id: string, context: HandlerContext) {
+    return context.terminalManager.closeTerminal(id)
 }
 
 // Handle generating code
-export function handleGenerateCode(aiWorker: AIWorker, userId: string, fileName: string, code: string, line: number, instructions: string) {
-    return aiWorker.generateCode(userId, fileName, code, line, instructions)
-}
+export function handleGenerateCode(userId: string, fileName: string, code: string, line: number, instructions: string, context: HandlerContext) {
+    return context.aiWorker.generateCode(userId, fileName, code, line, instructions)
 }
