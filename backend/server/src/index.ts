@@ -70,11 +70,11 @@ const lockManager = new LockManager()
 
 // Check for required environment variables
 if (!process.env.DOKKU_HOST)
-  console.error("Environment variable DOKKU_HOST is not defined")
+  console.warn("Environment variable DOKKU_HOST is not defined")
 if (!process.env.DOKKU_USERNAME)
-  console.error("Environment variable DOKKU_USERNAME is not defined")
+  console.warn("Environment variable DOKKU_USERNAME is not defined")
 if (!process.env.DOKKU_KEY)
-  console.error("Environment variable DOKKU_KEY is not defined")
+  console.warn("Environment variable DOKKU_KEY is not defined")
 
 // Initialize Dokku client
 const dokkuClient =
