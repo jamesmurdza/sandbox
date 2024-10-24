@@ -18,7 +18,7 @@ import {
 } from "./ratelimit"
 import { SecureGitClient } from "./SecureGitClient"
 import { TerminalManager } from "./TerminalManager"
-import { User } from "./types"
+import { DokkuResponse, User } from "./types"
 import { LockManager } from "./utils"
 
 // Handle uncaught exceptions
@@ -296,63 +296,49 @@ io.on("connection", async (socket) => {
       }
     )
 
-    interface CallbackResponse {
-      success: boolean
-      apps?: string[]
-      message?: string
-    }
-
     // Handle request to list apps
-    socket.on(
-      "list",
-      async (callback: (response: CallbackResponse) => void) => {
-        console.log("Retrieving apps list...")
-        try {
-          if (!client)
-            throw Error("Failed to retrieve apps list: No Dokku client")
-          callback({
-            success: true,
-            apps: await client.listApps(),
-          })
-        } catch (error) {
-          callback({
-            success: false,
-            message: "Failed to retrieve apps list",
-          })
-        }
+    socket.on("list", async (callback: (response: DokkuResponse) => void) => {
+      console.log("Retrieving apps list...")
+      try {
+        if (!client)
+          throw Error("Failed to retrieve apps list: No Dokku client")
+        callback({
+          success: true,
+          apps: await client.listApps(),
+        })
+      } catch (error) {
+        callback({
+          success: false,
+          message: "Failed to retrieve apps list",
+        })
       }
-    )
+    })
 
     // Handle request to deploy project
-    socket.on(
-      "deploy",
-      async (callback: (response: CallbackResponse) => void) => {
-        try {
-          // Push the project files to the Dokku server
-          console.log("Deploying project ${data.sandboxId}...")
-          if (!git) throw Error("Failed to retrieve apps list: No git client")
-          // Remove the /project/[id]/ component of each file path:
-          const fixedFilePaths = fileManager.sandboxFiles.fileData.map(
-            (file) => {
-              return {
-                ...file,
-                id: file.id.split("/").slice(2).join("/"),
-              }
-            }
-          )
-          // Push all files to Dokku.
-          await git.pushFiles(fixedFilePaths, data.sandboxId)
-          callback({
-            success: true,
-          })
-        } catch (error) {
-          callback({
-            success: false,
-            message: "Failed to deploy project: " + error,
-          })
-        }
+    socket.on("deploy", async (callback: (response: DokkuResponse) => void) => {
+      try {
+        // Push the project files to the Dokku server
+        console.log("Deploying project ${data.sandboxId}...")
+        if (!git) throw Error("Failed to retrieve apps list: No git client")
+        // Remove the /project/[id]/ component of each file path:
+        const fixedFilePaths = fileManager.sandboxFiles.fileData.map((file) => {
+          return {
+            ...file,
+            id: file.id.split("/").slice(2).join("/"),
+          }
+        })
+        // Push all files to Dokku.
+        await git.pushFiles(fixedFilePaths, data.sandboxId)
+        callback({
+          success: true,
+        })
+      } catch (error) {
+        callback({
+          success: false,
+          message: "Failed to deploy project: " + error,
+        })
       }
-    )
+    })
 
     // Handle request to create a new file
     socket.on("createFile", async (name: string, callback) => {

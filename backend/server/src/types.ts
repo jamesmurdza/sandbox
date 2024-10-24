@@ -68,3 +68,8 @@ export type R2FileBody = R2FileData & {
   json: Promise<any>
   blob: Promise<Blob>
 }
+export interface DokkuResponse {
+  success: boolean
+  apps?: string[]
+  message?: string
+}
