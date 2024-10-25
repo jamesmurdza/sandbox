@@ -11,18 +11,22 @@ import { SandboxManager } from "./SandboxManager"
 import { SecureGitClient } from "./SecureGitClient"
 import { socketAuth } from "./socketAuth"; // Import the new socketAuth middleware
 
+// Log errors and send a notification to the client
+export const handleErrors = (message: string, error: any, socket: any) => {
+  console.error(message, error);
+  socket.emit("error", `${message} ${error.message ?? error}`);
+};
+
 // Handle uncaught exceptions
 process.on("uncaughtException", (error) => {
   console.error("Uncaught Exception:", error)
   // Do not exit the process
-  // You can add additional logging or recovery logic here
 })
 
 // Handle unhandled promise rejections
 process.on("unhandledRejection", (reason, promise) => {
   console.error("Unhandled Rejection at:", promise, "reason:", reason)
   // Do not exit the process
-  // You can also handle the rejected promise here if needed
 })
 
 // Check if the sandbox owner is connected
@@ -122,8 +126,7 @@ io.on("connection", async (socket) => {
             const response = await handler(options)
             callback?.(response);
           } catch (e: any) {
-            console.error(`Error processing event "${event}":`, e);
-            socket.emit("error", `Error: ${event}. ${e.message ?? e}`);
+            handleErrors(`Error processing event "${event}":`, e, socket);
           }
         });
       });
@@ -143,19 +146,16 @@ io.on("connection", async (socket) => {
             )
           }
         } catch (e: any) {
-          console.log("Error disconnecting:", e)
-          socket.emit("error", `Error: disconnecting. ${e.message ?? e}`)
+          handleErrors("Error disconnecting:", e, socket);
         }
       })
 
     } catch (e: any) {
-      console.error(`Error initializing sandbox ${data.sandboxId}:`, e);
-      socket.emit("error", `Error: initialize sandbox ${data.sandboxId}. ${e.message ?? e}`);
+      handleErrors(`Error initializing sandbox ${data.sandboxId}:`, e, socket);
     }
 
   } catch (e: any) {
-    console.error("Error connecting:", e)
-    socket.emit("error", `Error: connection. ${e.message ?? e}`)
+    handleErrors("Error connecting:", e, socket);
   }
 })
 
