@@ -3,6 +3,13 @@ import { AIWorker } from "./AIWorker"
 import { CONTAINER_TIMEOUT } from "./constants"
 import { DokkuClient } from "./DokkuClient"
 import { FileManager } from "./FileManager"
+import {
+    createFileRL,
+    createFolderRL,
+    deleteFileRL,
+    renameFileRL,
+    saveFileRL,
+} from "./ratelimit"
 import { SecureGitClient } from "./SecureGitClient"
 import { TerminalManager } from "./TerminalManager"
 import { LockManager } from "./utils"
@@ -42,7 +49,8 @@ export const handleGetFolder: SocketHandler = ({ folderId }: any, context: Handl
 }
 
 // Handle saving a file
-export const handleSaveFile: SocketHandler = ({ fileId, body }: any, context: HandlerContext) => {
+export const handleSaveFile: SocketHandler = async ({ fileId, body, userId }: any, context: HandlerContext) => {
+    await saveFileRL.consume(userId, 1);
     return context.fileManager.saveFile(fileId, body)
 }
 
@@ -69,22 +77,26 @@ export const handleDeploy: SocketHandler = async ({ sandboxId }: any, context: H
 }
 
 // Handle creating a file
-export const handleCreateFile: SocketHandler = async ({ name }: any, context: HandlerContext) => {
+export const handleCreateFile: SocketHandler = async ({ name, userId }: any, context: HandlerContext) => {
+    await createFileRL.consume(userId, 1);
     return { "success": await context.fileManager.createFile(name) }
 }
 
 // Handle creating a folder
-export const handleCreateFolder: SocketHandler = async ({ name }: any, context: HandlerContext) => {
+export const handleCreateFolder: SocketHandler = async ({ name, userId }: any, context: HandlerContext) => {
+    await createFolderRL.consume(userId, 1);
     return { "success": await context.fileManager.createFolder(name) }
 }
 
 // Handle renaming a file
-export const handleRenameFile: SocketHandler = ({ fileId, newName }: any, context: HandlerContext) => {
+export const handleRenameFile: SocketHandler = async ({ fileId, newName, userId }: any, context: HandlerContext) => {
+    await renameFileRL.consume(userId, 1)
     return context.fileManager.renameFile(fileId, newName)
 }
 
 // Handle deleting a file
-export const handleDeleteFile: SocketHandler = ({ fileId }: any, context: HandlerContext) => {
+export const handleDeleteFile: SocketHandler = async ({ fileId, userId }: any, context: HandlerContext) => {
+    await deleteFileRL.consume(userId, 1)
     return context.fileManager.deleteFile(fileId)
 }
 

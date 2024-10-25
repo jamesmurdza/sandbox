@@ -9,13 +9,6 @@ import { AIWorker } from "./AIWorker"
 import { CONTAINER_TIMEOUT } from "./constants"
 import { DokkuClient } from "./DokkuClient"
 import { FileManager, SandboxFiles } from "./FileManager"
-import {
-  createFileRL,
-  createFolderRL,
-  deleteFileRL,
-  renameFileRL,
-  saveFileRL,
-} from "./ratelimit"
 import { SecureGitClient } from "./SecureGitClient"
 import { socketAuth } from "./socketAuth"; // Import the new socketAuth middleware
 import { handleCloseTerminal, handleCreateFile, handleCreateFolder, handleCreateTerminal, handleDeleteFile, handleDeleteFolder, handleDeploy, handleGenerateCode, handleGetFile, handleGetFolder, handleHeartbeat, handleListApps, handleMoveFile, HandlerContext, handleRenameFile, handleResizeTerminal, handleSaveFile, handleTerminalData } from "./SocketHandlers"
@@ -184,15 +177,11 @@ io.on("connection", async (socket) => {
     // Helper function to handle socket events with error handling and optional rate limiting
     const handleSocketEvent = (
       event: string,
-      handler: any,
-      rateLimiter: any | null = null
+      handler: any
     ) => {
       socket.on(event, async (options: any, callback?: (response: any) => void) => {
         try {
           // Consume rate limiter if provided
-          if (rateLimiter) {
-            await rateLimiter.consume(data.userId, 1); // Adjust as needed for the specific rate limiter
-          }
           const response = await handler({ ...options, ...data }, handlerContext)
           callback?.(response);
         } catch (e: any) {
@@ -206,14 +195,14 @@ io.on("connection", async (socket) => {
     handleSocketEvent("heartbeat", handleHeartbeat);
     handleSocketEvent("getFile", handleGetFile);
     handleSocketEvent("getFolder", handleGetFolder);
-    handleSocketEvent("saveFile", handleSaveFile, saveFileRL);
+    handleSocketEvent("saveFile", handleSaveFile);
     handleSocketEvent("moveFile", handleMoveFile);
     handleSocketEvent("list", handleListApps);
     handleSocketEvent("deploy", handleDeploy);
-    handleSocketEvent("createFile", handleCreateFile, createFileRL);
-    handleSocketEvent("createFolder", handleCreateFolder, createFolderRL);
-    handleSocketEvent("renameFile", handleRenameFile, renameFileRL);
-    handleSocketEvent("deleteFile", handleDeleteFile, deleteFileRL);
+    handleSocketEvent("createFile", handleCreateFile);
+    handleSocketEvent("createFolder", handleCreateFolder);
+    handleSocketEvent("renameFile", handleRenameFile);
+    handleSocketEvent("deleteFile", handleDeleteFile);
     handleSocketEvent("deleteFolder", handleDeleteFolder);
     handleSocketEvent("createTerminal", handleCreateTerminal);
     handleSocketEvent("resizeTerminal", handleResizeTerminal);
