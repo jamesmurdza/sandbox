@@ -44,7 +44,7 @@ app.use(cors())
 const httpServer = createServer(app)
 const io = new Server(httpServer, {
   cors: {
-    origin: "*",
+    origin: "*", // Allow connections from any origin
   },
 })
 
@@ -97,7 +97,7 @@ io.on("connection", async (socket) => {
       isOwner: boolean
     }
 
-    // Handle connection based on user type (owner or not)
+    // Disable access unless the sandbox owner is connected
     if (data.isOwner) {
       connectionManager.ownerConnected(data.sandboxId)
     } else {
@@ -108,14 +108,17 @@ io.on("connection", async (socket) => {
     }
 
     try {
+      // Create or retrieve the sandbox manager for the given sandbox ID
       const sandboxManager = sandboxManagers[data.sandboxId] ?? new SandboxManager(
         data.sandboxId,
         data.userId,
         { aiWorker, dokkuClient, gitClient, socket }
       )
 
+      // Initialize the sandbox container
       sandboxManager.initializeContainer()
 
+      // Register event handlers for the sandbox
       Object.entries(sandboxManager.handlers()).forEach(([event, handler]) => {
         socket.on(event, async (options: any, callback?: (response: any) => void) => {
           try {
@@ -126,6 +129,7 @@ io.on("connection", async (socket) => {
         });
       });
 
+      // Handle disconnection event
       socket.on("disconnect", async () => {
         try {
           if (data.isOwner) {
