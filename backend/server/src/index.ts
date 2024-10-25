@@ -178,6 +178,7 @@ io.on("connection", async (socket) => {
       gitClient,
       lockManager,
       sandboxManager: containers[data.sandboxId],
+      socket
     }
 
     // Helper function to handle socket events with error handling and optional rate limiting
@@ -192,7 +193,7 @@ io.on("connection", async (socket) => {
           if (rateLimiter) {
             await rateLimiter.consume(data.userId, 1); // Adjust as needed for the specific rate limiter
           }
-          const response = await handler(options, handlerContext)
+          const response = await handler({ ...options, ...data }, handlerContext)
           callback?.(response);
         } catch (e: any) {
           console.error(`Error processing event "${event}":`, e);
@@ -219,7 +220,6 @@ io.on("connection", async (socket) => {
     handleSocketEvent("terminalData", handleTerminalData);
     handleSocketEvent("closeTerminal", handleCloseTerminal);
     handleSocketEvent("generateCode", handleGenerateCode);
-
 
     socket.on("disconnect", async () => {
       try {

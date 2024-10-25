@@ -1,3 +1,4 @@
+import { Socket } from 'socket.io'
 import { AIWorker } from "./AIWorker"
 import { CONTAINER_TIMEOUT } from "./constants"
 import { DokkuClient } from "./DokkuClient"
@@ -14,6 +15,7 @@ export interface HandlerContext {
     dokkuClient: DokkuClient | null;
     gitClient: SecureGitClient | null;
     lockManager: LockManager
+    socket: Socket
 }
 
 // Extract port number from a string
@@ -50,7 +52,7 @@ export const handleMoveFile: SocketHandler = ({ fileId, folderId }: any, context
 }
 
 // Handle listing apps
-export const handleListApps: SocketHandler = async ({ }: any, context: HandlerContext) => {
+export const handleListApps: SocketHandler = async (_: any, context: HandlerContext) => {
     if (!context.dokkuClient) throw Error("Failed to retrieve apps list: No Dokku client")
     return { success: true, apps: await context.dokkuClient.listApps() }
 }
@@ -67,13 +69,13 @@ export const handleDeploy: SocketHandler = async ({ sandboxId }: any, context: H
 }
 
 // Handle creating a file
-export const handleCreateFile: SocketHandler = ({ name }: any, context: HandlerContext) => {
-    return context.fileManager.createFile(name)
+export const handleCreateFile: SocketHandler = async ({ name }: any, context: HandlerContext) => {
+    return { "success": await context.fileManager.createFile(name) }
 }
 
 // Handle creating a folder
-export const handleCreateFolder: SocketHandler = ({ name }: any, context: HandlerContext) => {
-    return context.fileManager.createFolder(name)
+export const handleCreateFolder: SocketHandler = async ({ name }: any, context: HandlerContext) => {
+    return { "success": await context.fileManager.createFolder(name) }
 }
 
 // Handle renaming a file
@@ -92,13 +94,13 @@ export const handleDeleteFolder: SocketHandler = ({ folderId }: any, context: Ha
 }
 
 // Handle creating a terminal session
-export const handleCreateTerminal: SocketHandler = async ({ id, socket, data }: any, context: HandlerContext) => {
-    await context.lockManager.acquireLock(data.sandboxId, async () => {
+export const handleCreateTerminal: SocketHandler = async ({ id, sandboxId }: any, context: HandlerContext) => {
+    await context.lockManager.acquireLock(sandboxId, async () => {
         await context.terminalManager.createTerminal(id, (responseString: string) => {
-            socket.emit("terminalResponse", { id, data: responseString })
+            context.socket.emit("terminalResponse", { id, data: responseString })
             const port = extractPortNumber(responseString)
             if (port) {
-                socket.emit(
+                context.socket.emit(
                     "previewURL",
                     "https://" + context.sandboxManager.getHost(port)
                 )
