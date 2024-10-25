@@ -1,19 +1,15 @@
 import cors from "cors"
 import dotenv from "dotenv"
-import { Sandbox } from "e2b"
 import express, { Express } from "express"
 import fs from "fs"
 import { createServer } from "http"
 import { Server } from "socket.io"
 import { AIWorker } from "./AIWorker"
-import { CONTAINER_TIMEOUT } from "./constants"
+
 import { DokkuClient } from "./DokkuClient"
-import { FileManager, SandboxFiles } from "./FileManager"
 import { SandboxManager } from "./SandboxManager"
 import { SecureGitClient } from "./SecureGitClient"
 import { socketAuth } from "./socketAuth"; // Import the new socketAuth middleware
-import { TerminalManager } from "./TerminalManager"
-import { LockManager } from "./utils"
 
 // Handle uncaught exceptions
 process.on("uncaughtException", (error) => {
@@ -35,10 +31,8 @@ function isOwnerConnected(sandboxId: string): boolean {
 }
 
 // Initialize containers and managers
-const containers: Record<string, Sandbox> = {}
 const connections: Record<string, number> = {}
-const fileManagers: Record<string, FileManager> = {}
-const terminalManagers: Record<string, TerminalManager> = {}
+const sandboxManagers: Record<string, SandboxManager> = {}
 
 // Load environment variables
 dotenv.config()
@@ -56,9 +50,6 @@ const io = new Server(httpServer, {
 
 // Middleware for socket authentication
 io.use(socketAuth) // Use the new socketAuth middleware
-
-// Initialize lock manager
-const lockManager = new LockManager()
 
 // Check for required environment variables
 if (!process.env.DOKKU_HOST)
@@ -99,6 +90,7 @@ const aiWorker = new AIWorker(
 // Handle a client connecting to the server
 io.on("connection", async (socket) => {
   try {
+    // This data comes is added by our authentication middleware
     const data = socket.data as {
       userId: string
       sandboxId: string
@@ -115,70 +107,23 @@ io.on("connection", async (socket) => {
       }
     }
 
-    // Create or retrieve container
-    const createdContainer = await lockManager.acquireLock(
+    const sandboxManager = sandboxManagers[data.sandboxId] ?? new SandboxManager(
       data.sandboxId,
-      async () => {
-        try {
-          // Start a new container if the container doesn't exist or it timed out.
-          if (
-            !containers[data.sandboxId] ||
-            !(await containers[data.sandboxId].isRunning())
-          ) {
-            containers[data.sandboxId] = await Sandbox.create({
-              timeoutMs: CONTAINER_TIMEOUT,
-            })
-            console.log("Created container ", data.sandboxId)
-            return true
-          }
-        } catch (e: any) {
-          console.error(`Error creating container ${data.sandboxId}:`, e)
-          socket.emit("error", `Error: container creation. ${e.message ?? e}`)
-        }
-      }
+      data.userId,
+      { aiWorker, dokkuClient, gitClient, socket }
     )
 
-    // Function to send loaded event
-    const sendLoadedEvent = (files: SandboxFiles) => {
-      socket.emit("loaded", files.files)
+    try {
+      sandboxManager.initializeContainer()
+    } catch (e: any) {
+      console.error(`Error initializing sandbox ${data.sandboxId}:`, e);
+      socket.emit("error", `Error: initialize sandbox ${data.sandboxId}. ${e.message ?? e}`);
     }
-
-    // Initialize file and terminal managers if container was created
-    if (createdContainer) {
-      fileManagers[data.sandboxId] = new FileManager(
-        data.sandboxId,
-        containers[data.sandboxId],
-        sendLoadedEvent
-      )
-      terminalManagers[data.sandboxId] = new TerminalManager(
-        containers[data.sandboxId]
-      )
-      console.log(`terminal manager set up for ${data.sandboxId}`)
-      await fileManagers[data.sandboxId].initialize()
-    }
-
-    const fileManager = fileManagers[data.sandboxId]
-    const terminalManager = terminalManagers[data.sandboxId]
-
-    // Load file list from the file manager into the editor
-    sendLoadedEvent(fileManager.sandboxFiles)
-
-    const sandboxManager = new SandboxManager(
-      fileManager,
-      terminalManager,
-      aiWorker,
-      dokkuClient,
-      gitClient,
-      lockManager,
-      containers[data.sandboxId],
-      socket
-    )
 
     Object.entries(sandboxManager.handlers()).forEach(([event, handler]) => {
       socket.on(event, async (options: any, callback?: (response: any) => void) => {
         try {
-          // Consume rate limiter if provided
-          const response = await handler({ ...options, ...data })
+          const response = await handler(options)
           callback?.(response);
         } catch (e: any) {
           console.error(`Error processing event "${event}":`, e);
@@ -193,8 +138,7 @@ io.on("connection", async (socket) => {
           connections[data.sandboxId]--
         }
 
-        await terminalManager.closeAllTerminals()
-        await fileManager.closeWatchers()
+        await sandboxManager.disconnect()
 
         if (data.isOwner && connections[data.sandboxId] <= 0) {
           socket.broadcast.emit(
