@@ -3,7 +3,7 @@ import { Socket } from 'socket.io'
 import { AIWorker } from "./AIWorker"
 import { CONTAINER_TIMEOUT } from "./constants"
 import { DokkuClient } from "./DokkuClient"
-import { FileManager, SandboxFiles } from "./FileManager"
+import { FileManager } from "./FileManager"
 import {
     createFileRL,
     createFolderRL,
@@ -13,6 +13,7 @@ import {
 } from "./ratelimit"
 import { SecureGitClient } from "./SecureGitClient"
 import { TerminalManager } from "./TerminalManager"
+import { TFile, TFolder } from "./types"
 import { LockManager } from "./utils"
 
 const lockManager = new LockManager()
@@ -81,12 +82,12 @@ export class SandboxManager {
             this.fileManager = new FileManager(
                 this.sandboxId,
                 this.container,
-                (files: SandboxFiles) => {
-                    this.socket.emit("loaded", files.files)
+                (files: (TFolder | TFile)[]) => {
+                    this.socket.emit("loaded", files)
                 }
             )
             this.fileManager.initialize()
-            this.socket.emit("loaded", this.fileManager.sandboxFiles.files)
+            this.socket.emit("loaded", this.fileManager.files)
         }
     }
 
@@ -133,7 +134,7 @@ export class SandboxManager {
         const handleDeploy: SocketHandler = async (_: any) => {
             if (!this.gitClient) throw Error("No git client")
             if (!this.fileManager) throw Error("No file manager")
-            const fixedFilePaths = this.fileManager?.sandboxFiles.fileData.map((file) => ({
+            const fixedFilePaths = this.fileManager?.fileData.map((file) => ({
                 ...file,
                 id: file.id.split("/").slice(2).join("/"),
             }))
