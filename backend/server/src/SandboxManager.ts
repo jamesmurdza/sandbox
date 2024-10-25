@@ -86,7 +86,7 @@ export class SandboxManager {
                 }
             )
             this.fileManager.initialize()
-            this.socket.emit("loaded", this.fileManager.sandboxFiles)
+            this.socket.emit("loaded", this.fileManager.sandboxFiles.files)
         }
     }
 
