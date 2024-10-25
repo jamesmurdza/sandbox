@@ -180,165 +180,46 @@ io.on("connection", async (socket) => {
       sandboxManager: containers[data.sandboxId],
     }
 
-    // Handle various socket events (heartbeat, file operations, terminal operations, etc.)
-    socket.on("heartbeat", async (options, callback) => {
-      try {
-        callback?.(handleHeartbeat(options, handlerContext))
-      } catch (e: any) {
-        console.error("Error setting timeout:", e)
-        socket.emit("error", `Error: set timeout. ${e.message ?? e}`)
-      }
-    })
+    // Helper function to handle socket events with error handling and optional rate limiting
+    const handleSocketEvent = (
+      event: string,
+      handler: any,
+      rateLimiter: any | null = null
+    ) => {
+      socket.on(event, async (options: any, callback?: (response: any) => void) => {
+        try {
+          // Consume rate limiter if provided
+          if (rateLimiter) {
+            await rateLimiter.consume(data.userId, 1); // Adjust as needed for the specific rate limiter
+          }
+          const response = await handler(options, handlerContext)
+          callback?.(response);
+        } catch (e: any) {
+          console.error(`Error processing event "${event}":`, e);
+          socket.emit("error", `Error: ${event}. ${e.message ?? e}`);
+        }
+      });
+    };
 
-    socket.on("getFile", async (options, callback) => {
-      try {
-        callback?.(await handleGetFile(options, handlerContext))
-      } catch (e: any) {
-        console.error("Error getting file:", e)
-        socket.emit("error", `Error: get file. ${e.message ?? e}`)
-      }
-    })
+    // Register socket events with optional rate limiters
+    handleSocketEvent("heartbeat", handleHeartbeat);
+    handleSocketEvent("getFile", handleGetFile);
+    handleSocketEvent("getFolder", handleGetFolder);
+    handleSocketEvent("saveFile", handleSaveFile, saveFileRL);
+    handleSocketEvent("moveFile", handleMoveFile);
+    handleSocketEvent("list", handleListApps);
+    handleSocketEvent("deploy", handleDeploy);
+    handleSocketEvent("createFile", handleCreateFile, createFileRL);
+    handleSocketEvent("createFolder", handleCreateFolder, createFolderRL);
+    handleSocketEvent("renameFile", handleRenameFile, renameFileRL);
+    handleSocketEvent("deleteFile", handleDeleteFile, deleteFileRL);
+    handleSocketEvent("deleteFolder", handleDeleteFolder);
+    handleSocketEvent("createTerminal", handleCreateTerminal);
+    handleSocketEvent("resizeTerminal", handleResizeTerminal);
+    handleSocketEvent("terminalData", handleTerminalData);
+    handleSocketEvent("closeTerminal", handleCloseTerminal);
+    handleSocketEvent("generateCode", handleGenerateCode);
 
-    socket.on("getFolder", async (options, callback) => {
-      try {
-        callback?.(await handleGetFolder(options, handlerContext))
-      } catch (e: any) {
-        console.error("Error getting folder:", e)
-        socket.emit("error", `Error: get folder. ${e.message ?? e}`)
-      }
-    })
-
-    socket.on("saveFile", async (options, callback) => {
-      try {
-        await saveFileRL.consume(data.userId, 1)
-        callback?.(await handleSaveFile(options, handlerContext))
-      } catch (e: any) {
-        console.error("Error saving file:", e)
-        socket.emit("error", `Error: file saving. ${e.message ?? e}`)
-      }
-    })
-
-    socket.on("moveFile", async (options, callback) => {
-      try {
-        callback?.(await handleMoveFile(options, handlerContext))
-      } catch (e: any) {
-        console.error("Error moving file:", e)
-        socket.emit("error", `Error: file moving. ${e.message ?? e}`)
-      }
-    })
-
-    socket.on("list", async (options, callback) => {
-      console.log("Retrieving apps list...")
-      try {
-        callback?.(await handleListApps(options, handlerContext))
-      } catch (e: any) {
-        console.error("Error retrieving apps list:", e)
-        socket.emit("error", `Error: app list retrieval. ${e.message ?? e}`)
-      }
-    })
-
-    socket.on("deploy", async (options, callback) => {
-      try {
-        callback?.(await handleDeploy(options, handlerContext))
-      } catch (e: any) {
-        console.error("Error deploying project:", e)
-        socket.emit("error", `Error: project deployment. ${e.message ?? e}`)
-      }
-    })
-
-    socket.on("createFile", async (options, callback) => {
-      try {
-        await createFileRL.consume(data.userId, 1)
-        callback?.({ success: await handleCreateFile(options, handlerContext) })
-      } catch (e: any) {
-        console.error("Error creating file:", e)
-        socket.emit("error", `Error: file creation. ${e.message ?? e}`)
-      }
-    })
-
-    socket.on("createFolder", async (options, callback) => {
-      try {
-        await createFolderRL.consume(data.userId, 1)
-        callback?.(await handleCreateFolder(options, handlerContext))
-      } catch (e: any) {
-        console.error("Error creating folder:", e)
-        socket.emit("error", `Error: folder creation. ${e.message ?? e}`)
-      }
-    })
-
-    socket.on("renameFile", async (options, callback) => {
-      try {
-        await renameFileRL.consume(data.userId, 1)
-        callback?.(await handleRenameFile(options, handlerContext))
-      } catch (e: any) {
-        console.error("Error renaming file:", e)
-        socket.emit("error", `Error: file renaming. ${e.message ?? e}`)
-      }
-    })
-
-    socket.on("deleteFile", async (options, callback) => {
-      try {
-        await deleteFileRL.consume(data.userId, 1)
-        callback?.(await handleDeleteFile(options, handlerContext))
-      } catch (e: any) {
-        console.error("Error deleting file:", e)
-        socket.emit("error", `Error: file deletion. ${e.message ?? e}`)
-      }
-    })
-
-    socket.on("deleteFolder", async (options, callback) => {
-      try {
-        callback?.(await handleDeleteFolder(options, handlerContext))
-      } catch (e: any) {
-        console.error("Error deleting folder:", e)
-        socket.emit("error", `Error: folder deletion. ${e.message ?? e}`)
-      }
-    })
-
-    socket.on("createTerminal", async (options, callback) => {
-      try {
-        callback?.(await handleCreateTerminal(options, handlerContext))
-      } catch (e: any) {
-        console.error(`Error creating terminal ${options.id}:`, e)
-        socket.emit("error", `Error: terminal creation. ${e.message ?? e}`)
-      }
-    })
-
-    socket.on("resizeTerminal", (options, callback) => {
-      try {
-        callback?.(handleResizeTerminal(options, handlerContext))
-      } catch (e: any) {
-        console.error("Error resizing terminal:", e)
-        socket.emit("error", `Error: terminal resizing. ${e.message ?? e}`)
-      }
-    })
-
-    socket.on("terminalData", async (options, callback) => {
-      try {
-        callback?.(await handleTerminalData(options, handlerContext))
-      } catch (e: any) {
-        console.error("Error writing to terminal:", e)
-        socket.emit("error", `Error: writing to terminal. ${e.message ?? e}`)
-      }
-    })
-
-    socket.on("closeTerminal", async (options, callback) => {
-      try {
-        callback?.(await handleCloseTerminal(options, handlerContext))
-      } catch (e: any) {
-        console.error("Error closing terminal:", e)
-        socket.emit("error", `Error: closing terminal. ${e.message ?? e}`)
-      }
-    })
-
-    socket.on("generateCode", async (options, callback) => {
-      try {
-        callback?.(await handleGenerateCode(options, handlerContext))
-      } catch (e: any) {
-        console.error("Error generating code:", e)
-        socket.emit("error", `Error: code generation. ${e.message ?? e}`)
-      }
-    })
 
     socket.on("disconnect", async () => {
       try {
