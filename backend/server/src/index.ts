@@ -9,9 +9,9 @@ import { AIWorker } from "./AIWorker"
 import { CONTAINER_TIMEOUT } from "./constants"
 import { DokkuClient } from "./DokkuClient"
 import { FileManager, SandboxFiles } from "./FileManager"
+import { SandboxManager } from "./SandboxManager"
 import { SecureGitClient } from "./SecureGitClient"
 import { socketAuth } from "./socketAuth"; // Import the new socketAuth middleware
-import { eventHandlers, HandlerContext } from "./SocketHandlers"
 import { TerminalManager } from "./TerminalManager"
 import { LockManager } from "./utils"
 
@@ -163,36 +163,28 @@ io.on("connection", async (socket) => {
     // Load file list from the file manager into the editor
     sendLoadedEvent(fileManager.sandboxFiles)
 
-    const handlerContext: HandlerContext = {
+    const sandboxManager = new SandboxManager(
       fileManager,
       terminalManager,
       aiWorker,
       dokkuClient,
       gitClient,
       lockManager,
-      sandboxManager: containers[data.sandboxId],
+      containers[data.sandboxId],
       socket
-    }
+    )
 
-    // Helper function to handle socket events with error handling and optional rate limiting
-    const handleSocketEvent = (
-      event: string,
-      handler: any
-    ) => {
+    Object.entries(sandboxManager.handlers()).forEach(([event, handler]) => {
       socket.on(event, async (options: any, callback?: (response: any) => void) => {
         try {
           // Consume rate limiter if provided
-          const response = await handler({ ...options, ...data }, handlerContext)
+          const response = await handler({ ...options, ...data })
           callback?.(response);
         } catch (e: any) {
           console.error(`Error processing event "${event}":`, e);
           socket.emit("error", `Error: ${event}. ${e.message ?? e}`);
         }
       });
-    };
-
-    Object.entries(eventHandlers).forEach(([event, handler]) => {
-      handleSocketEvent(event, handler);
     });
 
     socket.on("disconnect", async () => {
