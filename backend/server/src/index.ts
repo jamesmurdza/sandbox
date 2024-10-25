@@ -7,8 +7,8 @@ import { Server } from "socket.io"
 import { AIWorker } from "./AIWorker"
 
 import { DokkuClient } from "./DokkuClient"
-import { OwnerConnectionManager } from "./OwnerConnectionManager"
-import { SandboxManager } from "./SandboxManager"
+import { OwnerConnectionManager as ConnectionManager } from "./OwnerConnectionManager"
+import { Sandbox } from "./SandboxManager"
 import { SecureGitClient } from "./SecureGitClient"
 import { socketAuth } from "./socketAuth"; // Import the new socketAuth middleware
 
@@ -31,8 +31,8 @@ process.on("unhandledRejection", (reason, promise) => {
 })
 
 // Initialize containers and managers
-const connectionManager = new OwnerConnectionManager()
-const sandboxManagers: Record<string, SandboxManager> = {}
+const connections = new ConnectionManager()
+const sandboxes: Record<string, Sandbox> = {}
 
 // Load environment variables
 dotenv.config()
@@ -99,9 +99,9 @@ io.on("connection", async (socket) => {
 
     // Disable access unless the sandbox owner is connected
     if (data.isOwner) {
-      connectionManager.ownerConnected(data.sandboxId)
+      connections.ownerConnected(data.sandboxId)
     } else {
-      if (!connectionManager.ownerIsConnected(data.sandboxId)) {
+      if (!connections.ownerIsConnected(data.sandboxId)) {
         socket.emit("disableAccess", "The sandbox owner is not connected.")
         return
       }
@@ -109,7 +109,7 @@ io.on("connection", async (socket) => {
 
     try {
       // Create or retrieve the sandbox manager for the given sandbox ID
-      const sandboxManager = sandboxManagers[data.sandboxId] ?? new SandboxManager(
+      const sandboxManager = sandboxes[data.sandboxId] ?? new Sandbox(
         data.sandboxId,
         data.userId,
         { aiWorker, dokkuClient, gitClient, socket }
@@ -133,12 +133,12 @@ io.on("connection", async (socket) => {
       socket.on("disconnect", async () => {
         try {
           if (data.isOwner) {
-            connectionManager.ownerDisconnected(data.sandboxId)
+            connections.ownerDisconnected(data.sandboxId)
           }
 
           await sandboxManager.disconnect()
 
-          if (data.isOwner && !connectionManager.ownerIsConnected(data.sandboxId)) {
+          if (data.isOwner && !connections.ownerIsConnected(data.sandboxId)) {
             socket.broadcast.emit(
               "disableAccess",
               "The sandbox owner has disconnected."

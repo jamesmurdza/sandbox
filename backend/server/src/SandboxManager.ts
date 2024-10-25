@@ -1,4 +1,4 @@
-import { Sandbox } from "e2b"
+import { Sandbox as E2BSandbox } from "e2b"
 import { Socket } from 'socket.io'
 import { AIWorker } from "./AIWorker"
 import { CONTAINER_TIMEOUT } from "./constants"
@@ -29,17 +29,17 @@ function extractPortNumber(inputString: string): number | null {
     return match ? parseInt(match[1]) : null
 }
 
-type SandboxManagerContext = {
+type ServerContext = {
     aiWorker: AIWorker;
     dokkuClient: DokkuClient | null;
     gitClient: SecureGitClient | null;
     socket: Socket;
 };
 
-export class SandboxManager {
+export class Sandbox {
     fileManager: FileManager | null;
     terminalManager: TerminalManager | null;
-    container: Sandbox | null;
+    container: E2BSandbox | null;
     dokkuClient: DokkuClient | null;
     gitClient: SecureGitClient | null;
     aiWorker: AIWorker;
@@ -47,7 +47,7 @@ export class SandboxManager {
     sandboxId: string;
     userId: string;
 
-    constructor(sandboxId: string, userId: string, { aiWorker, dokkuClient, gitClient, socket }: SandboxManagerContext) {
+    constructor(sandboxId: string, userId: string, { aiWorker, dokkuClient, gitClient, socket }: ServerContext) {
         this.fileManager = null;
         this.terminalManager = null;
         this.container = null;
@@ -66,7 +66,7 @@ export class SandboxManager {
                 console.log(`Found existing container ${this.sandboxId}`)
             } else {
                 console.log("Creating container", this.sandboxId)
-                this.container = await Sandbox.create({
+                this.container = await E2BSandbox.create({
                     timeoutMs: CONTAINER_TIMEOUT,
                 })
             }
