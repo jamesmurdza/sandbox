@@ -107,50 +107,52 @@ io.on("connection", async (socket) => {
       }
     }
 
-    const sandboxManager = sandboxManagers[data.sandboxId] ?? new SandboxManager(
-      data.sandboxId,
-      data.userId,
-      { aiWorker, dokkuClient, gitClient, socket }
-    )
-
     try {
+      const sandboxManager = sandboxManagers[data.sandboxId] ?? new SandboxManager(
+        data.sandboxId,
+        data.userId,
+        { aiWorker, dokkuClient, gitClient, socket }
+      )
+
       sandboxManager.initializeContainer()
+
+      Object.entries(sandboxManager.handlers()).forEach(([event, handler]) => {
+        socket.on(event, async (options: any, callback?: (response: any) => void) => {
+          try {
+            const response = await handler(options)
+            callback?.(response);
+          } catch (e: any) {
+            console.error(`Error processing event "${event}":`, e);
+            socket.emit("error", `Error: ${event}. ${e.message ?? e}`);
+          }
+        });
+      });
+
+      socket.on("disconnect", async () => {
+        try {
+          if (data.isOwner) {
+            connections[data.sandboxId]--
+          }
+
+          await sandboxManager.disconnect()
+
+          if (data.isOwner && connections[data.sandboxId] <= 0) {
+            socket.broadcast.emit(
+              "disableAccess",
+              "The sandbox owner has disconnected."
+            )
+          }
+        } catch (e: any) {
+          console.log("Error disconnecting:", e)
+          socket.emit("error", `Error: disconnecting. ${e.message ?? e}`)
+        }
+      })
+
     } catch (e: any) {
       console.error(`Error initializing sandbox ${data.sandboxId}:`, e);
       socket.emit("error", `Error: initialize sandbox ${data.sandboxId}. ${e.message ?? e}`);
     }
 
-    Object.entries(sandboxManager.handlers()).forEach(([event, handler]) => {
-      socket.on(event, async (options: any, callback?: (response: any) => void) => {
-        try {
-          const response = await handler(options)
-          callback?.(response);
-        } catch (e: any) {
-          console.error(`Error processing event "${event}":`, e);
-          socket.emit("error", `Error: ${event}. ${e.message ?? e}`);
-        }
-      });
-    });
-
-    socket.on("disconnect", async () => {
-      try {
-        if (data.isOwner) {
-          connections[data.sandboxId]--
-        }
-
-        await sandboxManager.disconnect()
-
-        if (data.isOwner && connections[data.sandboxId] <= 0) {
-          socket.broadcast.emit(
-            "disableAccess",
-            "The sandbox owner has disconnected."
-          )
-        }
-      } catch (e: any) {
-        console.log("Error disconnecting:", e)
-        socket.emit("error", `Error: disconnecting. ${e.message ?? e}`)
-      }
-    })
   } catch (e: any) {
     console.error("Error connecting:", e)
     socket.emit("error", `Error: connection. ${e.message ?? e}`)
