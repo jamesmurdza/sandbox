@@ -46,61 +46,81 @@ export class Sandbox {
     socket: Socket;
     sandboxId: string;
     userId: string;
+    isOwner: boolean;
 
-    constructor(sandboxId: string, userId: string, { aiWorker, dokkuClient, gitClient, socket }: ServerContext) {
+    constructor(sandboxId: string, userId: string, isOwner: boolean, { aiWorker, dokkuClient, gitClient, socket }: ServerContext) {
         this.fileManager = null;
         this.terminalManager = null;
         this.container = null;
         this.sandboxId = sandboxId;
         this.userId = userId;
+        this.isOwner = isOwner;
         this.aiWorker = aiWorker;
         this.dokkuClient = dokkuClient;
         this.gitClient = gitClient;
         this.socket = socket;
     }
 
+    // Initializes the container for the sandbox environment
     async initializeContainer() {
-
+        // Acquire a lock to ensure exclusive access to the sandbox environment
         await lockManager.acquireLock(this.sandboxId, async () => {
+            // Check if a container already exists and is running
             if (this.container && await this.container.isRunning()) {
                 console.log(`Found existing container ${this.sandboxId}`)
             } else {
                 console.log("Creating container", this.sandboxId)
+                // Create a new container with a specified timeout
                 this.container = await E2BSandbox.create({
                     timeoutMs: CONTAINER_TIMEOUT,
                 })
             }
         })
+        // Ensure a container was successfully created
         if (!this.container) throw new Error("Failed to create container")
 
+        // Initialize the terminal manager if it hasn't been set up yet
         if (!this.terminalManager) {
             this.terminalManager = new TerminalManager(this.container)
             console.log(`Terminal manager set up for ${this.sandboxId}`)
         }
 
+        // Initialize the file manager if it hasn't been set up yet
         if (!this.fileManager) {
             this.fileManager = new FileManager(
                 this.sandboxId,
                 this.container,
                 (files: (TFolder | TFile)[]) => {
+                    // Emit an event to the socket when files are loaded
                     this.socket.emit("loaded", files)
                 }
             )
+            // Initialize the file manager and emit the initial files
             this.fileManager.initialize()
             this.socket.emit("loaded", this.fileManager.files)
         }
     }
 
+    // Called when the client disconnects from the Sandbox
     async disconnect() {
+        // Close all terminals managed by the terminal manager
         await this.terminalManager?.closeAllTerminals()
+        // This way the terminal manager will be set up again if we reconnect
+        this.terminalManager = null;
+        // Close all file watchers managed by the file manager
         await this.fileManager?.closeWatchers()
+        // This way the file manager will be set up again if we reconnect
+        this.fileManager = null;
     }
 
     handlers() {
 
         // Handle heartbeat from a socket connection
         const handleHeartbeat: SocketHandler = (_: any) => {
-            this.container?.setTimeout(CONTAINER_TIMEOUT)
+            // Only keep the sandbox alive if the owner is still connected
+            if (this.isOwner) {
+                this.container?.setTimeout(CONTAINER_TIMEOUT)
+            }
         }
 
         // Handle getting a file

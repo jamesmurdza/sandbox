@@ -112,10 +112,12 @@ io.on("connection", async (socket) => {
       const sandboxManager = sandboxes[data.sandboxId] ?? new Sandbox(
         data.sandboxId,
         data.userId,
+        data.isOwner,
         { aiWorker, dokkuClient, gitClient, socket }
       )
 
       // Initialize the sandbox container
+      // The file manager and terminal managers will be set up if they have been closed
       sandboxManager.initializeContainer()
 
       // Register event handlers for the sandbox
@@ -134,15 +136,15 @@ io.on("connection", async (socket) => {
         try {
           if (data.isOwner) {
             connections.ownerDisconnected(data.sandboxId)
-          }
-
-          await sandboxManager.disconnect()
-
-          if (data.isOwner && !connections.ownerIsConnected(data.sandboxId)) {
-            socket.broadcast.emit(
-              "disableAccess",
-              "The sandbox owner has disconnected."
-            )
+            // If the owner has disconnected from all sockets, close open terminals and file watchers.o
+            // The sandbox itself will timeout after the heartbeat stops.
+            if (!connections.ownerIsConnected(data.sandboxId)) {
+              await sandboxManager.disconnect()
+              socket.broadcast.emit(
+                "disableAccess",
+                "The sandbox owner has disconnected."
+              )
+            }
           }
         } catch (e: any) {
           handleErrors("Error disconnecting:", e, socket);
