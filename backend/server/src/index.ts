@@ -20,7 +20,6 @@ import { SecureGitClient } from "./SecureGitClient"
 import { socketAuth } from "./socketAuth"; // Import the new socketAuth middleware
 import { handleCloseTerminal, handleCreateFile, handleCreateFolder, handleCreateTerminal, handleDeleteFile, handleDeleteFolder, handleDeploy, handleGenerateCode, handleGetFile, handleGetFolder, handleHeartbeat, handleListApps, handleMoveFile, HandlerContext, handleRenameFile, handleResizeTerminal, handleSaveFile, handleTerminalData } from "./SocketHandlers"
 import { TerminalManager } from "./TerminalManager"
-import { DokkuResponse } from "./types"
 import { LockManager } from "./utils"
 
 // Handle uncaught exceptions
@@ -182,9 +181,9 @@ io.on("connection", async (socket) => {
     }
 
     // Handle various socket events (heartbeat, file operations, terminal operations, etc.)
-    socket.on("heartbeat", async () => {
+    socket.on("heartbeat", async (callback) => {
       try {
-        handleHeartbeat(data, handlerContext)
+        callback?.(handleHeartbeat(data, handlerContext))
       } catch (e: any) {
         console.error("Error setting timeout:", e)
         socket.emit("error", `Error: set timeout. ${e.message ?? e}`)
@@ -193,7 +192,7 @@ io.on("connection", async (socket) => {
 
     socket.on("getFile", async (fileId: string, callback) => {
       try {
-        callback(await handleGetFile(fileId, handlerContext))
+        callback?.(await handleGetFile(fileId, handlerContext))
       } catch (e: any) {
         console.error("Error getting file:", e)
         socket.emit("error", `Error: get file. ${e.message ?? e}`)
@@ -202,17 +201,17 @@ io.on("connection", async (socket) => {
 
     socket.on("getFolder", async (folderId: string, callback) => {
       try {
-        callback(await handleGetFolder(folderId, handlerContext))
+        callback?.(await handleGetFolder(folderId, handlerContext))
       } catch (e: any) {
         console.error("Error getting folder:", e)
         socket.emit("error", `Error: get folder. ${e.message ?? e}`)
       }
     })
 
-    socket.on("saveFile", async (fileId: string, body: string) => {
+    socket.on("saveFile", async (fileId: string, body: string, callback) => {
       try {
         await saveFileRL.consume(data.userId, 1)
-        await handleSaveFile(fileId, body, handlerContext)
+        callback?.(await handleSaveFile(fileId, body, handlerContext))
       } catch (e: any) {
         console.error("Error saving file:", e)
         socket.emit("error", `Error: file saving. ${e.message ?? e}`)
@@ -221,41 +220,37 @@ io.on("connection", async (socket) => {
 
     socket.on("moveFile", async (fileId: string, folderId: string, callback) => {
       try {
-        callback(await handleMoveFile(fileId, folderId, handlerContext))
+        callback?.(await handleMoveFile(fileId, folderId, handlerContext))
       } catch (e: any) {
         console.error("Error moving file:", e)
         socket.emit("error", `Error: file moving. ${e.message ?? e}`)
       }
     })
 
-    socket.on("list", async (callback: (response: DokkuResponse) => void) => {
+    socket.on("list", async (callback) => {
       console.log("Retrieving apps list...")
       try {
-        callback(await handleListApps(handlerContext))
-      } catch (error) {
-        callback({
-          success: false,
-          message: "Failed to retrieve apps list",
-        })
+        callback?.(await handleListApps(handlerContext))
+      } catch (e: any) {
+        console.error("Error retrieving apps list:", e)
+        socket.emit("error", `Error: app list retrieval. ${e.message ?? e}`)
       }
     })
 
-    socket.on("deploy", async (callback: (response: DokkuResponse) => void) => {
+    socket.on("deploy", async (callback) => {
       try {
         console.log("Deploying project ${data.sandboxId}...")
-        callback(await handleDeploy(data.sandboxId, handlerContext))
-      } catch (error) {
-        callback({
-          success: false,
-          message: "Failed to deploy project: " + error,
-        })
+        callback?.(await handleDeploy(data.sandboxId, handlerContext))
+      } catch (e: any) {
+        console.error("Error deploying project:", e)
+        socket.emit("error", `Error: project deployment. ${e.message ?? e}`)
       }
     })
 
     socket.on("createFile", async (name: string, callback) => {
       try {
         await createFileRL.consume(data.userId, 1)
-        callback({ success: await handleCreateFile(name, handlerContext) })
+        callback?.({ success: await handleCreateFile(name, handlerContext) })
       } catch (e: any) {
         console.error("Error creating file:", e)
         socket.emit("error", `Error: file creation. ${e.message ?? e}`)
@@ -265,18 +260,17 @@ io.on("connection", async (socket) => {
     socket.on("createFolder", async (name: string, callback) => {
       try {
         await createFolderRL.consume(data.userId, 1)
-        await handleCreateFolder(name, handlerContext)
-        callback()
+        callback?.(await handleCreateFolder(name, handlerContext))
       } catch (e: any) {
         console.error("Error creating folder:", e)
         socket.emit("error", `Error: folder creation. ${e.message ?? e}`)
       }
     })
 
-    socket.on("renameFile", async (fileId: string, newName: string) => {
+    socket.on("renameFile", async (fileId: string, newName: string, callback) => {
       try {
         await renameFileRL.consume(data.userId, 1)
-        await handleRenameFile(fileId, newName, handlerContext)
+        callback?.(await handleRenameFile(fileId, newName, handlerContext))
       } catch (e: any) {
         console.error("Error renaming file:", e)
         socket.emit("error", `Error: file renaming. ${e.message ?? e}`)
@@ -286,7 +280,7 @@ io.on("connection", async (socket) => {
     socket.on("deleteFile", async (fileId: string, callback) => {
       try {
         await deleteFileRL.consume(data.userId, 1)
-        callback(await handleDeleteFile(fileId, handlerContext))
+        callback?.(await handleDeleteFile(fileId, handlerContext))
       } catch (e: any) {
         console.error("Error deleting file:", e)
         socket.emit("error", `Error: file deletion. ${e.message ?? e}`)
@@ -295,7 +289,7 @@ io.on("connection", async (socket) => {
 
     socket.on("deleteFolder", async (folderId: string, callback) => {
       try {
-        callback(await handleDeleteFolder(folderId, handlerContext))
+        callback?.(await handleDeleteFolder(folderId, handlerContext))
       } catch (e: any) {
         console.error("Error deleting folder:", e)
         socket.emit("error", `Error: folder deletion. ${e.message ?? e}`)
@@ -304,26 +298,25 @@ io.on("connection", async (socket) => {
 
     socket.on("createTerminal", async (id: string, callback) => {
       try {
-        await handleCreateTerminal(id, socket, data, handlerContext)
-        callback()
+        callback?.(await handleCreateTerminal(id, socket, data, handlerContext))
       } catch (e: any) {
         console.error(`Error creating terminal ${id}:`, e)
         socket.emit("error", `Error: terminal creation. ${e.message ?? e}`)
       }
     })
 
-    socket.on("resizeTerminal", (dimensions: { cols: number; rows: number }) => {
+    socket.on("resizeTerminal", (dimensions: { cols: number; rows: number }, callback) => {
       try {
-        handleResizeTerminal(dimensions, handlerContext)
+        callback?.(handleResizeTerminal(dimensions, handlerContext))
       } catch (e: any) {
         console.error("Error resizing terminal:", e)
         socket.emit("error", `Error: terminal resizing. ${e.message ?? e}`)
       }
     })
 
-    socket.on("terminalData", async (id: string, data: string) => {
+    socket.on("terminalData", async (id: string, data: string, callback) => {
       try {
-        await handleTerminalData(id, data, handlerContext)
+        callback?.(await handleTerminalData(id, data, handlerContext))
       } catch (e: any) {
         console.error("Error writing to terminal:", e)
         socket.emit("error", `Error: writing to terminal. ${e.message ?? e}`)
@@ -332,8 +325,7 @@ io.on("connection", async (socket) => {
 
     socket.on("closeTerminal", async (id: string, callback) => {
       try {
-        await handleCloseTerminal(id, handlerContext)
-        callback()
+        callback?.(await handleCloseTerminal(id, handlerContext))
       } catch (e: any) {
         console.error("Error closing terminal:", e)
         socket.emit("error", `Error: closing terminal. ${e.message ?? e}`)
@@ -342,7 +334,7 @@ io.on("connection", async (socket) => {
 
     socket.on("generateCode", async (fileName: string, code: string, line: number, instructions: string, callback) => {
       try {
-        callback(await handleGenerateCode(data.userId, fileName, code, line, instructions, handlerContext))
+        callback?.(await handleGenerateCode(data.userId, fileName, code, line, instructions, handlerContext))
       } catch (e: any) {
         console.error("Error generating code:", e)
         socket.emit("error", `Error: code generation. ${e.message ?? e}`)
