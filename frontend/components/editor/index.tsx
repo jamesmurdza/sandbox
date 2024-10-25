@@ -107,7 +107,7 @@ export default function CodeEditor({
 
   // Editor state
   const [editorLanguage, setEditorLanguage] = useState("plaintext")
-  console.log("editor language: ",editorLanguage)
+  console.log("editor language: ", editorLanguage)
   const [cursorLine, setCursorLine] = useState(0)
   const [editorRef, setEditorRef] =
     useState<monaco.editor.IStandaloneCodeEditor>()
@@ -207,7 +207,7 @@ export default function CodeEditor({
     )
     const fetchFileContent = (fileId: string): Promise<string> => {
       return new Promise((resolve) => {
-        socket?.emit("getFile", fileId, (content: string) => {
+        socket?.emit("getFile", { fileId }, (content: string) => {
           resolve(content)
         })
       })
@@ -532,7 +532,7 @@ export default function CodeEditor({
         )
         console.log(`Saving file...${activeFileId}`)
         console.log(`Saving file...${content}`)
-        socket?.emit("saveFile", activeFileId, content)
+        socket?.emit("saveFile", { fileId: activeFileId, body: content })
       }
     }, Number(process.env.FILE_SAVE_DEBOUNCE_DELAY) || 1000),
     [socket, fileContents]
@@ -649,7 +649,7 @@ export default function CodeEditor({
 
   // Socket event listener effect
   useEffect(() => {
-    const onConnect = () => {}
+    const onConnect = () => { }
 
     const onDisconnect = () => {
       setTerminals([])
@@ -715,7 +715,7 @@ export default function CodeEditor({
 
   // Debounced function to get file content
   const debouncedGetFile = (tabId: any, callback: any) => {
-    socket?.emit("getFile", tabId, callback)
+    socket?.emit("getFile", { fileId: tabId }, callback)
   } // 300ms debounce delay, adjust as needed
 
   const selectFile = (tab: TTab) => {
@@ -777,8 +777,8 @@ export default function CodeEditor({
         ? numTabs === 1
           ? null
           : index < numTabs - 1
-          ? tabs[index + 1].id
-          : tabs[index - 1].id
+            ? tabs[index + 1].id
+            : tabs[index - 1].id
         : activeFileId
 
     setTabs((prev) => prev.filter((t) => t.id !== id))
@@ -835,7 +835,7 @@ export default function CodeEditor({
       return false
     }
 
-    socket?.emit("renameFile", id, newName)
+    socket?.emit("renameFile", { fileId: id, newName })
     setTabs((prev) =>
       prev.map((tab) => (tab.id === id ? { ...tab, name: newName } : tab))
     )
@@ -844,7 +844,7 @@ export default function CodeEditor({
   }
 
   const handleDeleteFile = (file: TFile) => {
-    socket?.emit("deleteFile", file.id, (response: (TFolder | TFile)[]) => {
+    socket?.emit("deleteFile", { fileId: file.id }, (response: (TFolder | TFile)[]) => {
       setFiles(response)
     })
     closeTab(file.id)
@@ -854,11 +854,11 @@ export default function CodeEditor({
     setDeletingFolderId(folder.id)
     console.log("deleting folder", folder.id)
 
-    socket?.emit("getFolder", folder.id, (response: string[]) =>
+    socket?.emit("getFolder", { folderId: folder.id }, (response: string[]) =>
       closeTabs(response)
     )
 
-    socket?.emit("deleteFolder", folder.id, (response: (TFolder | TFile)[]) => {
+    socket?.emit("deleteFolder", { folderId: folder.id }, (response: (TFolder | TFile)[]) => {
       setFiles(response)
       setDeletingFolderId("")
     })
@@ -902,7 +902,7 @@ export default function CodeEditor({
         <DisableAccessModal
           message={disableAccess.message}
           open={disableAccess.isDisabled}
-          setOpen={() => {}}
+          setOpen={() => { }}
         />
         <Loading />
       </>
@@ -944,8 +944,8 @@ export default function CodeEditor({
                 code:
                   (isSelected && editorRef?.getSelection()
                     ? editorRef
-                        ?.getModel()
-                        ?.getValueInRange(editorRef?.getSelection()!)
+                      ?.getModel()
+                      ?.getValueInRange(editorRef?.getSelection()!)
                     : editorRef?.getValue()) ?? "",
                 line: generate.line,
               }}
@@ -1075,62 +1075,62 @@ export default function CodeEditor({
                       </div>
                     </>
                   ) : // Note clerk.loaded is required here due to a bug: https://github.com/clerk/javascript/issues/1643
-                  clerk.loaded ? (
-                    <>
-                      {provider && userInfo ? (
-                        <Cursors yProvider={provider} userInfo={userInfo} />
-                      ) : null}
-                      <Editor
-                        height="100%"
-                        language={editorLanguage}
-                        beforeMount={handleEditorWillMount}
-                        onMount={handleEditorMount}
-                        onChange={(value) => {
-                          // If the new content is different from the cached content, update it
-                          if (value !== fileContents[activeFileId]) {
-                            setActiveFileContent(value ?? "") // Update the active file content
-                            // Mark the file as unsaved by setting 'saved' to false
-                            setTabs((prev) =>
-                              prev.map((tab) =>
-                                tab.id === activeFileId
-                                  ? { ...tab, saved: false }
-                                  : tab
+                    clerk.loaded ? (
+                      <>
+                        {provider && userInfo ? (
+                          <Cursors yProvider={provider} userInfo={userInfo} />
+                        ) : null}
+                        <Editor
+                          height="100%"
+                          language={editorLanguage}
+                          beforeMount={handleEditorWillMount}
+                          onMount={handleEditorMount}
+                          onChange={(value) => {
+                            // If the new content is different from the cached content, update it
+                            if (value !== fileContents[activeFileId]) {
+                              setActiveFileContent(value ?? "") // Update the active file content
+                              // Mark the file as unsaved by setting 'saved' to false
+                              setTabs((prev) =>
+                                prev.map((tab) =>
+                                  tab.id === activeFileId
+                                    ? { ...tab, saved: false }
+                                    : tab
+                                )
                               )
-                            )
-                          } else {
-                            // If the content matches the cached content, mark the file as saved
-                            setTabs((prev) =>
-                              prev.map((tab) =>
-                                tab.id === activeFileId
-                                  ? { ...tab, saved: true }
-                                  : tab
+                            } else {
+                              // If the content matches the cached content, mark the file as saved
+                              setTabs((prev) =>
+                                prev.map((tab) =>
+                                  tab.id === activeFileId
+                                    ? { ...tab, saved: true }
+                                    : tab
+                                )
                               )
-                            )
-                          }
-                        }}
-                        options={{
-                          tabSize: 2,
-                          minimap: {
-                            enabled: false,
-                          },
-                          padding: {
-                            bottom: 4,
-                            top: 4,
-                          },
-                          scrollBeyondLastLine: false,
-                          fixedOverflowWidgets: true,
-                          fontFamily: "var(--font-geist-mono)",
-                        }}
-                        theme={theme === "light" ? "vs" : "vs-dark"}
-                        value={activeFileContent}
-                      />
-                    </>
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-xl font-medium text-muted-foreground/50 select-none">
-                      <Loader2 className="animate-spin w-6 h-6 mr-3" />
-                      Waiting for Clerk to load...
-                    </div>
-                  )}
+                            }
+                          }}
+                          options={{
+                            tabSize: 2,
+                            minimap: {
+                              enabled: false,
+                            },
+                            padding: {
+                              bottom: 4,
+                              top: 4,
+                            },
+                            scrollBeyondLastLine: false,
+                            fixedOverflowWidgets: true,
+                            fontFamily: "var(--font-geist-mono)",
+                          }}
+                          theme={theme === "light" ? "vs" : "vs-dark"}
+                          value={activeFileContent}
+                        />
+                      </>
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-xl font-medium text-muted-foreground/50 select-none">
+                        <Loader2 className="animate-spin w-6 h-6 mr-3" />
+                        Waiting for Clerk to load...
+                      </div>
+                    )}
                 </div>
               </ResizablePanel>
               <ResizableHandle />
@@ -1140,10 +1140,10 @@ export default function CodeEditor({
                     isAIChatOpen && isHorizontalLayout
                       ? "horizontal"
                       : isAIChatOpen
-                      ? "vertical"
-                      : isHorizontalLayout
-                      ? "horizontal"
-                      : "vertical"
+                        ? "vertical"
+                        : isHorizontalLayout
+                          ? "horizontal"
+                          : "vertical"
                   }
                 >
                   <ResizablePanel
@@ -1228,17 +1228,4 @@ export default function CodeEditor({
   )
 }
 
-/**
- * Configure the typescript compiler to detect JSX and load type definitions
- */
-const defaultCompilerOptions: monaco.languages.typescript.CompilerOptions = {
-  allowJs: true,
-  allowSyntheticDefaultImports: true,
-  allowNonTsExtensions: true,
-  resolveJsonModule: true,
 
-  jsx: monaco.languages.typescript.JsxEmit.ReactJSX,
-  module: monaco.languages.typescript.ModuleKind.ESNext,
-  moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
-  target: monaco.languages.typescript.ScriptTarget.ESNext,
-}

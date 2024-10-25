@@ -65,12 +65,12 @@ export default function EditorTerminal({
     }
 
     const disposableOnData = term.onData((data) => {
-      socket.emit("terminalData", id, data)
+      socket.emit("terminalData", { id, data })
     })
 
     const disposableOnResize = term.onResize((dimensions) => {
       fitAddonRef.current?.fit()
-      socket.emit("terminalResize", dimensions)
+      socket.emit("terminalResize", { dimensions })
     })
     const resizeObserver = new ResizeObserver(
       debounce((entries) => {

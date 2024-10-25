@@ -87,8 +87,10 @@ export default function Sidebar({
         setMovingId(fileId)
         socket.emit(
           "moveFile",
-          fileId,
-          folderId,
+          {
+            fileId,
+            folderId
+          },
           (response: (TFolder | TFile)[]) => {
             setFiles(response)
             setMovingId("")

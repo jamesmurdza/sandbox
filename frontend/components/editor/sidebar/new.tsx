@@ -27,7 +27,7 @@ export default function New({
         if (type === "file") {
           socket.emit(
             "createFile",
-            name,
+            { name },
             ({ success }: { success: boolean }) => {
               if (success) {
                 addNew(name, type)
@@ -35,7 +35,7 @@ export default function New({
             }
           )
         } else {
-          socket.emit("createFolder", name, () => {
+          socket.emit("createFolder", { name }, () => {
             addNew(name, type)
           })
         }

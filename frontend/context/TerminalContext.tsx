@@ -63,7 +63,7 @@ export const TerminalProvider: React.FC<{ children: React.ReactNode }> = ({
         terminals,
         setTerminals,
         setActiveTerminalId,
-        setClosingTerminal: () => {},
+        setClosingTerminal: () => { },
         socket,
         activeTerminalId,
       })
@@ -73,7 +73,7 @@ export const TerminalProvider: React.FC<{ children: React.ReactNode }> = ({
   const deploy = (callback: () => void) => {
     if (!socket) console.error("Couldn't deploy: No socket")
     console.log("Deploying...")
-    socket?.emit("deploy", () => {
+    socket?.emit("deploy", {}, () => {
       callback()
     })
   }

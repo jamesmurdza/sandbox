@@ -32,9 +32,9 @@ export const createTerminal = ({
   setActiveTerminalId(id)
 
   setTimeout(() => {
-    socket.emit("createTerminal", id, () => {
+    socket.emit("createTerminal", { id }, () => {
       setCreatingTerminal(false)
-      if (command) socket.emit("terminalData", id, command + "\n")
+      if (command) socket.emit("terminalData", { id, data: command + "\n" })
     })
   }, 1000)
 }
@@ -75,7 +75,7 @@ export const closeTerminal = ({
 
   setClosingTerminal(term.id)
 
-  socket.emit("closeTerminal", term.id, () => {
+  socket.emit("closeTerminal", { id: term.id }, () => {
     setClosingTerminal("")
 
     const nextId =
@@ -83,8 +83,8 @@ export const closeTerminal = ({
         ? numTerminals === 1
           ? null
           : index < numTerminals - 1
-          ? terminals[index + 1].id
-          : terminals[index - 1].id
+            ? terminals[index + 1].id
+            : terminals[index - 1].id
         : activeTerminalId
 
     setTerminals((prev) => prev.filter((t) => t.id !== term.id))

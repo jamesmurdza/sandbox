@@ -1,6 +1,6 @@
 // Import necessary modules
-import { io, Socket } from "socket.io-client";
 import dotenv from "dotenv";
+import { io, Socket } from "socket.io-client";
 
 dotenv.config();
 
@@ -21,7 +21,7 @@ socketRef.on("connect", async () => {
   console.log("Connected to the server");
   await new Promise((resolve) => setTimeout(resolve, 1000));
 
-  socketRef.emit("list", (response: CallbackResponse) => {
+  socketRef.emit("list", {}, (response: CallbackResponse) => {
     if (response.success) {
       console.log("List of apps:", response.apps);
     } else {
@@ -29,7 +29,7 @@ socketRef.on("connect", async () => {
     }
   });
 
-  socketRef.emit("deploy", (response: CallbackResponse) => {
+  socketRef.emit("deploy", {}, (response: CallbackResponse) => {
     if (response.success) {
       console.log("It worked!");
     } else {
