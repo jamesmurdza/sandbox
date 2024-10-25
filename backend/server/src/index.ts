@@ -11,7 +11,7 @@ import { DokkuClient } from "./DokkuClient"
 import { FileManager, SandboxFiles } from "./FileManager"
 import { SecureGitClient } from "./SecureGitClient"
 import { socketAuth } from "./socketAuth"; // Import the new socketAuth middleware
-import { handleCloseTerminal, handleCreateFile, handleCreateFolder, handleCreateTerminal, handleDeleteFile, handleDeleteFolder, handleDeploy, handleGenerateCode, handleGetFile, handleGetFolder, handleHeartbeat, handleListApps, handleMoveFile, HandlerContext, handleRenameFile, handleResizeTerminal, handleSaveFile, handleTerminalData } from "./SocketHandlers"
+import { eventHandlers, HandlerContext } from "./SocketHandlers"
 import { TerminalManager } from "./TerminalManager"
 import { LockManager } from "./utils"
 
@@ -191,24 +191,9 @@ io.on("connection", async (socket) => {
       });
     };
 
-    // Register socket events with optional rate limiters
-    handleSocketEvent("heartbeat", handleHeartbeat);
-    handleSocketEvent("getFile", handleGetFile);
-    handleSocketEvent("getFolder", handleGetFolder);
-    handleSocketEvent("saveFile", handleSaveFile);
-    handleSocketEvent("moveFile", handleMoveFile);
-    handleSocketEvent("list", handleListApps);
-    handleSocketEvent("deploy", handleDeploy);
-    handleSocketEvent("createFile", handleCreateFile);
-    handleSocketEvent("createFolder", handleCreateFolder);
-    handleSocketEvent("renameFile", handleRenameFile);
-    handleSocketEvent("deleteFile", handleDeleteFile);
-    handleSocketEvent("deleteFolder", handleDeleteFolder);
-    handleSocketEvent("createTerminal", handleCreateTerminal);
-    handleSocketEvent("resizeTerminal", handleResizeTerminal);
-    handleSocketEvent("terminalData", handleTerminalData);
-    handleSocketEvent("closeTerminal", handleCloseTerminal);
-    handleSocketEvent("generateCode", handleGenerateCode);
+    Object.entries(eventHandlers).forEach(([event, handler]) => {
+      handleSocketEvent(event, handler);
+    });
 
     socket.on("disconnect", async () => {
       try {
