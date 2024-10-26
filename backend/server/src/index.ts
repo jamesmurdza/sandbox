@@ -124,7 +124,8 @@ io.on("connection", async (socket) => {
       Object.entries(sandboxManager.handlers()).forEach(([event, handler]) => {
         socket.on(event, async (options: any, callback?: (response: any) => void) => {
           try {
-            callback?.(await handler(options));
+            const result = await handler(options)
+            callback?.(result);
           } catch (e: any) {
             handleErrors(`Error processing event "${event}":`, e, socket);
           }
