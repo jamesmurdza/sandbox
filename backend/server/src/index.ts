@@ -120,7 +120,6 @@ io.on("connection", async (socket) => {
       sandboxes[data.sandboxId] = sandboxManager
 
       const sendFileNotifications = (files: (TFolder | TFile)[]) => {
-        console.log("NOTIFICATION")
         connections.connectionsForSandbox(data.sandboxId).forEach((socket: Socket) => {
           socket.emit("loaded", files);
         });
