@@ -1,5 +1,5 @@
 import { Sandbox as E2BSandbox } from "e2b"
-import { Socket } from 'socket.io'
+import { Socket } from "socket.io"
 import { AIWorker } from "./AIWorker"
 import { CONTAINER_TIMEOUT } from "./constants"
 import { DokkuClient } from "./DokkuClient"
@@ -33,36 +33,35 @@ type ServerContext = {
     aiWorker: AIWorker;
     dokkuClient: DokkuClient | null;
     gitClient: SecureGitClient | null;
-    socket: Socket;
 };
 
 export class Sandbox {
+    // Sandbox properties:
+    sandboxId: string;
     fileManager: FileManager | null;
     terminalManager: TerminalManager | null;
     container: E2BSandbox | null;
+    // Server context:
     dokkuClient: DokkuClient | null;
     gitClient: SecureGitClient | null;
     aiWorker: AIWorker;
-    socket: Socket;
-    sandboxId: string;
-    userId: string;
-    isOwner: boolean;
 
-    constructor(sandboxId: string, userId: string, isOwner: boolean, { aiWorker, dokkuClient, gitClient, socket }: ServerContext) {
+    constructor(sandboxId: string, { aiWorker, dokkuClient, gitClient }: ServerContext) {
+        // Sandbox properties:
+        this.sandboxId = sandboxId;
         this.fileManager = null;
         this.terminalManager = null;
         this.container = null;
-        this.sandboxId = sandboxId;
-        this.userId = userId;
-        this.isOwner = isOwner;
+        // Server context:
         this.aiWorker = aiWorker;
         this.dokkuClient = dokkuClient;
         this.gitClient = gitClient;
-        this.socket = socket;
     }
 
     // Initializes the container for the sandbox environment
-    async initializeContainer() {
+    async initialize(
+        fileWatchCallback: ((files: (TFolder | TFile)[]) => void) | undefined
+    ) {
         // Acquire a lock to ensure exclusive access to the sandbox environment
         await lockManager.acquireLock(this.sandboxId, async () => {
             // Check if a container already exists and is running
@@ -90,14 +89,10 @@ export class Sandbox {
             this.fileManager = new FileManager(
                 this.sandboxId,
                 this.container,
-                (files: (TFolder | TFile)[]) => {
-                    // Emit an event to the socket when files are loaded
-                    this.socket.emit("loaded", files)
-                }
+                fileWatchCallback ?? null
             )
             // Initialize the file manager and emit the initial files
-            this.fileManager.initialize()
-            this.socket.emit("loaded", this.fileManager.files)
+            await this.fileManager.initialize()
         }
     }
 
@@ -113,12 +108,12 @@ export class Sandbox {
         this.fileManager = null;
     }
 
-    handlers() {
+    handlers(connection: { userId: string, isOwner: boolean, socket: Socket }) {
 
         // Handle heartbeat from a socket connection
         const handleHeartbeat: SocketHandler = (_: any) => {
             // Only keep the sandbox alive if the owner is still connected
-            if (this.isOwner) {
+            if (connection.isOwner) {
                 this.container?.setTimeout(CONTAINER_TIMEOUT)
             }
         }
@@ -135,7 +130,7 @@ export class Sandbox {
 
         // Handle saving a file
         const handleSaveFile: SocketHandler = async ({ fileId, body }: any) => {
-            await saveFileRL.consume(this.userId, 1);
+            await saveFileRL.consume(connection.userId, 1);
             return this.fileManager?.saveFile(fileId, body)
         }
 
@@ -160,25 +155,25 @@ export class Sandbox {
 
         // Handle creating a file
         const handleCreateFile: SocketHandler = async ({ name }: any) => {
-            await createFileRL.consume(this.userId, 1);
+            await createFileRL.consume(connection.userId, 1);
             return { "success": await this.fileManager?.createFile(name) }
         }
 
         // Handle creating a folder
         const handleCreateFolder: SocketHandler = async ({ name }: any) => {
-            await createFolderRL.consume(this.userId, 1);
+            await createFolderRL.consume(connection.userId, 1);
             return { "success": await this.fileManager?.createFolder(name) }
         }
 
         // Handle renaming a file
         const handleRenameFile: SocketHandler = async ({ fileId, newName }: any) => {
-            await renameFileRL.consume(this.userId, 1)
+            await renameFileRL.consume(connection.userId, 1)
             return this.fileManager?.renameFile(fileId, newName)
         }
 
         // Handle deleting a file
         const handleDeleteFile: SocketHandler = async ({ fileId }: any) => {
-            await deleteFileRL.consume(this.userId, 1)
+            await deleteFileRL.consume(connection.userId, 1)
             return this.fileManager?.deleteFile(fileId)
         }
 
@@ -191,10 +186,10 @@ export class Sandbox {
         const handleCreateTerminal: SocketHandler = async ({ id }: any) => {
             await lockManager.acquireLock(this.sandboxId, async () => {
                 await this.terminalManager?.createTerminal(id, (responseString: string) => {
-                    this.socket.emit("terminalResponse", { id, data: responseString })
+                    connection.socket.emit("terminalResponse", { id, data: responseString })
                     const port = extractPortNumber(responseString)
                     if (port) {
-                        this.socket.emit(
+                        connection.socket.emit(
                             "previewURL",
                             "https://" + this.container?.getHost(port)
                         )
@@ -220,7 +215,7 @@ export class Sandbox {
 
         // Handle generating code
         const handleGenerateCode: SocketHandler = ({ fileName, code, line, instructions }: any) => {
-            return this.aiWorker.generateCode(this.userId, fileName, code, line, instructions)
+            return this.aiWorker.generateCode(connection.userId, fileName, code, line, instructions)
         }
 
         return {

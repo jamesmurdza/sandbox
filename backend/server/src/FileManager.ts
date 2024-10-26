@@ -50,13 +50,13 @@ export class FileManager {
   public fileData: TFileData[]
   private fileWatchers: WatchHandle[] = []
   private dirName = "/home/user/project"
-  private refreshFileList: (files: (TFolder | TFile)[]) => void
+  private refreshFileList: ((files: (TFolder | TFile)[]) => void) | null
 
   // Constructor to initialize the FileManager
   constructor(
     sandboxId: string,
     sandbox: Sandbox,
-    refreshFileList: (files: (TFolder | TFile)[]) => void
+    refreshFileList: ((files: (TFolder | TFile)[]) => void) | null
   ) {
     this.sandboxId = sandboxId
     this.sandbox = sandbox
@@ -314,7 +314,9 @@ export class FileManager {
             }
 
             // Tell the client to reload the file list
-            this.refreshFileList(this.files)
+            if (event.type !== "chmod") {
+              this.refreshFileList?.(this.files)
+            }
           } catch (error) {
             console.error(
               `Error handling ${event.type} event for ${event.name}:`,

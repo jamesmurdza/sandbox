@@ -3,17 +3,18 @@ import dotenv from "dotenv"
 import express, { Express } from "express"
 import fs from "fs"
 import { createServer } from "http"
-import { Server } from "socket.io"
+import { Server, Socket } from "socket.io"
 import { AIWorker } from "./AIWorker"
 
+import { ConnectionManager } from "./ConnectionManager"
 import { DokkuClient } from "./DokkuClient"
-import { OwnerConnectionManager as ConnectionManager } from "./OwnerConnectionManager"
 import { Sandbox } from "./SandboxManager"
 import { SecureGitClient } from "./SecureGitClient"
 import { socketAuth } from "./socketAuth"; // Import the new socketAuth middleware
+import { TFile, TFolder } from "./types"
 
 // Log errors and send a notification to the client
-export const handleErrors = (message: string, error: any, socket: any) => {
+export const handleErrors = (message: string, error: any, socket: Socket) => {
   console.error(message, error);
   socket.emit("error", `${message} ${error.message ?? error}`);
 };
@@ -106,22 +107,35 @@ io.on("connection", async (socket) => {
         return
       }
     }
+    connections.addConnectionForSandbox(socket, data.sandboxId)
 
     try {
       // Create or retrieve the sandbox manager for the given sandbox ID
       const sandboxManager = sandboxes[data.sandboxId] ?? new Sandbox(
         data.sandboxId,
-        data.userId,
-        data.isOwner,
-        { aiWorker, dokkuClient, gitClient, socket }
+        {
+          aiWorker, dokkuClient, gitClient,
+        }
       )
+      sandboxes[data.sandboxId] = sandboxManager
+
+      const sendFileNotifications = (files: (TFolder | TFile)[]) => {
+        connections.connectionsForSandbox(data.sandboxId).forEach((socket: Socket) => {
+          socket.emit("loaded", files);
+        });
+      };
 
       // Initialize the sandbox container
       // The file manager and terminal managers will be set up if they have been closed
-      sandboxManager.initializeContainer()
+      await sandboxManager.initialize(sendFileNotifications)
+      socket.emit("loaded", sandboxManager.fileManager?.files)
 
       // Register event handlers for the sandbox
-      Object.entries(sandboxManager.handlers()).forEach(([event, handler]) => {
+      Object.entries(sandboxManager.handlers({
+        userId: data.userId,
+        isOwner: data.isOwner,
+        socket
+      })).forEach(([event, handler]) => {
         socket.on(event, async (options: any, callback?: (response: any) => void) => {
           try {
             const result = await handler(options)
@@ -135,6 +149,8 @@ io.on("connection", async (socket) => {
       // Handle disconnection event
       socket.on("disconnect", async () => {
         try {
+          connections.removeConnectionForSandbox(socket, data.sandboxId)
+
           if (data.isOwner) {
             connections.ownerDisconnected(data.sandboxId)
             // If the owner has disconnected from all sockets, close open terminals and file watchers.o
