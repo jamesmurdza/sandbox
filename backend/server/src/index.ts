@@ -98,16 +98,14 @@ io.on("connection", async (socket) => {
       isOwner: boolean
     }
 
+    // Register the connection
+    connections.addConnectionForSandbox(socket, data.sandboxId, data.isOwner)
+
     // Disable access unless the sandbox owner is connected
-    if (data.isOwner) {
-      connections.ownerConnected(data.sandboxId)
-    } else {
-      if (!connections.ownerIsConnected(data.sandboxId)) {
-        socket.emit("disableAccess", "The sandbox owner is not connected.")
-        return
-      }
+    if (!data.isOwner && !connections.ownerIsConnected(data.sandboxId)) {
+      socket.emit("disableAccess", "The sandbox owner is not connected.")
+      return
     }
-    connections.addConnectionForSandbox(socket, data.sandboxId)
 
     try {
       // Create or retrieve the sandbox manager for the given sandbox ID
@@ -119,6 +117,7 @@ io.on("connection", async (socket) => {
       )
       sandboxes[data.sandboxId] = sandboxManager
 
+      // This callback recieves an update when the file list changes, and notifies all relevant connections.
       const sendFileNotifications = (files: (TFolder | TFile)[]) => {
         connections.connectionsForSandbox(data.sandboxId).forEach((socket: Socket) => {
           socket.emit("loaded", files);
@@ -131,6 +130,8 @@ io.on("connection", async (socket) => {
       socket.emit("loaded", sandboxManager.fileManager?.files)
 
       // Register event handlers for the sandbox
+      // For each event handler, listen on the socket for that event
+      // Pass connection-specific information to the handlers
       Object.entries(sandboxManager.handlers({
         userId: data.userId,
         isOwner: data.isOwner,
@@ -149,19 +150,17 @@ io.on("connection", async (socket) => {
       // Handle disconnection event
       socket.on("disconnect", async () => {
         try {
-          connections.removeConnectionForSandbox(socket, data.sandboxId)
+          // Deregister the connection
+          connections.removeConnectionForSandbox(socket, data.sandboxId, data.isOwner)
 
-          if (data.isOwner) {
-            connections.ownerDisconnected(data.sandboxId)
-            // If the owner has disconnected from all sockets, close open terminals and file watchers.o
-            // The sandbox itself will timeout after the heartbeat stops.
-            if (!connections.ownerIsConnected(data.sandboxId)) {
-              await sandboxManager.disconnect()
-              socket.broadcast.emit(
-                "disableAccess",
-                "The sandbox owner has disconnected."
-              )
-            }
+          // If the owner has disconnected from all sockets, close open terminals and file watchers.o
+          // The sandbox itself will timeout after the heartbeat stops.
+          if (data.isOwner && !connections.ownerIsConnected(data.sandboxId)) {
+            await sandboxManager.disconnect()
+            socket.broadcast.emit(
+              "disableAccess",
+              "The sandbox owner has disconnected."
+            )
           }
         } catch (e: any) {
           handleErrors("Error disconnecting:", e, socket);
