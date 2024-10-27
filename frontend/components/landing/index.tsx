@@ -22,7 +22,7 @@ export default function Landing() {
           </div>
           <div className="flex items-center space-x-4">
             <Button variant="outline" size="icon" asChild>
-              <a href="https://www.x.com/ishaandey_" target="_blank">
+              <a href="https://x.com/gitwitdev" target="_blank">
                 <svg
                   width="1200"
                   height="1227"
@@ -54,7 +54,7 @@ export default function Landing() {
             <CustomButton>Go To App</CustomButton>
           </Link>
           <a
-            href="https://github.com/ishaan1013/sandbox"
+            href="https://github.com/jamesmurdza/sandbox"
             target="_blank"
             className="group h-9 px-4 py-2 inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
           >

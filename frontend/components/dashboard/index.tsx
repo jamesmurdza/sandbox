@@ -95,7 +95,7 @@ export default function Dashboard({
             </Button> */}
           </div>
           <div className="flex flex-col">
-            <a target="_blank" href="https://github.com/ishaan1013/sandbox">
+            <a target="_blank" href="https://github.com/jamesmurdza/sandbox">
               <Button
                 variant="ghost"
                 className="justify-start w-full font-normal text-muted-foreground"
