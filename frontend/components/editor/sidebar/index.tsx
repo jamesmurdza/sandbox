@@ -10,7 +10,7 @@ import New from "./new"
 
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { sortFileExplorer } from "@/lib/utils"
+import { cn, sortFileExplorer } from "@/lib/utils"
 import {
   dropTargetForElements,
   monitorForElements,
@@ -27,6 +27,8 @@ export default function Sidebar({
   setFiles,
   addNew,
   deletingFolderId,
+  toggleAIChat,
+  isAIChatOpen,
 }: {
   sandboxData: Sandbox
   files: (TFile | TFolder)[]
@@ -43,6 +45,8 @@ export default function Sidebar({
   setFiles: (files: (TFile | TFolder)[]) => void
   addNew: (name: string, type: "file" | "folder") => void
   deletingFolderId: string
+  toggleAIChat: () => void
+  isAIChatOpen: boolean
 }) {
   const ref = useRef(null) // drop target
 
@@ -188,7 +192,7 @@ export default function Sidebar({
           style={{ opacity: 1 }}
         >
           <Sparkles className="h-4 w-4 mr-2 text-indigo-500 opacity-70" />
-          Copilot
+          AI Editor
           <div className="ml-auto">
             <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
               <span className="text-xs">⌘</span>G
@@ -197,12 +201,24 @@ export default function Sidebar({
         </Button>
         <Button
           variant="ghost"
-          className="w-full justify-start text-sm text-muted-foreground font-normal h-8 px-2 mb-2"
-          disabled
-          aria-disabled="true"
+          className={cn(
+            "w-full justify-start text-sm font-normal h-8 px-2 mb-2 border-t",
+            isAIChatOpen 
+              ? "bg-muted-foreground/25 text-foreground" 
+              : "text-muted-foreground"
+          )}
+          onClick={toggleAIChat}
+          aria-disabled={false}
           style={{ opacity: 1 }}
         >
-          <MessageSquareMore className="h-4 w-4 mr-2 text-indigo-500 opacity-70" />
+          <MessageSquareMore 
+            className={cn(
+              "h-4 w-4 mr-2",
+              isAIChatOpen 
+                ? "text-indigo-500" 
+                : "text-indigo-500 opacity-70"
+            )}
+          />
           AI Chat
           <div className="ml-auto">
             <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">

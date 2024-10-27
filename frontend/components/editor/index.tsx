@@ -1028,6 +1028,8 @@ export default function CodeEditor({
           setFiles={setFiles}
           addNew={(name, type) => addNew(name, type, setFiles, sandboxData)}
           deletingFolderId={deletingFolderId}
+          toggleAIChat={toggleAIChat}
+          isAIChatOpen={isAIChatOpen}
         />
         {/* Outer ResizablePanelGroup for main layout */}
         <ResizablePanelGroup

@@ -38,6 +38,7 @@
     "@xterm/xterm": "^5.5.0",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
+    "embla-carousel": "^8.3.0",
     "embla-carousel-react": "^8.3.0",
     "embla-carousel-wheel-gestures": "^8.0.1",
     "framer-motion": "^11.2.3",
