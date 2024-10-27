@@ -128,7 +128,7 @@ export class FileManager {
     // Copy all files from the project to the container
     const promises = this.fileData.map(async (file) => {
       try {
-        const filePath = path.join(this.dirName, file.id)
+        const filePath = path.posix.join(this.dirName, file.id)
         const parentDirectory = path.dirname(filePath)
         if (!this.sandbox.files.exists(parentDirectory)) {
           await this.sandbox.files.makeDir(parentDirectory)
