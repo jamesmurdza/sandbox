@@ -107,7 +107,6 @@ export default function CodeEditor({
 
   // Editor state
   const [editorLanguage, setEditorLanguage] = useState("plaintext")
-  console.log("editor language: ", editorLanguage)
   const [cursorLine, setCursorLine] = useState(0)
   const [editorRef, setEditorRef] =
     useState<monaco.editor.IStandaloneCodeEditor>()
