@@ -172,6 +172,9 @@ export default function CodeEditor({
   const editorPanelRef = useRef<ImperativePanelHandle>(null)
   const previewWindowRef = useRef<{ refreshIframe: () => void }>(null)
 
+  // Ref to store the last copied range in the editor to be used in the AIChat component
+  const lastCopiedRangeRef = useRef<{ startLine: number; endLine: number } | null>(null);
+
   const debouncedSetIsSelected = useRef(
     debounce((value: boolean) => {
       setIsSelected(value)
@@ -256,6 +259,17 @@ export default function CodeEditor({
           updatedOptions
         )
       }
+
+      // Store the last copied range in the editor to be used in the AIChat component
+      editor.onDidChangeCursorSelection((e) => {
+        const selection = editor.getSelection();
+        if (selection) {
+          lastCopiedRangeRef.current = {
+            startLine: selection.startLineNumber,
+            endLine: selection.endLineNumber
+          };
+        }
+      });
     }
 
     // Call the function with your file structure
@@ -1219,6 +1233,9 @@ export default function CodeEditor({
                     "No file selected"
                   }
                   onClose={toggleAIChat}
+                  editorRef={{ current: editorRef }}
+                  lastCopiedRangeRef={lastCopiedRangeRef}
+                  files={files}
                 />
               </ResizablePanel>
             </>

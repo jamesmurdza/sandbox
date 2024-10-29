@@ -6,6 +6,8 @@ import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism"
 import remarkGfm from "remark-gfm"
 import { Button } from "../../ui/button"
 import { copyToClipboard, stringifyContent } from "./lib/chatUtils"
+import ContextTabs from "./ContextTabs"
+import { Socket } from "socket.io-client"
 
 interface MessageProps {
   message: {
@@ -15,12 +17,14 @@ interface MessageProps {
   }
   setContext: (context: string | null) => void
   setIsContextExpanded: (isExpanded: boolean) => void
+  socket: Socket | null
 }
 
 export default function ChatMessage({
   message,
   setContext,
   setIsContextExpanded,
+  socket,
 }: MessageProps) {
   const [expandedMessageIndex, setExpandedMessageIndex] = useState<
     number | null
@@ -88,34 +92,18 @@ export default function ChatMessage({
             : "bg-transparent text-white"
         } max-w-full`}
       >
-        {message.role === "user" && (
-          <div className="absolute top-0 right-0 flex opacity-0 group-hover:opacity-30 transition-opacity">
-            {renderCopyButton(message.content)}
-            <Button
-              onClick={() => askAboutCode(message.content)}
-              size="sm"
-              variant="ghost"
-              className="p-1 h-6"
-            >
-              <CornerUpLeft className="w-4 h-4" />
-            </Button>
-          </div>
-        )}
-        {message.context && (
+        {message.role === "user" && message.context && (
           <div className="mb-2 bg-input rounded-lg">
-            <div
-              className="flex justify-between items-center cursor-pointer"
-              onClick={() =>
-                setExpandedMessageIndex(expandedMessageIndex === 0 ? null : 0)
-              }
-            >
-              <span className="text-sm text-gray-300">Context</span>
-              {expandedMessageIndex === 0 ? (
-                <ChevronUp size={16} />
-              ) : (
-                <ChevronDown size={16} />
-              )}
-            </div>
+            <ContextTabs
+              socket={socket}
+              activeFileName=""
+              onAddFile={() => {}}
+              contextTabs={parseContextToTabs(message.context)}
+              onRemoveTab={() => {}}
+              isExpanded={expandedMessageIndex === 0}
+              onToggleExpand={() => setExpandedMessageIndex(expandedMessageIndex === 0 ? null : 0)}
+              className="[&_div:first-child>div:first-child>div]:bg-[#0D0D0D] [&_button:first-child]:hidden [&_button:last-child]:hidden"
+            />
             {expandedMessageIndex === 0 && (
               <div className="relative">
                 <div className="absolute top-0 right-0 flex p-1">
@@ -151,6 +139,19 @@ export default function ChatMessage({
                 })()}
               </div>
             )}
+          </div>
+        )}
+        {message.role === "user" && (
+          <div className="absolute top-0 right-0 flex opacity-0 group-hover:opacity-30 transition-opacity">
+            {renderCopyButton(message.content)}
+            <Button
+              onClick={() => askAboutCode(message.content)}
+              size="sm"
+              variant="ghost"
+              className="p-1 h-6"
+            >
+              <CornerUpLeft className="w-4 h-4" />
+            </Button>
           </div>
         )}
         {message.role === "assistant" ? (
@@ -223,4 +224,26 @@ export default function ChatMessage({
       </div>
     </div>
   )
+}
+
+function parseContextToTabs(context: string) {
+  const sections = context.split(/(?=File |Code from )/)
+  return sections.map((section, index) => {
+    const lines = section.trim().split('\n')
+    const titleLine = lines[0]
+    let content = lines.slice(1).join('\n').trim()
+    
+    // Remove code block markers for display
+    content = content.replace(/^```[\w-]*\n/, '').replace(/\n```$/, '')
+    
+    const isFile = titleLine.startsWith('File ')
+    const name = titleLine.replace(/^(File |Code from )/, '').replace(':', '')
+    
+    return {
+      id: `context-${index}`,
+      type: isFile ? "file" as const : "code" as const,
+      name: name,
+      content: content
+    }
+  }).filter(tab => tab.content.length > 0)
 }
