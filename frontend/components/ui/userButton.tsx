@@ -1,23 +1,22 @@
-"use client";
+"use client"
 
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { User } from "@/lib/types";
-import { useClerk } from "@clerk/nextjs";
-import { LogOut, Pencil, Sparkles } from "lucide-react";
-import { useRouter } from "next/navigation";
+} from "@/components/ui/dropdown-menu"
+import { User } from "@/lib/types"
+import { useClerk } from "@clerk/nextjs"
+import { LogOut, Sparkles } from "lucide-react"
+import { useRouter } from "next/navigation"
 
 export default function UserButton({ userData }: { userData: User }) {
-  if (!userData) return null;
+  if (!userData) return null
 
-  const { signOut } = useClerk();
-  const router = useRouter();
+  const { signOut } = useClerk()
+  const router = useRouter()
 
   return (
     <DropdownMenu>
@@ -68,5 +67,5 @@ export default function UserButton({ userData }: { userData: User }) {
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
-  );
+  )
 }

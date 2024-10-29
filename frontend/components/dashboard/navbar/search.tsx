@@ -1,13 +1,12 @@
-"use client";
+"use client"
 
-import { Input } from "../../ui/input";
-import { Search } from "lucide-react";
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Search } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { Input } from "../../ui/input"
 
 export default function DashboardNavbarSearch() {
   // const [search, setSearch] = useState("");
-  const router = useRouter();
+  const router = useRouter()
 
   // useEffect(() => {
   //   const delayDebounceFn = setTimeout(() => {
@@ -29,14 +28,14 @@ export default function DashboardNavbarSearch() {
         // onChange={(e) => setSearch(e.target.value)}
         onChange={(e) => {
           if (e.target.value === "") {
-            router.push(`/dashboard`);
-            return;
+            router.push(`/dashboard`)
+            return
           }
-          router.push(`/dashboard?q=${e.target.value}`);
+          router.push(`/dashboard?q=${e.target.value}`)
         }}
         placeholder="Search projects..."
         className="pl-8"
       />
     </div>
-  );
+  )
 }

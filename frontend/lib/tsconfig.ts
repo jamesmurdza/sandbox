@@ -73,7 +73,11 @@ function mapModule(module: string): monaco.languages.typescript.ModuleKind {
   )
 }
 
-function mapJSX(jsx: string): monaco.languages.typescript.JsxEmit {
+function mapJSX(jsx: string | undefined): monaco.languages.typescript.JsxEmit {
+  if (!jsx || typeof jsx !== 'string') {
+    return monaco.languages.typescript.JsxEmit.React // Default value
+  }
+  
   const jsxMap: { [key: string]: monaco.languages.typescript.JsxEmit } = {
     preserve: monaco.languages.typescript.JsxEmit.Preserve,
     react: monaco.languages.typescript.JsxEmit.React,

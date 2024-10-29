@@ -1,18 +1,18 @@
-"use client";
+"use client"
 
-import Image from "next/image";
-import { getIconForFile } from "vscode-icons-js";
-import { TFile, TTab } from "@/lib/types";
-import { useEffect, useRef, useState } from "react";
 import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuTrigger,
-} from "@/components/ui/context-menu";
-import { Loader2, Pencil, Trash2 } from "lucide-react";
+} from "@/components/ui/context-menu"
+import { TFile, TTab } from "@/lib/types"
+import { Loader2, Pencil, Trash2 } from "lucide-react"
+import Image from "next/image"
+import { useEffect, useRef, useState } from "react"
+import { getIconForFile } from "vscode-icons-js"
 
-import { draggable } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
+import { draggable } from "@atlaskit/pragmatic-drag-and-drop/element/adapter"
 
 export default function SidebarFile({
   data,
@@ -22,36 +22,36 @@ export default function SidebarFile({
   movingId,
   deletingFolderId,
 }: {
-  data: TFile;
-  selectFile: (file: TTab) => void;
+  data: TFile
+  selectFile: (file: TTab) => void
   handleRename: (
     id: string,
     newName: string,
     oldName: string,
     type: "file" | "folder"
-  ) => boolean;
-  handleDeleteFile: (file: TFile) => void;
-  movingId: string;
-  deletingFolderId: string;
+  ) => boolean
+  handleDeleteFile: (file: TFile) => void
+  movingId: string
+  deletingFolderId: string
 }) {
-  const isMoving = movingId === data.id;
+  const isMoving = movingId === data.id
   const isDeleting =
-    deletingFolderId.length > 0 && data.id.startsWith(deletingFolderId);
+    deletingFolderId.length > 0 && data.id.startsWith(deletingFolderId)
 
-  const ref = useRef(null); // for draggable
-  const [dragging, setDragging] = useState(false);
+  const ref = useRef(null) // for draggable
+  const [dragging, setDragging] = useState(false)
 
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [imgSrc, setImgSrc] = useState(`/icons/${getIconForFile(data.name)}`);
-  const [editing, setEditing] = useState(false);
-  const [pendingDelete, setPendingDelete] = useState(isDeleting);
-
-  useEffect(() => {
-    setPendingDelete(isDeleting);
-  }, [isDeleting]);
+  const inputRef = useRef<HTMLInputElement>(null)
+  const [imgSrc, setImgSrc] = useState(`/icons/${getIconForFile(data.name)}`)
+  const [editing, setEditing] = useState(false)
+  const [pendingDelete, setPendingDelete] = useState(isDeleting)
 
   useEffect(() => {
-    const el = ref.current;
+    setPendingDelete(isDeleting)
+  }, [isDeleting])
+
+  useEffect(() => {
+    const el = ref.current
 
     if (el)
       return draggable({
@@ -59,14 +59,14 @@ export default function SidebarFile({
         onDragStart: () => setDragging(true),
         onDrop: () => setDragging(false),
         getInitialData: () => ({ id: data.id }),
-      });
-  }, []);
+      })
+  }, [])
 
   useEffect(() => {
     if (editing) {
-      setTimeout(() => inputRef.current?.focus(), 0);
+      setTimeout(() => inputRef.current?.focus(), 0)
     }
-  }, [editing, inputRef.current]);
+  }, [editing, inputRef.current])
 
   const renameFile = () => {
     const renamed = handleRename(
@@ -74,12 +74,12 @@ export default function SidebarFile({
       inputRef.current?.value ?? data.name,
       data.name,
       "file"
-    );
+    )
     if (!renamed && inputRef.current) {
-      inputRef.current.value = data.name;
+      inputRef.current.value = data.name
     }
-    setEditing(false);
-  };
+    setEditing(false)
+  }
 
   return (
     <ContextMenu>
@@ -88,11 +88,11 @@ export default function SidebarFile({
         disabled={pendingDelete || dragging || isMoving}
         onClick={() => {
           if (!editing && !pendingDelete && !isMoving)
-            selectFile({ ...data, saved: true });
+            selectFile({ ...data, saved: true })
         }}
-        // onDoubleClick={() => {
-        //   setEditing(true)
-        // }}
+        onDoubleClick={() => {
+          setEditing(true)
+        }}
         className={`${
           dragging ? "opacity-50 hover:!bg-background" : ""
         } data-[state=open]:bg-secondary/50 w-full flex items-center h-7 px-1 hover:bg-secondary rounded-sm cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring`}
@@ -119,8 +119,8 @@ export default function SidebarFile({
         ) : (
           <form
             onSubmit={(e) => {
-              e.preventDefault();
-              renameFile();
+              e.preventDefault()
+              renameFile()
             }}
           >
             <input
@@ -138,8 +138,8 @@ export default function SidebarFile({
       <ContextMenuContent>
         <ContextMenuItem
           onClick={() => {
-            console.log("rename");
-            setEditing(true);
+            console.log("rename")
+            setEditing(true)
           }}
         >
           <Pencil className="w-4 h-4 mr-2" />
@@ -148,9 +148,9 @@ export default function SidebarFile({
         <ContextMenuItem
           disabled={pendingDelete}
           onClick={() => {
-            console.log("delete");
-            setPendingDelete(true);
-            handleDeleteFile(data);
+            console.log("delete")
+            setPendingDelete(true)
+            handleDeleteFile(data)
           }}
         >
           <Trash2 className="w-4 h-4 mr-2" />
@@ -158,5 +158,5 @@ export default function SidebarFile({
         </ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>
-  );
+  )
 }

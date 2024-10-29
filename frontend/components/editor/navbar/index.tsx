@@ -1,33 +1,34 @@
-"use client";
+"use client"
 
-import Image from "next/image";
-import Logo from "@/assets/logo.svg";
-import { Pencil, Users } from "lucide-react";
-import Link from "next/link";
-import { Sandbox, User } from "@/lib/types";
-import UserButton from "@/components/ui/userButton";
-import { Button } from "@/components/ui/button";
-import { useState } from "react";
-import EditSandboxModal from "./edit";
-import ShareSandboxModal from "./share";
-import { Avatars } from "../live/avatars";
-import RunButtonModal from "./run";
-import DeployButtonModal from "./deploy";
+import Logo from "@/assets/logo.svg"
+import { Button } from "@/components/ui/button"
+import { ThemeSwitcher } from "@/components/ui/theme-switcher"
+import UserButton from "@/components/ui/userButton"
+import { Sandbox, User } from "@/lib/types"
+import { Pencil, Users } from "lucide-react"
+import Image from "next/image"
+import Link from "next/link"
+import { useState } from "react"
+import { Avatars } from "../live/avatars"
+import DeployButtonModal from "./deploy"
+import EditSandboxModal from "./edit"
+import RunButtonModal from "./run"
+import ShareSandboxModal from "./share"
 
 export default function Navbar({
   userData,
   sandboxData,
   shared,
 }: {
-  userData: User;
-  sandboxData: Sandbox;
-  shared: { id: string; name: string }[];
+  userData: User
+  sandboxData: Sandbox
+  shared: { id: string; name: string }[]
 }) {
-  const [isEditOpen, setIsEditOpen] = useState(false);
-  const [isShareOpen, setIsShareOpen] = useState(false);
-  const [isRunning, setIsRunning] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false)
+  const [isShareOpen, setIsShareOpen] = useState(false)
+  const [isRunning, setIsRunning] = useState(false)
 
-  const isOwner = sandboxData.userId === userData.id;;
+  const isOwner = sandboxData.userId === userData.id
 
   return (
     <>
@@ -72,19 +73,17 @@ export default function Navbar({
 
           {isOwner ? (
             <>
-            <DeployButtonModal 
-            data={sandboxData}
-            userData={userData}
-            />
-            <Button variant="outline" onClick={() => setIsShareOpen(true)}>
-              <Users className="w-4 h-4 mr-2" />
-              Share
-            </Button>
+              <DeployButtonModal data={sandboxData} userData={userData} />
+              <Button variant="outline" onClick={() => setIsShareOpen(true)}>
+                <Users className="w-4 h-4 mr-2" />
+                Share
+              </Button>
             </>
           ) : null}
+          <ThemeSwitcher />
           <UserButton userData={userData} />
         </div>
       </div>
     </>
-  );
+  )
 }

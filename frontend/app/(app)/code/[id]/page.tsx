@@ -1,12 +1,11 @@
-import Navbar from "@/components/editor/navbar"
 import { Room } from "@/components/editor/live/room"
+import Loading from "@/components/editor/loading"
+import Navbar from "@/components/editor/navbar"
+import { TerminalProvider } from "@/context/TerminalContext"
 import { Sandbox, User, UsersToSandboxes } from "@/lib/types"
 import { currentUser } from "@clerk/nextjs"
-import { notFound, redirect } from "next/navigation"
-import Loading from "@/components/editor/loading"
 import dynamic from "next/dynamic"
-import fs from "fs"
-import { TerminalProvider } from "@/context/TerminalContext"
+import { notFound, redirect } from "next/navigation"
 
 export const revalidate = 0
 
@@ -89,19 +88,20 @@ export default async function CodePage({ params }: { params: { id: string } }) {
 
   return (
     <>
-    <div className="overflow-hidden overscroll-none w-screen flex flex-col h-screen bg-background">
-      <Room id={sandboxId}>
-      <TerminalProvider>
-        <Navbar userData={userData} sandboxData={sandboxData} shared={shared} />
-        <div className="w-screen flex grow">
-          <CodeEditor
-            userData={userData}
-            sandboxData={sandboxData}
-          />
-        </div>
-      </TerminalProvider>
-      </Room>
-    </div>
+      <div className="overflow-hidden overscroll-none w-screen flex flex-col h-screen bg-background">
+        <Room id={sandboxId}>
+          <TerminalProvider>
+            <Navbar
+              userData={userData}
+              sandboxData={sandboxData}
+              shared={shared}
+            />
+            <div className="w-screen flex grow">
+              <CodeEditor userData={userData} sandboxData={sandboxData} />
+            </div>
+          </TerminalProvider>
+        </Room>
+      </div>
     </>
   )
 }

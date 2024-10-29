@@ -1,18 +1,17 @@
-"use client";
+"use client"
 
-import { Button } from "@/components/ui/button";
-import Tab from "@/components/ui/tab";
-import { Terminal } from "@xterm/xterm";
-import { Loader2, Plus, SquareTerminal, TerminalSquare } from "lucide-react";
-import { toast } from "sonner";
-import EditorTerminal from "./terminal";
-import { useTerminal } from "@/context/TerminalContext";
-import { useEffect } from "react";
+import { Button } from "@/components/ui/button"
+import Tab from "@/components/ui/tab"
 import { useSocket } from "@/context/SocketContext"
+import { useTerminal } from "@/context/TerminalContext"
+import { Terminal } from "@xterm/xterm"
+import { Loader2, Plus, SquareTerminal, TerminalSquare } from "lucide-react"
+import { useEffect } from "react"
+import { toast } from "sonner"
+import EditorTerminal from "./terminal"
 
 export default function Terminals() {
-
-  const { socket } = useSocket();
+  const { socket } = useSocket()
 
   const {
     terminals,
@@ -22,24 +21,24 @@ export default function Terminals() {
     activeTerminalId,
     setActiveTerminalId,
     creatingTerminal,
-  } = useTerminal();
+  } = useTerminal()
 
-  const activeTerminal = terminals.find((t) => t.id === activeTerminalId);
+  const activeTerminal = terminals.find((t) => t.id === activeTerminalId)
 
   // Effect to set the active terminal when a new one is created
   useEffect(() => {
     if (terminals.length > 0 && !activeTerminalId) {
-      setActiveTerminalId(terminals[terminals.length - 1].id);
+      setActiveTerminalId(terminals[terminals.length - 1].id)
     }
-  }, [terminals, activeTerminalId, setActiveTerminalId]);
+  }, [terminals, activeTerminalId, setActiveTerminalId])
 
   const handleCreateTerminal = () => {
     if (terminals.length >= 4) {
-      toast.error("You reached the maximum # of terminals.");
-      return;
+      toast.error("You reached the maximum # of terminals.")
+      return
     }
-    createNewTerminal();
-  };
+    createNewTerminal()
+  }
 
   return (
     <>
@@ -85,7 +84,7 @@ export default function Terminals() {
                       ? { ...term, terminal: t }
                       : term
                   )
-                );
+                )
               }}
               visible={activeTerminalId === term.id}
             />
@@ -98,5 +97,5 @@ export default function Terminals() {
         </div>
       )}
     </>
-  );
+  )
 }

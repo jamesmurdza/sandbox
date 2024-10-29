@@ -1,14 +1,14 @@
 "use client"
 
+import { Card } from "@/components/ui/card"
+import { projectTemplates } from "@/lib/data"
+import { Sandbox } from "@/lib/types"
 import { AnimatePresence, motion } from "framer-motion"
+import { Clock, Globe, Lock } from "lucide-react"
 import Image from "next/image"
+import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import ProjectCardDropdown from "./dropdown"
-import { Clock, Globe, Lock } from "lucide-react"
-import { Sandbox } from "@/lib/types"
-import { Card } from "@/components/ui/card"
-import { useRouter } from "next/navigation"
-import { projectTemplates } from "@/lib/data"
 
 export default function ProjectCard({
   children,

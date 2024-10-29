@@ -1,77 +1,128 @@
-import { Anthropic } from "@anthropic-ai/sdk";
+import { Anthropic } from "@anthropic-ai/sdk"
+import { MessageParam } from "@anthropic-ai/sdk/src/resources/messages.js"
 
 export interface Env {
-  ANTHROPIC_API_KEY: string;
+	ANTHROPIC_API_KEY: string
 }
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
-    if (request.method !== "GET") {
-      return new Response("Method Not Allowed", { status: 405 });
-    }
+	async fetch(request: Request, env: Env): Promise<Response> {
+		// Handle CORS preflight requests
+		if (request.method === "OPTIONS") {
+			return new Response(null, {
+				headers: {
+					"Access-Control-Allow-Origin": "*",
+					"Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+					"Access-Control-Allow-Headers": "Content-Type",
+				},
+			})
+		}
 
-    const url = new URL(request.url);
-    // const fileName = url.searchParams.get("fileName");
-    // const line = url.searchParams.get("line");
-    const instructions = url.searchParams.get("instructions");
-    const code = url.searchParams.get("code");
+		if (request.method !== "GET" && request.method !== "POST") {
+			return new Response("Method Not Allowed", { status: 405 })
+		}
 
-    const prompt = `
-Make the following changes to the code below:
-- ${instructions}
+		let body
+		let isEditCodeWidget = false
+		if (request.method === "POST") {
+			body = (await request.json()) as {
+				messages: unknown
+				context: unknown
+				activeFileContent: string
+			}
+		} else {
+			const url = new URL(request.url)
+			const fileName = url.searchParams.get("fileName") || ""
+			const code = url.searchParams.get("code") || ""
+			const line = url.searchParams.get("line") || ""
+			const instructions = url.searchParams.get("instructions") || ""
 
-Return the complete code chunk. Do not refer to other code files. Do not add code before or after the chunk. Start your reponse with \`\`\`, and end with \`\`\`. Do not include any other text.
+			body = {
+				messages: [{ role: "human", content: instructions }],
+				context: `File: ${fileName}\nLine: ${line}\nCode:\n${code}`,
+				activeFileContent: code,
+			}
+			isEditCodeWidget = true
+		}
 
+		const messages = body.messages
+		const context = body.context
+		const activeFileContent = body.activeFileContent
+
+		if (!Array.isArray(messages) || messages.length === 0) {
+			return new Response("Invalid or empty messages", { status: 400 })
+		}
+
+		let systemMessage
+		if (isEditCodeWidget) {
+			systemMessage = `You are an AI code editor. Your task is to modify the given code based on the user's instructions. Only output the modified code, without any explanations or markdown formatting. The code should be a direct replacement for the existing code.
+
+Context:
+${context}
+
+Active File Content:
+${activeFileContent}
+
+Instructions: ${messages[0].content}
+
+Respond only with the modified code that can directly replace the existing code.`
+		} else {
+			systemMessage = `You are an intelligent programming assistant. Please respond to the following request concisely. If your response includes code, please format it using triple backticks (\`\`\`) with the appropriate language identifier. For example:
+
+\`\`\`python
+print("Hello, World!")
 \`\`\`
-${code}
-\`\`\`
-`;
-console.log(prompt);
 
-    try {
-      const anthropic = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
+Provide a clear and concise explanation along with any code snippets. Keep your response brief and to the point.
 
-      interface TextBlock {
-        type: "text";
-        text: string;
-      }
+${context ? `Context:\n${context}\n` : ""}
+${activeFileContent ? `Active File Content:\n${activeFileContent}\n` : ""}`
+		}
 
-      interface ToolUseBlock {
-        type: "tool_use";
-        tool_use: {
-          // Add properties if needed
-        };
-      }
+		const anthropicMessages = messages.map((msg) => ({
+			role: msg.role === "human" ? "user" : "assistant",
+			content: msg.content,
+		})) as MessageParam[]
 
-      type ContentBlock = TextBlock | ToolUseBlock;
+		try {
+			const anthropic = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY })
 
-      function getTextContent(content: ContentBlock[]): string {
-        for (const block of content) {
-          if (block.type === "text") {
-            return block.text;
-          }
-        }
-        return "No text content found";
-      }
+			const stream = await anthropic.messages.create({
+				model: "claude-3-5-sonnet-20240620",
+				max_tokens: 1024,
+				system: systemMessage,
+				messages: anthropicMessages,
+				stream: true,
+			})
 
-      const response = await anthropic.messages.create({
-        model: "claude-3-5-sonnet-20240620",
-        max_tokens: 1024,
-        messages: [{ role: "user", content: prompt }],
-      });
+			const encoder = new TextEncoder()
 
-      const message = response.content as ContentBlock[];
-      const textBlockContent = getTextContent(message);
+			const streamResponse = new ReadableStream({
+				async start(controller) {
+					for await (const chunk of stream) {
+						if (
+							chunk.type === "content_block_delta" &&
+							chunk.delta.type === "text_delta"
+						) {
+							const bytes = encoder.encode(chunk.delta.text)
+							controller.enqueue(bytes)
+						}
+					}
+					controller.close()
+				},
+			})
 
-      const pattern = /```[a-zA-Z]*\n([\s\S]*?)\n```/;
-      const match = textBlockContent.match(pattern);
-
-      const codeContent = match ? match[1] : "Error: Could not extract code.";
-
-      return new Response(JSON.stringify({ "response": codeContent }))
-    } catch (error) {
-      console.error("Error:", error);
-      return new Response("Internal Server Error", { status: 500 });
-    }
-  },
-};
+			return new Response(streamResponse, {
+				headers: {
+					"Content-Type": "text/plain; charset=utf-8",
+					"Access-Control-Allow-Origin": "*",
+					"Cache-Control": "no-cache",
+					Connection: "keep-alive",
+				},
+			})
+		} catch (error) {
+			console.error("Error:", error)
+			return new Response("Internal Server Error", { status: 500 })
+		}
+	},
+}

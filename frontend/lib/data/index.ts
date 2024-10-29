@@ -22,22 +22,15 @@ export const projectTemplates: {
   {
     id: "nextjs",
     name: "NextJS",
-    icon: "/project-icons/node.svg",
-    description: "A JavaScript runtime built on the V8 JavaScript engine",
+    icon: "/project-icons/next-js.svg",
+    description: "a React framework for building full-stack web applications",
     disabled: false,
   },
   {
     id: "streamlit",
     name: "Streamlit",
     icon: "/project-icons/python.svg",
-    description: "A JavaScript runtime built on the V8 JavaScript engine",
-    disabled: false,
-  },
-  {
-    id: "Laravel",
-    name: "Laravel",
-    icon: "/project-icons/laravel.svg",
-    description: "A PHP framework for building web applications",
+    description: "A faster way to build and share data apps",
     disabled: false,
   },
 ]

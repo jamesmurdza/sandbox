@@ -1,16 +1,12 @@
-"use client";
+"use client"
 
-import { Sandbox } from "@/lib/types";
-import ProjectCard from "./projectCard";
-import Image from "next/image";
-import ProjectCardDropdown from "./projectCard/dropdown";
-import { Clock, Globe, Lock } from "lucide-react";
-import Link from "next/link";
-import { Card } from "../ui/card";
-import { deleteSandbox, updateSandbox } from "@/lib/actions";
-import { toast } from "sonner";
-import { useEffect, useState } from "react";
-import { CanvasRevealEffect } from "./projectCard/revealEffect";
+import { deleteSandbox, updateSandbox } from "@/lib/actions"
+import { Sandbox } from "@/lib/types"
+import Link from "next/link"
+import { useEffect, useState } from "react"
+import { toast } from "sonner"
+import ProjectCard from "./projectCard"
+import { CanvasRevealEffect } from "./projectCard/revealEffect"
 
 const colors: { [key: string]: number[][] } = {
   react: [
@@ -21,38 +17,37 @@ const colors: { [key: string]: number[][] } = {
     [86, 184, 72],
     [59, 112, 52],
   ],
-};
+}
 
 export default function DashboardProjects({
   sandboxes,
   q,
 }: {
-  sandboxes: Sandbox[];
-  q: string | null;
+  sandboxes: Sandbox[]
+  q: string | null
 }) {
-  const [deletingId, setDeletingId] = useState<string>("");
+  const [deletingId, setDeletingId] = useState<string>("")
 
   const onDelete = async (sandbox: Sandbox) => {
-    setDeletingId(sandbox.id);
-    toast(`Project ${sandbox.name} deleted.`);
-    await deleteSandbox(sandbox.id);
-  };
+    setDeletingId(sandbox.id)
+    toast(`Project ${sandbox.name} deleted.`)
+    await deleteSandbox(sandbox.id)
+  }
 
   useEffect(() => {
     if (deletingId) {
-      setDeletingId("");
+      setDeletingId("")
     }
-  }, [sandboxes]);
+  }, [sandboxes])
 
   const onVisibilityChange = async (sandbox: Sandbox) => {
-    const newVisibility =
-      sandbox.visibility === "public" ? "private" : "public";
-    toast(`Project ${sandbox.name} is now ${newVisibility}.`);
+    const newVisibility = sandbox.visibility === "public" ? "private" : "public"
+    toast(`Project ${sandbox.name} is now ${newVisibility}.`)
     await updateSandbox({
       id: sandbox.id,
       visibility: newVisibility,
-    });
-  };
+    })
+  }
 
   return (
     <div className="grow p-4 flex flex-col">
@@ -65,7 +60,7 @@ export default function DashboardProjects({
             {sandboxes.map((sandbox) => {
               if (q && q.length > 0) {
                 if (!sandbox.name.toLowerCase().includes(q.toLowerCase())) {
-                  return null;
+                  return null
                 }
               }
               return (
@@ -93,7 +88,7 @@ export default function DashboardProjects({
                     <div className="absolute inset-0 [mask-image:radial-gradient(400px_at_center,white,transparent)] bg-background/75" />
                   </ProjectCard>
                 </Link>
-              );
+              )
             })}
           </div>
         ) : (
@@ -103,5 +98,5 @@ export default function DashboardProjects({
         )}
       </div>
     </div>
-  );
+  )
 }

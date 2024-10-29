@@ -1,42 +1,57 @@
 "use client"
 
-import { SetStateAction, useCallback, useEffect, useRef, useState } from "react"
-import * as monaco from "monaco-editor"
-import Editor, { BeforeMount, OnMount } from "@monaco-editor/react"
-import { toast } from "sonner"
 import { useClerk } from "@clerk/nextjs"
+import Editor, { BeforeMount, OnMount } from "@monaco-editor/react"
 import { AnimatePresence, motion } from "framer-motion"
+import * as monaco from "monaco-editor"
+import { useCallback, useEffect, useRef, useState } from "react"
+import { toast } from "sonner"
 
-import * as Y from "yjs"
+import { TypedLiveblocksProvider, useRoom, useSelf } from "@/liveblocks.config"
 import LiveblocksProvider from "@liveblocks/yjs"
 import { MonacoBinding } from "y-monaco"
 import { Awareness } from "y-protocols/awareness"
-import { TypedLiveblocksProvider, useRoom, useSelf } from "@/liveblocks.config"
+import * as Y from "yjs"
 
 import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable"
-import { FileJson, Loader2, Sparkles, TerminalSquare } from "lucide-react"
-import Tab from "../ui/tab"
-import Sidebar from "./sidebar"
-import GenerateInput from "./generate"
-import { Sandbox, User, TFile, TFolder, TTab } from "@/lib/types"
-import { addNew, processFileType, validateName, debounce } from "@/lib/utils"
-import { Cursors } from "./live/cursors"
+import { PreviewProvider, usePreview } from "@/context/PreviewContext"
+import { useSocket } from "@/context/SocketContext"
+import { parseTSConfigToMonacoOptions } from "@/lib/tsconfig"
+import { Sandbox, TFile, TFolder, TTab, User } from "@/lib/types"
+import {
+  addNew,
+  cn,
+  debounce,
+  deepMerge,
+  processFileType,
+  validateName,
+} from "@/lib/utils"
 import { Terminal } from "@xterm/xterm"
+import {
+  ArrowDownToLine,
+  ArrowRightToLine,
+  FileJson,
+  Loader2,
+  Sparkles,
+  TerminalSquare,
+} from "lucide-react"
+import { useTheme } from "next-themes"
+import React from "react"
+import { ImperativePanelHandle } from "react-resizable-panels"
+import { Button } from "../ui/button"
+import Tab from "../ui/tab"
+import AIChat from "./AIChat"
+import GenerateInput from "./generate"
+import { Cursors } from "./live/cursors"
 import DisableAccessModal from "./live/disableModal"
 import Loading from "./loading"
 import PreviewWindow from "./preview"
+import Sidebar from "./sidebar"
 import Terminals from "./terminals"
-import { ImperativePanelHandle } from "react-resizable-panels"
-import { PreviewProvider, usePreview } from "@/context/PreviewContext"
-import { useSocket } from "@/context/SocketContext"
-import { Button } from "../ui/button"
-import React from "react"
-import { parseTSConfigToMonacoOptions } from "@/lib/tsconfig"
-import { deepMerge } from "@/lib/utils"
 
 export default function CodeEditor({
   userData,
@@ -47,7 +62,8 @@ export default function CodeEditor({
 }) {
   //SocketContext functions and effects
   const { socket, setUserAndSandboxId } = useSocket()
-
+  // theme
+  const { theme } = useTheme()
   useEffect(() => {
     // Ensure userData.id and sandboxData.id are available before attempting to connect
     if (userData.id && sandboxData.id) {
@@ -62,9 +78,9 @@ export default function CodeEditor({
   // This heartbeat is critical to preventing the E2B sandbox from timing out
   useEffect(() => {
     // 10000 ms = 10 seconds
-    const interval = setInterval(() => socket?.emit("heartbeat"), 10000);
-    return () => clearInterval(interval);
-  }, [socket]);
+    const interval = setInterval(() => socket?.emit("heartbeat"), 10000)
+    return () => clearInterval(interval)
+  }, [socket])
 
   //Preview Button state
   const [isPreviewCollapsed, setIsPreviewCollapsed] = useState(true)
@@ -73,6 +89,13 @@ export default function CodeEditor({
     message: "",
   })
 
+  // Layout state
+  const [isHorizontalLayout, setIsHorizontalLayout] = useState(false)
+  const [previousLayout, setPreviousLayout] = useState(false)
+
+  // AI Chat state
+  const [isAIChatOpen, setIsAIChatOpen] = useState(false)
+
   // File state
   const [files, setFiles] = useState<(TFolder | TFile)[]>([])
   const [tabs, setTabs] = useState<TTab[]>([])
@@ -80,7 +103,7 @@ export default function CodeEditor({
   const [activeFileContent, setActiveFileContent] = useState("")
   const [deletingFolderId, setDeletingFolderId] = useState("")
   // Added this state to track the most recent content for each file
-  const [fileContents, setFileContents] = useState<Record<string, string>>({});
+  const [fileContents, setFileContents] = useState<Record<string, string>>({})
 
   // Editor state
   const [editorLanguage, setEditorLanguage] = useState("plaintext")
@@ -145,7 +168,7 @@ export default function CodeEditor({
   const generateRef = useRef<HTMLDivElement>(null)
   const suggestionRef = useRef<HTMLDivElement>(null)
   const generateWidgetRef = useRef<HTMLDivElement>(null)
-  const previewPanelRef = useRef<ImperativePanelHandle>(null)
+  const { previewPanelRef } = usePreview()
   const editorPanelRef = useRef<ImperativePanelHandle>(null)
   const previewWindowRef = useRef<{ refreshIframe: () => void }>(null)
 
@@ -183,7 +206,7 @@ export default function CodeEditor({
     )
     const fetchFileContent = (fileId: string): Promise<string> => {
       return new Promise((resolve) => {
-        socket?.emit("getFile", fileId, (content: string) => {
+        socket?.emit("getFile", { fileId }, (content: string) => {
           resolve(content)
         })
       })
@@ -416,7 +439,7 @@ export default function CodeEditor({
       })
     }
   }, [generate.show])
-  
+
   // Suggestion widget effect
   useEffect(() => {
     if (!suggestionRef.current || !editorRef) return
@@ -462,16 +485,17 @@ export default function CodeEditor({
     const model = editorRef?.getModel()
     // added this because it was giving client side exception - Illegal value for lineNumber when opening an empty file
     if (model) {
-      const totalLines = model.getLineCount();
+      const totalLines = model.getLineCount()
       // Check if the cursorLine is a valid number, If cursorLine is out of bounds, we fall back to 1 (the first line) as a default safe value.
-      const lineNumber = cursorLine > 0 && cursorLine <= totalLines ? cursorLine : 1; // fallback to a valid line number
+      const lineNumber =
+        cursorLine > 0 && cursorLine <= totalLines ? cursorLine : 1 // fallback to a valid line number
       // If for some reason the content doesn't exist, we use an empty string as a fallback.
-      const line = model.getLineContent(lineNumber) ?? "";
+      const line = model.getLineContent(lineNumber) ?? ""
       // Check if the line is not empty or only whitespace (i.e., `.trim()` removes spaces).
       // If the line has content, we clear any decorations using the instance of the `decorations` object.
       // Decorations refer to editor highlights, underlines, or markers, so this clears those if conditions are met.
       if (line.trim() !== "") {
-        decorations.instance?.clear();
+        decorations.instance?.clear()
         return
       }
     }
@@ -497,36 +521,45 @@ export default function CodeEditor({
     debounce((activeFileId: string | undefined) => {
       if (activeFileId) {
         // Get the current content of the file
-        const content = fileContents[activeFileId];
+        const content = fileContents[activeFileId]
 
         // Mark the file as saved in the tabs
         setTabs((prev) =>
           prev.map((tab) =>
             tab.id === activeFileId ? { ...tab, saved: true } : tab
           )
-        );
-        console.log(`Saving file...${activeFileId}`);
-        console.log(`Saving file...${content}`);
-        socket?.emit("saveFile", activeFileId, content);
+        )
+        console.log(`Saving file...${activeFileId}`)
+        console.log(`Saving file...${content}`)
+        socket?.emit("saveFile", { fileId: activeFileId, body: content })
       }
     }, Number(process.env.FILE_SAVE_DEBOUNCE_DELAY) || 1000),
     [socket, fileContents]
-  );
+  )
 
-  // Keydown event listener to trigger file save on Ctrl+S or Cmd+S
+  // Keydown event listener to trigger file save on Ctrl+S or Cmd+S, and toggle AI chat on Ctrl+L or Cmd+L
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
       if (e.key === "s" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault()
-        debouncedSaveData(activeFileId);
+        debouncedSaveData(activeFileId)
+      } else if (e.key === "l" && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault()
+        setIsAIChatOpen((prev) => !prev)
       }
     }
+
     document.addEventListener("keydown", down)
+
+    // Added this line to prevent Monaco editor from handling Cmd/Ctrl+L
+    editorRef?.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyL, () => {
+      setIsAIChatOpen((prev) => !prev)
+    })
 
     return () => {
       document.removeEventListener("keydown", down)
     }
-  }, [activeFileId, tabs, debouncedSaveData])
+  }, [activeFileId, tabs, debouncedSaveData, setIsAIChatOpen, editorRef])
 
   // Liveblocks live collaboration setup effect
   useEffect(() => {
@@ -681,50 +714,53 @@ export default function CodeEditor({
 
   // Debounced function to get file content
   const debouncedGetFile = (tabId: any, callback: any) => {
-    socket?.emit("getFile", tabId, callback)
+    socket?.emit("getFile", { fileId: tabId }, callback)
   } // 300ms debounce delay, adjust as needed
 
   const selectFile = (tab: TTab) => {
-    if (tab.id === activeFileId) return;
-  
-    setGenerate((prev) => ({ ...prev, show: false }));
-  
+    if (tab.id === activeFileId) return
+
+    setGenerate((prev) => ({ ...prev, show: false }))
+
     // Check if the tab already exists in the list of open tabs
-    const exists = tabs.find((t) => t.id === tab.id);
+    const exists = tabs.find((t) => t.id === tab.id)
     setTabs((prev) => {
       if (exists) {
         // If the tab exists, make it the active tab
-        setActiveFileId(exists.id);
-        return prev;
+        setActiveFileId(exists.id)
+        return prev
       }
       // If the tab doesn't exist, add it to the list of tabs and make it active
-      return [...prev, tab];
-    });
-  
+      return [...prev, tab]
+    })
+
     // If the file's content is already cached, set it as the active content
     if (fileContents[tab.id]) {
-      setActiveFileContent(fileContents[tab.id]);
+      setActiveFileContent(fileContents[tab.id])
     } else {
       // Otherwise, fetch the content of the file and cache it
       debouncedGetFile(tab.id, (response: string) => {
-        setFileContents(prev => ({ ...prev, [tab.id]: response }));
-        setActiveFileContent(response);
-      });
+        setFileContents((prev) => ({ ...prev, [tab.id]: response }))
+        setActiveFileContent(response)
+      })
     }
-  
+
     // Set the editor language based on the file type
-    setEditorLanguage(processFileType(tab.name));
+    setEditorLanguage(processFileType(tab.name))
     // Set the active file ID to the new tab
-    setActiveFileId(tab.id);
-  };
+    setActiveFileId(tab.id)
+  }
 
   // Added this effect to update fileContents when the editor content changes
   useEffect(() => {
     if (activeFileId) {
       // Cache the current active file content using the file ID as the key
-      setFileContents(prev => ({ ...prev, [activeFileId]: activeFileContent }));
+      setFileContents((prev) => ({
+        ...prev,
+        [activeFileId]: activeFileContent,
+      }))
     }
-  }, [activeFileContent, activeFileId]);
+  }, [activeFileContent, activeFileId])
 
   // Close tab and remove from tabs
   const closeTab = (id: string) => {
@@ -798,7 +834,7 @@ export default function CodeEditor({
       return false
     }
 
-    socket?.emit("renameFile", id, newName)
+    socket?.emit("renameFile", { fileId: id, newName })
     setTabs((prev) =>
       prev.map((tab) => (tab.id === id ? { ...tab, name: newName } : tab))
     )
@@ -807,7 +843,7 @@ export default function CodeEditor({
   }
 
   const handleDeleteFile = (file: TFile) => {
-    socket?.emit("deleteFile", file.id, (response: (TFolder | TFile)[]) => {
+    socket?.emit("deleteFile", { fileId: file.id }, (response: (TFolder | TFile)[]) => {
       setFiles(response)
     })
     closeTab(file.id)
@@ -817,14 +853,45 @@ export default function CodeEditor({
     setDeletingFolderId(folder.id)
     console.log("deleting folder", folder.id)
 
-    socket?.emit("getFolder", folder.id, (response: string[]) =>
+    socket?.emit("getFolder", { folderId: folder.id }, (response: string[]) =>
       closeTabs(response)
     )
 
-    socket?.emit("deleteFolder", folder.id, (response: (TFolder | TFile)[]) => {
+    socket?.emit("deleteFolder", { folderId: folder.id }, (response: (TFolder | TFile)[]) => {
       setFiles(response)
       setDeletingFolderId("")
     })
+  }
+
+  const togglePreviewPanel = () => {
+    if (isPreviewCollapsed) {
+      previewPanelRef.current?.expand()
+      setIsPreviewCollapsed(false)
+    } else {
+      previewPanelRef.current?.collapse()
+      setIsPreviewCollapsed(true)
+    }
+  }
+
+  const toggleLayout = () => {
+    if (!isAIChatOpen) {
+      setIsHorizontalLayout((prev) => !prev)
+    }
+  }
+
+  // Add an effect to handle layout changes when AI chat is opened/closed
+  useEffect(() => {
+    if (isAIChatOpen) {
+      setPreviousLayout(isHorizontalLayout)
+      setIsHorizontalLayout(true)
+    } else {
+      setIsHorizontalLayout(previousLayout)
+    }
+  }, [isAIChatOpen])
+
+  // Modify the toggleAIChat function
+  const toggleAIChat = () => {
+    setIsAIChatOpen((prev) => !prev)
   }
 
   // On disabled access for shared users, show un-interactable loading placeholder + info modal
@@ -862,7 +929,10 @@ export default function CodeEditor({
             )}
           </AnimatePresence>
         </div>
-        <div className="z-50 p-1" ref={generateWidgetRef}>
+        <div
+          className={cn(generate.show && "z-50 p-1")}
+          ref={generateWidgetRef}
+        >
           {generate.show ? (
             <GenerateInput
               user={userData}
@@ -946,7 +1016,6 @@ export default function CodeEditor({
             />
           ) : null}
         </div>
-
         {/* Main editor components */}
         <Sidebar
           sandboxData={sandboxData}
@@ -959,144 +1028,201 @@ export default function CodeEditor({
           setFiles={setFiles}
           addNew={(name, type) => addNew(name, type, setFiles, sandboxData)}
           deletingFolderId={deletingFolderId}
+          toggleAIChat={toggleAIChat}
+          isAIChatOpen={isAIChatOpen}
         />
-
-        {/* Shadcn resizeable panels: https://ui.shadcn.com/docs/components/resizable */}
-        <ResizablePanelGroup direction="horizontal">
-          <ResizablePanel
-            className="p-2 flex flex-col"
-            maxSize={80}
-            minSize={30}
-            defaultSize={60}
-            ref={editorPanelRef}
-          >
-            <div className="h-10 w-full flex gap-2 overflow-auto tab-scroll">
-              {/* File tabs */}
-              {tabs.map((tab) => (
-                <Tab
-                  key={tab.id}
-                  saved={tab.saved}
-                  selected={activeFileId === tab.id}
-                  onClick={(e) => {
-                    selectFile(tab)
-                  }}
-                  onClose={() => closeTab(tab.id)}
-                >
-                  {tab.name}
-                </Tab>
-              ))}
-            </div>
-            {/* Monaco editor */}
-            <div
-              ref={editorContainerRef}
-              className="grow w-full overflow-hidden rounded-md relative"
+        {/* Outer ResizablePanelGroup for main layout */}
+        <ResizablePanelGroup
+          direction={isHorizontalLayout ? "horizontal" : "vertical"}
+        >
+          {/* Left side: Editor and Preview/Terminal */}
+          <ResizablePanel defaultSize={isAIChatOpen ? 80 : 100} minSize={50}>
+            <ResizablePanelGroup
+              direction={isHorizontalLayout ? "vertical" : "horizontal"}
             >
-              {!activeFileId ? (
-                <>
-                  <div className="w-full h-full flex items-center justify-center text-xl font-medium text-muted-foreground/50 select-none">
-                    <FileJson className="w-6 h-6 mr-3" />
-                    No file selected.
-                  </div>
-                </>
-              ) : // Note clerk.loaded is required here due to a bug: https://github.com/clerk/javascript/issues/1643
-                clerk.loaded ? (
-                  <>
-                    {provider && userInfo ? (
-                      <Cursors yProvider={provider} userInfo={userInfo} />
-                    ) : null}
-                    <Editor
-                      height="100%"
-                      language={editorLanguage}
-                      beforeMount={handleEditorWillMount}
-                      onMount={handleEditorMount}
-                      onChange={(value) => {
-                        // If the new content is different from the cached content, update it
-                        if (value !== fileContents[activeFileId]) {
-                            setActiveFileContent(value ?? ""); // Update the active file content
-                          // Mark the file as unsaved by setting 'saved' to false
-                          setTabs((prev) =>
-                            prev.map((tab) =>
-                              tab.id === activeFileId
-                                ? { ...tab, saved: false }
-                                : tab
-                            )
-                          )
-                        } else {
-                          // If the content matches the cached content, mark the file as saved
-                          setTabs((prev) =>
-                            prev.map((tab) =>
-                              tab.id === activeFileId
-                                ? { ...tab, saved: true }
-                                : tab
-                            )
-                          )
-                        }
-                      }}
-                      options={{
-                        tabSize: 2,
-                        minimap: {
-                          enabled: false,
-                        },
-                        padding: {
-                          bottom: 4,
-                          top: 4,
-                        },
-                        scrollBeyondLastLine: false,
-                        fixedOverflowWidgets: true,
-                        fontFamily: "var(--font-geist-mono)",
-                      }}
-                      theme="vs-dark"
-                      value={activeFileContent}
-                    />
-                  </>
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-xl font-medium text-muted-foreground/50 select-none">
-                    <Loader2 className="animate-spin w-6 h-6 mr-3" />
-                    Waiting for Clerk to load...
-                  </div>
-                )}
-            </div>
-          </ResizablePanel>
-          <ResizableHandle />
-          <ResizablePanel defaultSize={40}>
-            <ResizablePanelGroup direction="vertical">
               <ResizablePanel
-                ref={usePreview().previewPanelRef}
-                defaultSize={4}
-                collapsedSize={4}
-                minSize={25}
-                collapsible
                 className="p-2 flex flex-col"
-                onCollapse={() => setIsPreviewCollapsed(true)}
-                onExpand={() => setIsPreviewCollapsed(false)}
+                maxSize={80}
+                minSize={30}
+                defaultSize={70}
+                ref={editorPanelRef}
               >
-                <PreviewWindow
-                  open={() => {
-                    usePreview().previewPanelRef.current?.expand()
-                    setIsPreviewCollapsed(false)
-                  }}
-                  collapsed={isPreviewCollapsed}
-                  src={previewURL}
-                  ref={previewWindowRef}
-                />
+                <div className="h-10 w-full flex gap-2 overflow-auto tab-scroll">
+                  {/* File tabs */}
+                  {tabs.map((tab) => (
+                    <Tab
+                      key={tab.id}
+                      saved={tab.saved}
+                      selected={activeFileId === tab.id}
+                      onClick={(e) => {
+                        selectFile(tab)
+                      }}
+                      onClose={() => closeTab(tab.id)}
+                    >
+                      {tab.name}
+                    </Tab>
+                  ))}
+                </div>
+                {/* Monaco editor */}
+                <div
+                  ref={editorContainerRef}
+                  className="grow w-full overflow-hidden rounded-md relative"
+                >
+                  {!activeFileId ? (
+                    <>
+                      <div className="w-full h-full flex items-center justify-center text-xl font-medium text-muted-foreground/50 select-none">
+                        <FileJson className="w-6 h-6 mr-3" />
+                        No file selected.
+                      </div>
+                    </>
+                  ) : // Note clerk.loaded is required here due to a bug: https://github.com/clerk/javascript/issues/1643
+                    clerk.loaded ? (
+                      <>
+                        {provider && userInfo ? (
+                          <Cursors yProvider={provider} userInfo={userInfo} />
+                        ) : null}
+                        <Editor
+                          height="100%"
+                          language={editorLanguage}
+                          beforeMount={handleEditorWillMount}
+                          onMount={handleEditorMount}
+                          onChange={(value) => {
+                            // If the new content is different from the cached content, update it
+                            if (value !== fileContents[activeFileId]) {
+                              setActiveFileContent(value ?? "") // Update the active file content
+                              // Mark the file as unsaved by setting 'saved' to false
+                              setTabs((prev) =>
+                                prev.map((tab) =>
+                                  tab.id === activeFileId
+                                    ? { ...tab, saved: false }
+                                    : tab
+                                )
+                              )
+                            } else {
+                              // If the content matches the cached content, mark the file as saved
+                              setTabs((prev) =>
+                                prev.map((tab) =>
+                                  tab.id === activeFileId
+                                    ? { ...tab, saved: true }
+                                    : tab
+                                )
+                              )
+                            }
+                          }}
+                          options={{
+                            tabSize: 2,
+                            minimap: {
+                              enabled: false,
+                            },
+                            padding: {
+                              bottom: 4,
+                              top: 4,
+                            },
+                            scrollBeyondLastLine: false,
+                            fixedOverflowWidgets: true,
+                            fontFamily: "var(--font-geist-mono)",
+                          }}
+                          theme={theme === "light" ? "vs" : "vs-dark"}
+                          value={activeFileContent}
+                        />
+                      </>
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-xl font-medium text-muted-foreground/50 select-none">
+                        <Loader2 className="animate-spin w-6 h-6 mr-3" />
+                        Waiting for Clerk to load...
+                      </div>
+                    )}
+                </div>
               </ResizablePanel>
               <ResizableHandle />
-              <ResizablePanel
-                defaultSize={50}
-                minSize={20}
-                className="p-2 flex flex-col"
-              >
-                {isOwner ? (
-                  <Terminals />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-lg font-medium text-muted-foreground/50 select-none">
-                    <TerminalSquare className="w-4 h-4 mr-2" />
-                    No terminal access.
-                  </div>
-                )}
+              <ResizablePanel defaultSize={30}>
+                <ResizablePanelGroup
+                  direction={
+                    isAIChatOpen && isHorizontalLayout
+                      ? "horizontal"
+                      : isAIChatOpen
+                        ? "vertical"
+                        : isHorizontalLayout
+                          ? "horizontal"
+                          : "vertical"
+                  }
+                >
+                  <ResizablePanel
+                    ref={previewPanelRef}
+                    defaultSize={isPreviewCollapsed ? 4 : 20}
+                    minSize={25}
+                    collapsedSize={isHorizontalLayout ? 20 : 4}
+                    className="p-2 flex flex-col gap-2"
+                    collapsible
+                    onCollapse={() => setIsPreviewCollapsed(true)}
+                    onExpand={() => setIsPreviewCollapsed(false)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <Button
+                        onClick={toggleLayout}
+                        size="sm"
+                        variant="ghost"
+                        className="mr-2 border"
+                        disabled={isAIChatOpen}
+                      >
+                        {isHorizontalLayout ? (
+                          <ArrowRightToLine className="w-4 h-4" />
+                        ) : (
+                          <ArrowDownToLine className="w-4 h-4" />
+                        )}
+                      </Button>
+                      <PreviewWindow
+                        open={togglePreviewPanel}
+                        collapsed={isPreviewCollapsed}
+                        src={previewURL}
+                        ref={previewWindowRef}
+                      />
+                    </div>
+                    {!isPreviewCollapsed && (
+                      <div className="w-full grow rounded-md overflow-hidden bg-foreground mt-2">
+                        <iframe
+                          width={"100%"}
+                          height={"100%"}
+                          src={previewURL}
+                        />
+                      </div>
+                    )}
+                  </ResizablePanel>
+                  <ResizableHandle />
+                  <ResizablePanel
+                    defaultSize={50}
+                    minSize={20}
+                    className="p-2 flex flex-col"
+                  >
+                    {isOwner ? (
+                      <Terminals />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-lg font-medium text-muted-foreground/50 select-none">
+                        <TerminalSquare className="w-4 h-4 mr-2" />
+                        No terminal access.
+                      </div>
+                    )}
+                  </ResizablePanel>
+                </ResizablePanelGroup>
               </ResizablePanel>
             </ResizablePanelGroup>
           </ResizablePanel>
+          {/* Right side: AIChat (if open) */}
+          {isAIChatOpen && (
+            <>
+              <ResizableHandle />
+              <ResizablePanel defaultSize={30} minSize={15}>
+                <AIChat
+                  activeFileContent={activeFileContent}
+                  activeFileName={
+                    tabs.find((tab) => tab.id === activeFileId)?.name ||
+                    "No file selected"
+                  }
+                  onClose={toggleAIChat}
+                />
+              </ResizablePanel>
+            </>
+          )}
         </ResizablePanelGroup>
       </PreviewProvider>
     </>

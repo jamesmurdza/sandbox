@@ -1,4 +1,4 @@
-import type { Config } from "drizzle-kit";
+import type { Config } from "drizzle-kit"
 
 export default process.env.LOCAL_DB_PATH
 	? ({
@@ -16,4 +16,4 @@ export default process.env.LOCAL_DB_PATH
 				wranglerConfigPath: "wrangler.toml",
 				dbName: "d1-sandbox",
 			},
-	  } satisfies Config);
+	  } satisfies Config)

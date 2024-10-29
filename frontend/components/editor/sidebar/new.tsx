@@ -1,9 +1,9 @@
-"use client";
+"use client"
 
-import { validateName } from "@/lib/utils";
-import Image from "next/image";
-import { useEffect, useRef } from "react";
-import { Socket } from "socket.io-client";
+import { validateName } from "@/lib/utils"
+import Image from "next/image"
+import { useEffect, useRef } from "react"
+import { Socket } from "socket.io-client"
 
 export default function New({
   socket,
@@ -11,42 +11,42 @@ export default function New({
   stopEditing,
   addNew,
 }: {
-  socket: Socket;
-  type: "file" | "folder";
-  stopEditing: () => void;
-  addNew: (name: string, type: "file" | "folder") => void;
+  socket: Socket
+  type: "file" | "folder"
+  stopEditing: () => void
+  addNew: (name: string, type: "file" | "folder") => void
 }) {
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null)
 
   function createNew() {
-    const name = inputRef.current?.value;
+    const name = inputRef.current?.value
 
     if (name) {
-      const valid = validateName(name, "", type);
+      const valid = validateName(name, "", type)
       if (valid.status) {
         if (type === "file") {
           socket.emit(
             "createFile",
-            name,
+            { name },
             ({ success }: { success: boolean }) => {
               if (success) {
-                addNew(name, type);
+                addNew(name, type)
               }
             }
-          );
+          )
         } else {
-          socket.emit("createFolder", name, () => {
-            addNew(name, type);
-          });
+          socket.emit("createFolder", { name }, () => {
+            addNew(name, type)
+          })
         }
       }
     }
-    stopEditing();
+    stopEditing()
   }
 
   useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
+    inputRef.current?.focus()
+  }, [])
 
   return (
     <div className="w-full flex items-center h-7 px-1 hover:bg-secondary rounded-sm cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
@@ -63,8 +63,8 @@ export default function New({
       />
       <form
         onSubmit={(e) => {
-          e.preventDefault();
-          createNew();
+          e.preventDefault()
+          createNew()
         }}
       >
         <input
@@ -74,5 +74,5 @@ export default function New({
         />
       </form>
     </div>
-  );
+  )
 }

@@ -1,13 +1,14 @@
-"use client";
+"use client"
 
-import { Terminal } from "@xterm/xterm";
-import { FitAddon } from "@xterm/addon-fit";
-import "./xterm.css";
+import { FitAddon } from "@xterm/addon-fit"
+import { Terminal } from "@xterm/xterm"
+import "./xterm.css"
 
-import { useEffect, useRef, useState } from "react";
-import { Socket } from "socket.io-client";
-import { Loader2 } from "lucide-react";
-
+import { debounce } from "@/lib/utils"
+import { Loader2 } from "lucide-react"
+import { useTheme } from "next-themes"
+import { ElementRef, useEffect, useRef } from "react"
+import { Socket } from "socket.io-client"
 export default function EditorTerminal({
   socket,
   id,
@@ -15,82 +16,112 @@ export default function EditorTerminal({
   setTerm,
   visible,
 }: {
-  socket: Socket;
-  id: string;
-  term: Terminal | null;
-  setTerm: (term: Terminal) => void;
-  visible: boolean;
+  socket: Socket
+  id: string
+  term: Terminal | null
+  setTerm: (term: Terminal) => void
+  visible: boolean
 }) {
-  const terminalRef = useRef(null);
+  const { theme } = useTheme()
+  const terminalContainerRef = useRef<ElementRef<"div">>(null)
+  const fitAddonRef = useRef<FitAddon | null>(null)
 
   useEffect(() => {
-    if (!terminalRef.current) return;
+    if (!terminalContainerRef.current) return
     // console.log("new terminal", id, term ? "reusing" : "creating");
 
     const terminal = new Terminal({
       cursorBlink: true,
-      theme: {
-        background: "#262626",
-      },
+      theme: theme === "light" ? lightTheme : darkTheme,
       fontFamily: "var(--font-geist-mono)",
       fontSize: 14,
       lineHeight: 1.5,
       letterSpacing: 0,
-    });
+    })
 
-    setTerm(terminal);
-
-    return () => {
-      if (terminal) terminal.dispose();
-    };
-  }, []);
+    setTerm(terminal)
+    const dispose = () => {
+      terminal.dispose()
+    }
+    return dispose
+  }, [])
 
   useEffect(() => {
-    if (!term) return;
+    if (term) {
+      term.options.theme = theme === "light" ? lightTheme : darkTheme
+    }
+  }, [theme])
 
-    if (!terminalRef.current) return;
-    const fitAddon = new FitAddon();
-    term.loadAddon(fitAddon);
-    term.open(terminalRef.current);
-    fitAddon.fit();
+  useEffect(() => {
+    if (!term) return
+
+    if (!terminalContainerRef.current) return
+    if (!fitAddonRef.current) {
+      const fitAddon = new FitAddon()
+      term.loadAddon(fitAddon)
+      term.open(terminalContainerRef.current)
+      fitAddon.fit()
+      fitAddonRef.current = fitAddon
+    }
 
     const disposableOnData = term.onData((data) => {
-      socket.emit("terminalData", id, data);
-    });
+      socket.emit("terminalData", { id, data })
+    })
 
     const disposableOnResize = term.onResize((dimensions) => {
-      // const terminal_size = {
-      //   width: dimensions.cols,
-      //   height: dimensions.rows,
-      // };
-      fitAddon.fit();
-      socket.emit("terminalResize", dimensions);
-    });
+      fitAddonRef.current?.fit()
+      socket.emit("terminalResize", { dimensions })
+    })
+    const resizeObserver = new ResizeObserver(
+      debounce((entries) => {
+        if (!fitAddonRef.current || !terminalContainerRef.current) return
 
+        const entry = entries[0]
+        if (!entry) return
+
+        const { width, height } = entry.contentRect
+
+        // Only call fit if the size has actually changed
+        if (
+          width !== terminalContainerRef.current.offsetWidth ||
+          height !== terminalContainerRef.current.offsetHeight
+        ) {
+          try {
+            fitAddonRef.current.fit()
+          } catch (err) {
+            console.error("Error during fit:", err)
+          }
+        }
+      }, 50) // Debounce for 50ms
+    )
+
+    // start observing for resize
+    resizeObserver.observe(terminalContainerRef.current)
     return () => {
-      disposableOnData.dispose();
-      disposableOnResize.dispose();
-    };
-  }, [term, terminalRef.current]);
+      disposableOnData.dispose()
+      disposableOnResize.dispose()
+      resizeObserver.disconnect()
+    }
+  }, [term, terminalContainerRef.current])
 
   useEffect(() => {
-    if (!term) return;  
+    if (!term) return
     const handleTerminalResponse = (response: { id: string; data: string }) => {
       if (response.id === id) {
-        term.write(response.data);
+        term.write(response.data)
       }
-    };
-    socket.on("terminalResponse", handleTerminalResponse);
-  
+    }
+    socket.on("terminalResponse", handleTerminalResponse)
+
     return () => {
-      socket.off("terminalResponse", handleTerminalResponse);
-    };
-  }, [term, id, socket]);
+      socket.off("terminalResponse", handleTerminalResponse)
+    }
+  }, [term, id, socket])
 
   return (
     <>
       <div
-        ref={terminalRef}
+        ref={terminalContainerRef}
         style={{ display: visible ? "block" : "none" }}
         className="w-full h-full text-left"
       >
@@ -102,5 +133,58 @@ export default function EditorTerminal({
         ) : null}
       </div>
     </>
-  );
+  )
+}
+
+const lightTheme = {
+  foreground: "#2e3436",
+  background: "#ffffff",
+  black: "#2e3436",
+  brightBlack: "#555753",
+  red: "#cc0000",
+  brightRed: "#ef2929",
+  green: "#4e9a06",
+  brightGreen: "#8ae234",
+  yellow: "#c4a000",
+  brightYellow: "#fce94f",
+  blue: "#3465a4",
+  brightBlue: "#729fcf",
+  magenta: "#75507b",
+  brightMagenta: "#ad7fa8",
+  cyan: "#06989a",
+  brightCyan: "#34e2e2",
+  white: "#d3d7cf",
+  brightWhite: "#eeeeec",
+  cursor: "#2e3436",
+  cursorAccent: "#ffffff",
+  selectionBackground: "#3465a4",
+  selectionForeground: "#ffffff",
+  selectionInactiveBackground: "#264973",
+}
+
+// Dark Theme
+const darkTheme = {
+  foreground: "#f8f8f2",
+  background: "#0a0a0a",
+  black: "#21222c",
+  brightBlack: "#6272a4",
+  red: "#ff5555",
+  brightRed: "#ff6e6e",
+  green: "#50fa7b",
+  brightGreen: "#69ff94",
+  yellow: "#f1fa8c",
+  brightYellow: "#ffffa5",
+  blue: "#bd93f9",
+  brightBlue: "#d6acff",
+  magenta: "#ff79c6",
+  brightMagenta: "#ff92df",
+  cyan: "#8be9fd",
+  brightCyan: "#a4ffff",
+  white: "#f8f8f2",
+  brightWhite: "#ffffff",
+  cursor: "#f8f8f2",
+  cursorAccent: "#0a0a0a",
+  selectionBackground: "#264973",
+  selectionForeground: "#ffffff",
+  selectionInactiveBackground: "#1a3151",
 }

@@ -1,8 +1,8 @@
-import { UserButton, currentUser } from "@clerk/nextjs"
-import { redirect } from "next/navigation"
 import Dashboard from "@/components/dashboard"
 import Navbar from "@/components/dashboard/navbar"
-import { Sandbox, User } from "@/lib/types"
+import { User } from "@/lib/types"
+import { currentUser } from "@clerk/nextjs"
+import { redirect } from "next/navigation"
 
 export default async function DashboardPage() {
   const user = await currentUser()

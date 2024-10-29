@@ -1,13 +1,13 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
-import { Button } from "../ui/button"
-import { Check, Loader2, RotateCw, Sparkles, X } from "lucide-react"
-import { Socket } from "socket.io-client"
-import { Editor } from "@monaco-editor/react"
 import { User } from "@/lib/types"
-import { toast } from "sonner"
+import { Editor } from "@monaco-editor/react"
+import { Check, Loader2, RotateCw, Sparkles, X } from "lucide-react"
 import { usePathname, useRouter } from "next/navigation"
+import { useCallback, useEffect, useRef, useState } from "react"
+import { Socket } from "socket.io-client"
+import { toast } from "sonner"
+import { Button } from "../ui/button"
 // import monaco from "monaco-editor"
 
 export default function GenerateInput({
@@ -68,10 +68,12 @@ export default function GenerateInput({
     setCurrentPrompt(input)
     socket.emit(
       "generateCode",
-      data.fileName,
-      data.code,
-      data.line,
-      regenerate ? currentPrompt : input,
+      {
+        fileName: data.fileName,
+        code: data.code,
+        line: data.line,
+        instructions: regenerate ? currentPrompt : input
+      },
       (res: { response: string; success: boolean }) => {
         console.log("Generated code", res.response, res.success)
         // if (!res.success) {

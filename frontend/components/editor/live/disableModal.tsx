@@ -1,43 +1,35 @@
-"use client";
+"use client"
 
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+} from "@/components/ui/dialog"
 
-import {
-  ChevronRight,
-  FileStack,
-  Globe,
-  Loader2,
-  TextCursor,
-} from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { Loader2 } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { useEffect } from "react"
 
 export default function DisableAccessModal({
   open,
   setOpen,
   message,
 }: {
-  open: boolean;
-  setOpen: (open: boolean) => void;
-  message: string;
+  open: boolean
+  setOpen: (open: boolean) => void
+  message: string
 }) {
-  const router = useRouter();
+  const router = useRouter()
 
   useEffect(() => {
     if (open) {
       const timeout = setTimeout(() => {
-        router.push("/dashboard");
-      }, 5000);
-      return () => clearTimeout(timeout);
+        router.push("/dashboard")
+      }, 5000)
+      return () => clearTimeout(timeout)
     }
-  }, []);
+  }, [])
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -54,5 +46,5 @@ export default function DisableAccessModal({
         </div>
       </DialogContent>
     </Dialog>
-  );
+  )
 }

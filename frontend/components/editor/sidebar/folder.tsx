@@ -1,20 +1,20 @@
 "use client"
 
-import Image from "next/image"
-import { useEffect, useRef, useState } from "react"
-import { getIconForFolder, getIconForOpenFolder } from "vscode-icons-js"
-import { TFile, TFolder, TTab } from "@/lib/types"
-import SidebarFile from "./file"
 import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu"
-import { ChevronRight, Loader2, Pencil, Trash2 } from "lucide-react"
-import { dropTargetForElements } from "@atlaskit/pragmatic-drag-and-drop/element/adapter"
+import { TFile, TFolder, TTab } from "@/lib/types"
 import { cn } from "@/lib/utils"
-import { motion, AnimatePresence } from "framer-motion"
+import { dropTargetForElements } from "@atlaskit/pragmatic-drag-and-drop/element/adapter"
+import { AnimatePresence, motion } from "framer-motion"
+import { ChevronRight, Pencil, Trash2 } from "lucide-react"
+import Image from "next/image"
+import { useEffect, useRef, useState } from "react"
+import { getIconForFolder, getIconForOpenFolder } from "vscode-icons-js"
+import SidebarFile from "./file"
 
 // Note: Renaming has not been implemented in the backend yet, so UI relating to renaming is commented out
 

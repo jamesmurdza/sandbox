@@ -1,24 +1,16 @@
 "use client"
 
-import CustomButton from "@/components/ui/customButton"
 import { Button } from "@/components/ui/button"
-import {
-  Code2,
-  FolderDot,
-  HelpCircle,
-  Plus,
-  Settings,
-  Users,
-} from "lucide-react"
-import { useEffect, useState } from "react"
+import CustomButton from "@/components/ui/customButton"
 import { Sandbox } from "@/lib/types"
+import { Code2, FolderDot, HelpCircle, Plus, Users } from "lucide-react"
+import { useRouter, useSearchParams } from "next/navigation"
+import { useEffect, useState } from "react"
+import { toast } from "sonner"
+import AboutModal from "./about"
+import NewProjectModal from "./newProject"
 import DashboardProjects from "./projects"
 import DashboardSharedWithMe from "./shared"
-import NewProjectModal from "./newProject"
-import Link from "next/link"
-import { useRouter, useSearchParams } from "next/navigation"
-import AboutModal from "./about"
-import { toast } from "sonner"
 
 type TScreen = "projects" | "shared" | "settings" | "search"
 
@@ -49,8 +41,9 @@ export default function Dashboard({
   const q = searchParams.get("q")
   const router = useRouter()
 
-  useEffect(() => { // update the dashboard to show a new project
-      router.refresh() 
+  useEffect(() => {
+    // update the dashboard to show a new project
+    router.refresh()
   }, [])
 
   return (
@@ -102,7 +95,7 @@ export default function Dashboard({
             </Button> */}
           </div>
           <div className="flex flex-col">
-            <a target="_blank" href="https://github.com/ishaan1013/sandbox">
+            <a target="_blank" href="https://github.com/jamesmurdza/sandbox">
               <Button
                 variant="ghost"
                 className="justify-start w-full font-normal text-muted-foreground"

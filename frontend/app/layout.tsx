@@ -1,13 +1,13 @@
-import type { Metadata } from "next"
-import { GeistSans } from "geist/font/sans"
-import { GeistMono } from "geist/font/mono"
-import "./globals.css"
-import { ThemeProvider } from "@/components/layout/themeProvider"
-import { ClerkProvider } from "@clerk/nextjs"
 import { Toaster } from "@/components/ui/sonner"
-import { Analytics } from "@vercel/analytics/react"
-import { PreviewProvider } from "@/context/PreviewContext";
+import { ThemeProvider } from "@/components/ui/theme-provider"
+import { PreviewProvider } from "@/context/PreviewContext"
 import { SocketProvider } from '@/context/SocketContext'
+import { ClerkProvider } from "@clerk/nextjs"
+import { Analytics } from "@vercel/analytics/react"
+import { GeistMono } from "geist/font/mono"
+import { GeistSans } from "geist/font/sans"
+import type { Metadata } from "next"
+import "./globals.css"
 
 export const metadata: Metadata = {
   title: "Sandbox",
@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 }
 
 export default function RootLayout({
-  children
+  children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
@@ -25,14 +25,11 @@ export default function RootLayout({
         <body>
           <ThemeProvider
             attribute="class"
-            defaultTheme="dark"
-            forcedTheme="dark"
+            defaultTheme="system"
             disableTransitionOnChange
           >
             <SocketProvider>
-            <PreviewProvider>
-            {children}
-            </PreviewProvider>
+              <PreviewProvider>{children}</PreviewProvider>
             </SocketProvider>
             <Analytics />
             <Toaster position="bottom-left" richColors />

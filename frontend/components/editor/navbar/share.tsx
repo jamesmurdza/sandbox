@@ -6,10 +6,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
+import { z } from "zod"
 
+import { Button } from "@/components/ui/button"
 import {
   Form,
   FormControl,
@@ -18,14 +19,13 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { Link, Loader2, UserPlus, X } from "lucide-react"
-import { useState } from "react"
-import { Sandbox } from "@/lib/types"
-import { Button } from "@/components/ui/button"
 import { shareSandbox } from "@/lib/actions"
+import { Sandbox } from "@/lib/types"
+import { DialogDescription } from "@radix-ui/react-dialog"
+import { Link, Loader2, UserPlus } from "lucide-react"
+import { useState } from "react"
 import { toast } from "sonner"
 import SharedUser from "./sharedUser"
-import { DialogDescription } from "@radix-ui/react-dialog"
 
 const formSchema = z.object({
   email: z.string().email(),

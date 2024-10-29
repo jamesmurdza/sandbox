@@ -3,16 +3,9 @@
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog"
-import Image from "next/image"
-import { useState } from "react"
-
-import { Button } from "../ui/button"
-import { ChevronRight } from "lucide-react"
 
 export default function AboutModal({
   open,

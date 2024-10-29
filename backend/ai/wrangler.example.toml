@@ -5,3 +5,6 @@ compatibility_flags = ["nodejs_compat"]
 
 [ai]
 binding = "AI"
+
+[vars]
+ANTHROPIC_API_KEY = ""

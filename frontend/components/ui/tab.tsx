@@ -1,8 +1,8 @@
-"use client";
+"use client"
 
-import { Loader2, X } from "lucide-react";
-import { Button } from "./button";
-import { MouseEvent, MouseEventHandler, useEffect } from "react";
+import { Loader2, X } from "lucide-react"
+import { MouseEventHandler } from "react"
+import { Button } from "./button"
 
 export default function Tab({
   children,
@@ -13,13 +13,13 @@ export default function Tab({
   onClose,
   closing = false,
 }: {
-  children: React.ReactNode;
-  creating?: boolean;
-  saved?: boolean;
-  selected?: boolean;
-  onClick?: MouseEventHandler<HTMLButtonElement>;
-  onClose?: () => void;
-  closing?: boolean;
+  children: React.ReactNode
+  creating?: boolean
+  saved?: boolean
+  selected?: boolean
+  onClick?: MouseEventHandler<HTMLButtonElement>
+  onClose?: () => void
+  closing?: boolean
 }) {
   return (
     <Button
@@ -28,7 +28,7 @@ export default function Tab({
       variant={"secondary"}
       className={`font-normal select-none ${
         selected
-          ? "bg-neutral-700 hover:bg-neutral-600 text-foreground"
+          ? "bg-muted-foreground/50 hover:bg-muted-foreground/40 text-foreground"
           : "text-muted-foreground"
       }`}
     >
@@ -37,9 +37,9 @@ export default function Tab({
         onClick={
           onClose && !closing
             ? (e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                onClose();
+                e.stopPropagation()
+                e.preventDefault()
+                onClose()
               }
             : undefined
         }
@@ -57,5 +57,5 @@ export default function Tab({
         )}
       </div>
     </Button>
-  );
+  )
 }

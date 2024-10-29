@@ -1,29 +1,27 @@
-import { Sandbox } from "@/lib/types";
 import {
   Table,
   TableBody,
-  TableCaption,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import Image from "next/image";
-import Button from "../ui/customButton";
-import { ChevronRight } from "lucide-react";
-import Avatar from "../ui/avatar";
-import Link from "next/link";
+} from "@/components/ui/table"
+import { ChevronRight } from "lucide-react"
+import Image from "next/image"
+import Link from "next/link"
+import Avatar from "../ui/avatar"
+import Button from "../ui/customButton"
 
 export default function DashboardSharedWithMe({
   shared,
 }: {
   shared: {
-    id: string;
-    name: string;
-    type: "react" | "node";
-    author: string;
-    sharedOn: Date;
-  }[];
+    id: string
+    name: string
+    type: "react" | "node"
+    author: string
+    sharedOn: Date
+  }[]
 }) {
   return (
     <div className="grow p-4 flex flex-col">
@@ -86,5 +84,5 @@ export default function DashboardSharedWithMe({
         </div>
       )}
     </div>
-  );
+  )
 }

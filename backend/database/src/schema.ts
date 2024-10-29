@@ -1,6 +1,6 @@
-import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
-import { createId } from "@paralleldrive/cuid2";
-import { relations, sql } from "drizzle-orm";
+import { createId } from "@paralleldrive/cuid2"
+import { relations } from "drizzle-orm"
+import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core"
 
 export const user = sqliteTable("user", {
 	id: text("id")
@@ -11,14 +11,14 @@ export const user = sqliteTable("user", {
 	email: text("email").notNull(),
 	image: text("image"),
 	generations: integer("generations").default(0),
-});
+})
 
-export type User = typeof user.$inferSelect;
+export type User = typeof user.$inferSelect
 
 export const userRelations = relations(user, ({ many }) => ({
 	sandbox: many(sandbox),
 	usersToSandboxes: many(usersToSandboxes),
-}));
+}))
 
 export const sandbox = sqliteTable("sandbox", {
 	id: text("id")
@@ -32,9 +32,9 @@ export const sandbox = sqliteTable("sandbox", {
 	userId: text("user_id")
 		.notNull()
 		.references(() => user.id),
-});
+})
 
-export type Sandbox = typeof sandbox.$inferSelect;
+export type Sandbox = typeof sandbox.$inferSelect
 
 export const sandboxRelations = relations(sandbox, ({ one, many }) => ({
 	author: one(user, {
@@ -42,7 +42,7 @@ export const sandboxRelations = relations(sandbox, ({ one, many }) => ({
 		references: [user.id],
 	}),
 	usersToSandboxes: many(usersToSandboxes),
-}));
+}))
 
 export const usersToSandboxes = sqliteTable("users_to_sandboxes", {
 	userId: text("userId")
@@ -52,15 +52,18 @@ export const usersToSandboxes = sqliteTable("users_to_sandboxes", {
 		.notNull()
 		.references(() => sandbox.id),
 	sharedOn: integer("sharedOn", { mode: "timestamp_ms" }),
-});
+})
 
-export const usersToSandboxesRelations = relations(usersToSandboxes, ({ one }) => ({
-	group: one(sandbox, {
-		fields: [usersToSandboxes.sandboxId],
-		references: [sandbox.id],
-	}),
-	user: one(user, {
-		fields: [usersToSandboxes.userId],
-		references: [user.id],
-	}),
-}));
+export const usersToSandboxesRelations = relations(
+	usersToSandboxes,
+	({ one }) => ({
+		group: one(sandbox, {
+			fields: [usersToSandboxes.sandboxId],
+			references: [sandbox.id],
+		}),
+		user: one(user, {
+			fields: [usersToSandboxes.userId],
+			references: [user.id],
+		}),
+	})
+)

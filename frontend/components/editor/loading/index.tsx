@@ -1,9 +1,6 @@
 "use client"
 
-import Image from "next/image"
 import Logo from "@/assets/logo.svg"
-import { Skeleton } from "@/components/ui/skeleton"
-import { Loader2, X } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -11,6 +8,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Loader2, X } from "lucide-react"
+import Image from "next/image"
 import { useEffect, useState } from "react"
 
 export default function Loading({
@@ -84,8 +84,10 @@ export default function Loading({
             </div>
           </div>
           <div className="w-full mt-1 flex flex-col">
-            <div className="w-full flex justify-center">
-              <Loader2 className="w-4 h-4 animate-spin" />
+            <div className="w-full flex flex-col justify-center">
+              {new Array(6).fill(0).map((_, i) => (
+                <Skeleton key={i} className="h-[1.625rem] mb-0.5 rounded-sm" />
+              ))}
             </div>
           </div>
         </div>

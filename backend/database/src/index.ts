@@ -1,11 +1,11 @@
 // import type { DrizzleD1Database } from "drizzle-orm/d1";
 import { drizzle } from "drizzle-orm/d1"
 import { json } from "itty-router-extras"
-import { ZodError, z } from "zod"
+import { z } from "zod"
 
-import { user, sandbox, usersToSandboxes } from "./schema"
-import * as schema from "./schema"
 import { and, eq, sql } from "drizzle-orm"
+import * as schema from "./schema"
+import { sandbox, user, usersToSandboxes } from "./schema"
 
 export interface Env {
 	DB: D1Database

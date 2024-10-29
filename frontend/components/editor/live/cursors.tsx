@@ -1,11 +1,10 @@
-import { useEffect, useMemo, useState } from "react"
+import { colors } from "@/lib/colors"
 import {
   AwarenessList,
   TypedLiveblocksProvider,
   UserAwareness,
-  useSelf,
 } from "@/liveblocks.config"
-import { colors } from "@/lib/colors"
+import { useEffect, useMemo, useState } from "react"
 
 export function Cursors({
   yProvider,

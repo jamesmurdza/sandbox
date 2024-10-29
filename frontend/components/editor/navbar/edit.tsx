@@ -1,60 +1,57 @@
-"use client";
+"use client"
 
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+} from "@/components/ui/dialog"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { useForm } from "react-hook-form"
+import { z } from "zod"
 
+import { Button } from "@/components/ui/button"
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+} from "@/components/ui/form"
+import { Input } from "@/components/ui/input"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Loader2 } from "lucide-react";
-import { useState } from "react";
-import { Sandbox } from "@/lib/types";
-import { Button } from "@/components/ui/button";
-import { deleteSandbox, updateSandbox } from "@/lib/actions";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+} from "@/components/ui/select"
+import { deleteSandbox, updateSandbox } from "@/lib/actions"
+import { Sandbox } from "@/lib/types"
+import { Loader2 } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { useState } from "react"
+import { toast } from "sonner"
 
 const formSchema = z.object({
   name: z.string().min(1).max(16),
   visibility: z.enum(["public", "private"]),
-});
+})
 
 export default function EditSandboxModal({
   open,
   setOpen,
   data,
 }: {
-  open: boolean;
-  setOpen: (open: boolean) => void;
-  data: Sandbox;
+  open: boolean
+  setOpen: (open: boolean) => void
+  data: Sandbox
 }) {
-  const [loading, setLoading] = useState(false);
-  const [loadingDelete, setLoadingDelete] = useState(false);
+  const [loading, setLoading] = useState(false)
+  const [loadingDelete, setLoadingDelete] = useState(false)
 
-  const router = useRouter();
+  const router = useRouter()
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -62,22 +59,22 @@ export default function EditSandboxModal({
       name: data.name,
       visibility: data.visibility,
     },
-  });
+  })
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    setLoading(true);
-    await updateSandbox({ id: data.id, ...values });
+    setLoading(true)
+    await updateSandbox({ id: data.id, ...values })
 
-    toast.success("Sandbox updated successfully");
+    toast.success("Sandbox updated successfully")
 
-    setLoading(false);
+    setLoading(false)
   }
 
   async function onDelete() {
-    setLoadingDelete(true);
-    await deleteSandbox(data.id);
+    setLoadingDelete(true)
+    await deleteSandbox(data.id)
 
-    router.push("/dashboard");
+    router.push("/dashboard")
   }
 
   return (
@@ -153,5 +150,5 @@ export default function EditSandboxModal({
         </Button>
       </DialogContent>
     </Dialog>
-  );
+  )
 }

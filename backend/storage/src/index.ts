@@ -1,5 +1,5 @@
+import pLimit from "p-limit"
 import { z } from "zod"
-import pLimit from 'p-limit';
 
 export interface Env {
 	R2: R2Bucket
@@ -144,20 +144,24 @@ export default {
 			const body = await request.json()
 			const { sandboxId, type } = initSchema.parse(body)
 
-			console.log(`Copying template: ${type}`);
+			console.log(`Copying template: ${type}`)
 
 			// List all objects under the directory
-			const { objects } = await env.Templates.list({ prefix: type });
+			const { objects } = await env.Templates.list({ prefix: type })
 
 			// Copy each object to the new directory with a 5 concurrency limit
-			const limit = pLimit(5);
-			await Promise.all(objects.map(({ key }) =>
-			  limit(async () => {
-				const destinationKey = key.replace(type, `projects/${sandboxId}`);
-				const fileBody = await env.Templates.get(key).then(res => res?.body ?? "");
-				await env.R2.put(destinationKey, fileBody);
-			  })
-			));
+			const limit = pLimit(5)
+			await Promise.all(
+				objects.map(({ key }) =>
+					limit(async () => {
+						const destinationKey = key.replace(type, `projects/${sandboxId}`)
+						const fileBody = await env.Templates.get(key).then(
+							(res) => res?.body ?? ""
+						)
+						await env.R2.put(destinationKey, fileBody)
+					})
+				)
+			)
 
 			return success
 		} else {
