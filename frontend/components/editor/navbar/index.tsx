@@ -14,6 +14,7 @@ import DeployButtonModal from "./deploy"
 import EditSandboxModal from "./edit"
 import RunButtonModal from "./run"
 import ShareSandboxModal from "./share"
+import DownloadButton from "./downloadButton"
 
 export default function Navbar({
   userData,
@@ -78,6 +79,7 @@ export default function Navbar({
                 <Users className="w-4 h-4 mr-2" />
                 Share
               </Button>
+              <DownloadButton />
             </>
           ) : null}
           <ThemeSwitcher />

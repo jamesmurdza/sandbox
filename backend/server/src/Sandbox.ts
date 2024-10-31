@@ -15,7 +15,7 @@ import { SecureGitClient } from "./SecureGitClient"
 import { TerminalManager } from "./TerminalManager"
 import { TFile, TFolder } from "./types"
 import { LockManager } from "./utils"
-
+import { TFileData } from "./types"
 const lockManager = new LockManager()
 
 // Define a type for SocketHandler functions
@@ -217,10 +217,23 @@ export class Sandbox {
         const handleGenerateCode: SocketHandler = ({ fileName, code, line, instructions }: any) => {
             return this.aiWorker.generateCode(connection.userId, fileName, code, line, instructions)
         }
-
+        // Handle downloading files by download button
+        const handleDownloadFiles: SocketHandler = async () => {
+            if (!this.fileManager) throw Error("No file manager")
+            
+            // Get all files with their data through fileManager
+            const files = this.fileManager.fileData.map((file: TFileData) => ({
+              path: file.id.startsWith('/') ? file.id.slice(1) : file.id,
+              content: file.data
+            }))
+            
+            return { files }
+          }
+          
         return {
             "heartbeat": handleHeartbeat,
             "getFile": handleGetFile,
+            "downloadFiles": handleDownloadFiles,
             "getFolder": handleGetFolder,
             "saveFile": handleSaveFile,
             "moveFile": handleMoveFile,
