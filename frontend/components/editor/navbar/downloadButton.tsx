@@ -3,7 +3,7 @@ import { useSocket } from "@/context/SocketContext"
 import { Button } from "@/components/ui/button"
 import { Download } from "lucide-react"
 
-export default function DownloadButton() {
+export default function DownloadButton({ name }: { name: string }) {
   const { socket } = useSocket()
 
   const handleDownload = async () => {
@@ -18,11 +18,12 @@ export default function DownloadButton() {
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = 'sandbox-files.zip'
+      a.download = `${name}.zip`
       a.click()
       window.URL.revokeObjectURL(url)
     })
   }
+
 
   return (
     <Button variant="outline" onClick={handleDownload}>

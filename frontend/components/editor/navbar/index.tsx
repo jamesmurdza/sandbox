@@ -79,8 +79,7 @@ export default function Navbar({
                 <Users className="w-4 h-4 mr-2" />
                 Share
               </Button>
-              <DownloadButton />
-            </>
+              <DownloadButton name={sandboxData.name} /></>
           ) : null}
           <ThemeSwitcher />
           <UserButton userData={userData} />
