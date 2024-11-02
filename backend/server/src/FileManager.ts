@@ -349,7 +349,7 @@ export class FileManager {
   // Get file content
   async getFile(fileId: string): Promise<string | undefined> {
     const file = this.fileData.find((f) => f.id === fileId)
-    return file?.data
+    return file?.data||''
   }
 
   // Get folder content
