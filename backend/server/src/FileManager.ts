@@ -143,8 +143,14 @@ export class FileManager {
     // Reload file list from the container to include template files
     const result = await this.sandbox.commands.run(`find "${this.dirName}" -type f`); // List all files recursively
     const localPaths = result.stdout.split('\n').filter(path => path); // Split the output into an array and filter out empty strings
-    const relativePaths = localPaths.map(filePath => path.relative(this.dirName, filePath)); // Convert absolute paths to relative paths
-    this.files = generateFileStructure(relativePaths);
+    const relativePaths = localPaths.map(filePath => {
+      // Use path.posix to ensure consistent forward slash behavior across platforms
+      return path.posix.relative(
+          this.dirName.split(path.sep).join('/'),
+          filePath.split(path.sep).join('/')
+      );
+  });
+  this.files = generateFileStructure(relativePaths);
 
     // Make the logged in user the owner of all project files
     this.fixPermissions()

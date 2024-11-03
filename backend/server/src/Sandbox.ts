@@ -226,13 +226,22 @@ export class Sandbox {
         // Handle downloading files by download button
         const handleDownloadFiles: SocketHandler = async () => {
             if (!this.fileManager) throw Error("No file manager")
-
-            // Get all files with their data through fileManager
-            const files = this.fileManager.fileData.map((file: TFileData) => ({
-                path: file.id.startsWith('/') ? file.id.slice(1) : file.id,
-                content: file.data
-            }))
-
+            
+            // Get fresh file list from container
+            const result = await this.container!.files.list('/home/user/project')
+            
+            // Read contents of each file
+            const files = await Promise.all(result.map(async (file: {type: string, path: string}) => {
+                if (file.type === 'file') {
+                    const relativePath = file.path.replace('/home/user/project/', '')
+                    const content = await this.container!.files.read(file.path)
+                    return {
+                        path: relativePath,
+                        content: typeof content === 'string' ? content : ''
+                    }
+                }
+            })).then(files => files.filter((f): f is {path: string, content: string} => f !== undefined))
+        
             return { files }
         }
 
