@@ -218,7 +218,6 @@ export default function CodeEditor({
       let mergedConfig: any = { compilerOptions: {} }
 
       for (const file of tsconfigFiles) {
-        const containerId = file.id.split("/").slice(0, 2).join("/")
         const content = await fetchFileContent(file.id)
 
         try {
@@ -228,8 +227,7 @@ export default function CodeEditor({
           if (tsConfig.references) {
             for (const ref of tsConfig.references) {
               const path = ref.path.replace("./", "")
-              const fileId = `${containerId}/${path}`
-              const refContent = await fetchFileContent(fileId)
+              const refContent = await fetchFileContent(path)
               const referenceTsConfig = JSON.parse(refContent)
 
               // Merge configurations

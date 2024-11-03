@@ -1,6 +1,6 @@
 import { Socket } from "socket.io"
 import { z } from "zod"
-import { User } from "./types"
+import { Sandbox, User } from "./types"
 
 // Middleware for socket authentication
 export const socketAuth = async (socket: Socket, next: Function) => {
@@ -33,6 +33,17 @@ export const socketAuth = async (socket: Socket, next: Function) => {
     )
     const dbUserJSON = (await dbUser.json()) as User
 
+    // Fetch sandbox data from the database
+    const dbSandbox = await fetch(
+        `${process.env.DATABASE_WORKER_URL}/api/sandbox?id=${sandboxId}`,
+        {
+            headers: {
+                Authorization: `${process.env.WORKERS_KEY}`,
+            },
+        }
+    )
+    const dbSandboxJSON = (await dbSandbox.json()) as Sandbox
+
     // Check if user data was retrieved successfully
     if (!dbUserJSON) {
         next(new Error("DB error."))
@@ -56,6 +67,7 @@ export const socketAuth = async (socket: Socket, next: Function) => {
         userId,
         sandboxId: sandboxId,
         isOwner: sandbox !== undefined,
+        type: dbSandboxJSON.type
     }
 
     // Allow the connection

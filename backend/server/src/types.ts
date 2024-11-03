@@ -12,7 +12,7 @@ export type User = {
 export type Sandbox = {
   id: string
   name: string
-  type: "react" | "node"
+  type: "reactjs" | "vanillajs" | "nextjs" | "streamlit"
   visibility: "public" | "private"
   createdAt: Date
   userId: string

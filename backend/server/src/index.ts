@@ -96,6 +96,7 @@ io.on("connection", async (socket) => {
       userId: string
       sandboxId: string
       isOwner: boolean
+      type: string
     }
 
     // Register the connection
@@ -111,6 +112,7 @@ io.on("connection", async (socket) => {
       // Create or retrieve the sandbox manager for the given sandbox ID
       const sandbox = sandboxes[data.sandboxId] ?? new Sandbox(
         data.sandboxId,
+        data.type,
         {
           aiWorker, dokkuClient, gitClient,
         }

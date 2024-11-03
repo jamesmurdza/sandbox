@@ -1,4 +1,3 @@
-import pLimit from "p-limit"
 import { z } from "zod"
 
 export interface Env {
@@ -136,33 +135,7 @@ export default {
 
 			return success
 		} else if (path === "/api/init" && method === "POST") {
-			const initSchema = z.object({
-				sandboxId: z.string(),
-				type: z.string(),
-			})
-
-			const body = await request.json()
-			const { sandboxId, type } = initSchema.parse(body)
-
-			console.log(`Copying template: ${type}`)
-
-			// List all objects under the directory
-			const { objects } = await env.Templates.list({ prefix: type })
-
-			// Copy each object to the new directory with a 5 concurrency limit
-			const limit = pLimit(5)
-			await Promise.all(
-				objects.map(({ key }) =>
-					limit(async () => {
-						const destinationKey = key.replace(type, `projects/${sandboxId}`)
-						const fileBody = await env.Templates.get(key).then(
-							(res) => res?.body ?? ""
-						)
-						await env.R2.put(destinationKey, fileBody)
-					})
-				)
-			)
-
+			// This API path no longer does anything, because template files are stored in E2B sandbox templates.
 			return success
 		} else {
 			return notFound

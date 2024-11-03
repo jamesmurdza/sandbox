@@ -13,9 +13,8 @@ import {
 } from "./ratelimit"
 import { SecureGitClient } from "./SecureGitClient"
 import { TerminalManager } from "./TerminalManager"
-import { TFile, TFolder } from "./types"
+import { TFile, TFileData, TFolder } from "./types"
 import { LockManager } from "./utils"
-import { TFileData } from "./types"
 const lockManager = new LockManager()
 
 // Define a type for SocketHandler functions
@@ -38,6 +37,7 @@ type ServerContext = {
 export class Sandbox {
     // Sandbox properties:
     sandboxId: string;
+    type: string;
     fileManager: FileManager | null;
     terminalManager: TerminalManager | null;
     container: E2BSandbox | null;
@@ -46,9 +46,10 @@ export class Sandbox {
     gitClient: SecureGitClient | null;
     aiWorker: AIWorker;
 
-    constructor(sandboxId: string, { aiWorker, dokkuClient, gitClient }: ServerContext) {
+    constructor(sandboxId: string, type: string, { aiWorker, dokkuClient, gitClient }: ServerContext) {
         // Sandbox properties:
         this.sandboxId = sandboxId;
+        this.type = type;
         this.fileManager = null;
         this.terminalManager = null;
         this.container = null;
@@ -69,8 +70,12 @@ export class Sandbox {
                 console.log(`Found existing container ${this.sandboxId}`)
             } else {
                 console.log("Creating container", this.sandboxId)
-                // Create a new container with a specified timeout
-                this.container = await E2BSandbox.create({
+                // Create a new container with a specified template and timeout
+                const templateTypes = ["vanillajs", "reactjs", "nextjs", "streamlit"];
+                const template = templateTypes.includes(this.type)
+                    ? `gitwit-${this.type}`
+                    : `base`;
+                this.container = await E2BSandbox.create(template, {
                     timeoutMs: CONTAINER_TIMEOUT,
                 })
             }
@@ -217,19 +222,20 @@ export class Sandbox {
         const handleGenerateCode: SocketHandler = ({ fileName, code, line, instructions }: any) => {
             return this.aiWorker.generateCode(connection.userId, fileName, code, line, instructions)
         }
+
         // Handle downloading files by download button
         const handleDownloadFiles: SocketHandler = async () => {
             if (!this.fileManager) throw Error("No file manager")
-            
+
             // Get all files with their data through fileManager
             const files = this.fileManager.fileData.map((file: TFileData) => ({
-              path: file.id.startsWith('/') ? file.id.slice(1) : file.id,
-              content: file.data
+                path: file.id.startsWith('/') ? file.id.slice(1) : file.id,
+                content: file.data
             }))
-            
+
             return { files }
-          }
-          
+        }
+
         return {
             "heartbeat": handleHeartbeat,
             "getFile": handleGetFile,

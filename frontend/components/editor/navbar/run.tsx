@@ -44,8 +44,8 @@ export default function RunButtonModal({
     } else if (!isRunning && terminals.length < 4) {
       const command =
         sandboxData.type === "streamlit"
-          ? "pip install -r requirements.txt && streamlit run main.py --server.runOnSave true"
-          : "yarn install && yarn dev"
+          ? "./venv/bin/streamlit run main.py --server.runOnSave true"
+          : "npm run dev"
 
       try {
         // Create a new terminal with the appropriate command

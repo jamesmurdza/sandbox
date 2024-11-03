@@ -140,6 +140,12 @@ export class FileManager {
     })
     await Promise.all(promises)
 
+    // Reload file list from the container to include template files
+    const result = await this.sandbox.commands.run(`find "${this.dirName}" -type f`); // List all files recursively
+    const localPaths = result.stdout.split('\n').filter(path => path); // Split the output into an array and filter out empty strings
+    const relativePaths = localPaths.map(filePath => path.relative(this.dirName, filePath)); // Convert absolute paths to relative paths
+    this.files = generateFileStructure(relativePaths);
+
     // Make the logged in user the owner of all project files
     this.fixPermissions()
 
@@ -348,8 +354,9 @@ export class FileManager {
 
   // Get file content
   async getFile(fileId: string): Promise<string | undefined> {
-    const file = this.fileData.find((f) => f.id === fileId)
-    return file?.data||''
+    const filePath = path.posix.join(this.dirName, fileId)
+    const fileContent = await this.sandbox.files.read(filePath)
+    return fileContent
   }
 
   // Get folder content
