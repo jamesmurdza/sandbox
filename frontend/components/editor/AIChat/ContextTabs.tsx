@@ -10,6 +10,8 @@ import {
 import { Input } from "@/components/ui/input"
 import { ContextTab } from "./types"
 import { ContextTabsProps } from "./types"
+// Ignore certain folders and files from the file tree 
+import { ignoredFiles, ignoredFolders } from "./lib/ignored-paths"
 
 export default function ContextTabs({
   contextTabs,
@@ -48,9 +50,13 @@ export default function ContextTabs({
   // Get all files from the file tree to search for context
   const getAllFiles = (items: (TFile | TFolder)[]): TFile[] => {
     return items.reduce((acc: TFile[], item) => {
-      if (item.type === "file") {
+      // Add file if it's not ignored 
+      if (item.type === "file" && !ignoredFiles.some((pattern: string) => 
+        item.name.endsWith(pattern.replace('*', '')) || item.name === pattern
+      )) {
         acc.push(item)
-      } else {
+      // Add all files from folder if it's not ignored 
+      } else if (item.type === "folder" && !ignoredFolders.some((folder: string) => folder === item.name)) {
         acc.push(...getAllFiles(item.children))
       }
       return acc
