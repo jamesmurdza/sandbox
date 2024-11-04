@@ -1,27 +1,10 @@
-import { Send, StopCircle, AtSign, Image as ImageIcon } from "lucide-react"
+import { Send, StopCircle, Image as ImageIcon, Paperclip } from "lucide-react"
 import { Button } from "../../ui/button"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../ui/select"
-import { useRef, useEffect, useState } from "react"
-import * as monaco from 'monaco-editor'
+import { useEffect } from "react"
 import { TFile, TFolder } from "@/lib/types"
-
-interface ChatInputProps {
-  input: string
-  setInput: (input: string) => void
-  isGenerating: boolean
-  handleSend: (useFullContext?: boolean) => void
-  handleStopGeneration: () => void
-  onImageUpload: (file: File) => void
-  onFileMention: (fileName: string) => void
-  addContextTab: (type: string, title: string, content: string, lineRange?: { start: number, end: number }) => void
-  activeFileName?: string
-  editorRef: React.MutableRefObject<monaco.editor.IStandaloneCodeEditor | undefined>
-  lastCopiedRangeRef: React.MutableRefObject<{ startLine: number; endLine: number } | null>
-  contextTabs: { id: string; type: string; title: string; content: string; lineRange?: { start: number; end: number } }[]
-  onRemoveTab: (id: string) => void
-  textareaRef: React.RefObject<HTMLTextAreaElement>
-  files: (TFile | TFolder)[]
-}
+import { ALLOWED_FILE_TYPES } from "./types"
+import { looksLikeCode } from "./lib/chatUtils"
+import { ChatInputProps } from "./types"
 
 export default function ChatInput({
   input,
@@ -30,7 +13,6 @@ export default function ChatInput({
   handleSend,
   handleStopGeneration,
   onImageUpload,
-  onFileMention,
   addContextTab,
   activeFileName,
   editorRef,
@@ -38,8 +20,8 @@ export default function ChatInput({
   contextTabs,
   onRemoveTab,
   textareaRef,
-  files,
 }: ChatInputProps) {
+
   // Auto-resize textarea as content changes
   useEffect(() => {
     if (textareaRef.current) {
@@ -48,6 +30,7 @@ export default function ChatInput({
     }
   }, [input])
 
+  // Handle keyboard events for sending messages
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
       if (e.ctrlKey) {
@@ -65,6 +48,7 @@ export default function ChatInput({
     }
   }
 
+  // Handle paste events for image and code
   const handlePaste = async (e: React.ClipboardEvent) => {
     // Handle image paste
     const items = Array.from(e.clipboardData.items);
@@ -76,12 +60,17 @@ export default function ChatInput({
         if (!file) continue;
 
         try {
+          // Convert image to base64 string for context tab title and timestamp
           const reader = new FileReader();
           reader.onload = () => {
             const base64String = reader.result as string;
             addContextTab(
               "image",
-              `Image ${new Date().toLocaleTimeString()}`,
+              `Image ${new Date().toLocaleTimeString('en-US', {
+                hour12: true,
+                hour: '2-digit',
+                minute: '2-digit'
+              }).replace(/(\d{2}):(\d{2})/, '$1:$2')}`,
               base64String
             );
           };
@@ -93,26 +82,8 @@ export default function ChatInput({
       }
     }
     
+    // Get text from clipboard 
     const text = e.clipboardData.getData('text');
-    
-    // Helper function to detect if text looks like code
-    const looksLikeCode = (text: string): boolean => {
-      const codeIndicators = [
-        /^import\s+/m,           // import statements
-        /^function\s+/m,         // function declarations
-        /^class\s+/m,           // class declarations
-        /^const\s+/m,           // const declarations
-        /^let\s+/m,             // let declarations
-        /^var\s+/m,             // var declarations
-        /[{}\[\]();]/,          // common code syntax
-        /^\s*\/\//m,            // comments
-        /^\s*\/\*/m,            // multi-line comments
-        /=>/,                   // arrow functions
-        /^export\s+/m,          // export statements
-      ];
-
-      return codeIndicators.some(pattern => pattern.test(text));
-    };
 
     // If text doesn't contain newlines or doesn't look like code, let it paste normally
     if (!text || !text.includes('\n') || !looksLikeCode(text)) {
@@ -123,6 +94,8 @@ export default function ChatInput({
     const editor = editorRef.current;
     const currentSelection = editor?.getSelection();
     const lines = text.split('\n');
+
+    // TODO: FIX THIS: even when i paste the outside code, it shows the active file name,it works when no tabs are open, just does not work when the tab is open
     
     // If selection exists in editor, use file name and line numbers
     if (currentSelection && !currentSelection.isEmpty()) {
@@ -156,6 +129,7 @@ export default function ChatInput({
     );
   };
 
+  // Handle image upload from local machine via input
   const handleImageUpload = () => {
     const input = document.createElement('input')
     input.type = 'file'
@@ -167,32 +141,7 @@ export default function ChatInput({
     input.click()
   }
 
-  const handleMentionClick = () => {
-    if (textareaRef.current) {
-      const cursorPosition = textareaRef.current.selectionStart
-      const newValue = input.slice(0, cursorPosition) + '@' + input.slice(cursorPosition)
-      setInput(newValue)
-      // Focus and move cursor after the @
-      textareaRef.current.focus()
-      const newPosition = cursorPosition + 1
-      textareaRef.current.setSelectionRange(newPosition, newPosition)
-    }
-  }
-
-  // Handle @ mentions in input
-  useEffect(() => {
-    const match = input.match(/@(\w+)$/)
-    if (match) {
-      const fileName = match[1]
-      const allFiles = getAllFiles(files)
-      const file = allFiles.find(file => file.name === fileName)
-      if (file) {
-        onFileMention(file.name)
-      }
-    }
-  }, [input, onFileMention, files])
-
-  // Add this helper function to flatten the file tree
+  // Helper function to flatten the file tree
   const getAllFiles = (items: (TFile | TFolder)[]): TFile[] => {
     return items.reduce((acc: TFile[], item) => {
       if (item.type === "file") {
@@ -202,6 +151,29 @@ export default function ChatInput({
       }
       return acc
     }, [])
+  }
+
+  // Handle file upload from local machine via input
+  const handleFileUpload = () => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.txt,.md,.csv,.json,.js,.ts,.html,.css,.pdf'
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0]
+      if (file) {
+        if (!(file.type in ALLOWED_FILE_TYPES)) {
+          alert('Unsupported file type. Please upload text, code, or PDF files.')
+          return
+        }
+
+        const reader = new FileReader()
+        reader.onload = () => {
+          addContextTab("file", file.name, reader.result as string)
+        }
+        reader.readAsText(file)
+      }
+    }
+    input.click()
   }
 
   return (
@@ -218,6 +190,7 @@ export default function ChatInput({
           disabled={isGenerating}
           rows={1}
         />
+        {/* Render stop generation button */}
         {isGenerating ? (
           <Button
             onClick={handleStopGeneration}
@@ -238,38 +211,27 @@ export default function ChatInput({
           </Button>
         )}
       </div>
-      <div className="flex flex-wrap items-center gap-2 w-full">
-        <div className="flex items-center gap-2 px-2 text-sm text-muted-foreground min-w-auto max-w-auto">
-          <Select defaultValue="claude-3.5-sonnet">
-            <SelectTrigger className="h-6 w-full border-none truncate">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="claude-3.5-sonnet">claude-3.5-sonnet</SelectItem>
-              <SelectItem value="claude-3">claude-3</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex items-center gap-2 ml-auto">
-          <Button 
-            variant="ghost" 
-            size="sm"
-            className="h-6 px-2 sm:px-3"
-            onClick={handleMentionClick}
-          >
-            <AtSign className="h-3 w-3 sm:mr-1" />
-            <span className="hidden sm:inline">mention</span>
-          </Button>
-          <Button 
-            variant="ghost" 
-            size="sm"
+      <div className="flex items-center justify-end gap-2">
+        {/* Render file upload button */}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-6 px-2 sm:px-3"
+          onClick={handleFileUpload}
+        >
+          <Paperclip className="h-3 w-3 sm:mr-1" />
+          <span className="hidden sm:inline">File</span>
+        </Button>
+        {/* Render image upload button */}
+        <Button 
+          variant="ghost" 
+          size="sm"
             className="h-6 px-2 sm:px-3"
             onClick={handleImageUpload}
           >
             <ImageIcon className="h-3 w-3 sm:mr-1" />
-            <span className="hidden sm:inline">Image</span>
-          </Button>
-        </div>
+          <span className="hidden sm:inline">Image</span>
+        </Button>
       </div>
     </div>
   )

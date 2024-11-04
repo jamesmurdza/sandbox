@@ -6,32 +6,9 @@ import ChatMessage from "./ChatMessage"
 import ContextTabs from "./ContextTabs"
 import { handleSend, handleStopGeneration } from "./lib/chatUtils"
 import { nanoid } from 'nanoid'
-import * as monaco from 'monaco-editor'
-import { TFile, TFolder } from "@/lib/types"
+import { TFile } from "@/lib/types"
 import { useSocket } from "@/context/SocketContext"
-
-interface Message {
-  role: "user" | "assistant"
-  content: string
-  context?: string
-}
-
-interface ContextTab {
-  id: string
-  type: "file" | "code" | "image"
-  name: string
-  content: string
-  lineRange?: { start: number; end: number }
-}
-
-interface AIChatProps {
-  activeFileContent: string
-  activeFileName: string
-  onClose: () => void
-  editorRef: React.MutableRefObject<monaco.editor.IStandaloneCodeEditor | undefined>
-  lastCopiedRangeRef: React.MutableRefObject<{ startLine: number; endLine: number } | null>
-  files: (TFile | TFolder)[]
-}
+import { Message, ContextTab, AIChatProps } from './types'
 
 export default function AIChat({
   activeFileContent,
@@ -41,21 +18,32 @@ export default function AIChat({
   lastCopiedRangeRef,
   files,
 }: AIChatProps) {
+  // Initialize socket and messages
   const { socket } = useSocket()
   const [messages, setMessages] = useState<Message[]>([])
+
+  // Initialize input and state for generating messages
   const [input, setInput] = useState("")
   const [isGenerating, setIsGenerating] = useState(false)
+
+  // Initialize chat container ref and abort controller ref
   const chatContainerRef = useRef<HTMLDivElement>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
+
+  // Initialize context tabs and state for expanding context
   const [contextTabs, setContextTabs] = useState<ContextTab[]>([])
   const [isContextExpanded, setIsContextExpanded] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+
+  // Initialize textarea ref
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
+  // Scroll to bottom of chat when messages change
   useEffect(() => {
     scrollToBottom()
   }, [messages])
 
+  // Scroll to bottom of chat when messages change
   const scrollToBottom = () => {
     if (chatContainerRef.current) {
       setTimeout(() => {
@@ -67,6 +55,7 @@ export default function AIChat({
     }
   }
 
+  // Add context tab to context tabs
   const addContextTab = (type: string, name: string, content: string, lineRange?: { start: number; end: number }) => {
     const newTab = {
       id: nanoid(),
@@ -78,19 +67,22 @@ export default function AIChat({
     setContextTabs(prev => [...prev, newTab])
   }
 
+  // Remove context tab from context tabs
   const removeContextTab = (id: string) => {
     setContextTabs(prev => prev.filter(tab => tab.id !== id))
   }
 
-  const handleAddFile = () => {
-    console.log("Add file to context")
+  // Add file to context tabs
+  const handleAddFile = (tab: ContextTab) => {
+    setContextTabs(prev => [...prev, tab])
   }
 
+  // Format code content to remove starting and ending code block markers if they exist
   const formatCodeContent = (content: string) => {
-    // Remove starting and ending code block markers if they exist
     return content.replace(/^```[\w-]*\n/, '').replace(/\n```$/, '')
   }
 
+  // Get combined context from context tabs
   const getCombinedContext = () => {
     if (contextTabs.length === 0) return ''
     
@@ -107,6 +99,7 @@ export default function AIChat({
     }).join('\n\n')
   }
 
+  // Handle sending message with context
   const handleSendWithContext = () => {
     const combinedContext = getCombinedContext()
     handleSend(
@@ -125,50 +118,20 @@ export default function AIChat({
     setContextTabs([])
   }
 
-  function setContext(context: string | null, fileName?: string, lineRange?: { start: number; end: number }): void {
+  // Set context for the chat
+  const setContext = (
+    context: string | null, 
+    name: string, 
+    range?: { start: number, end: number }
+  ) => {
     if (!context) {
       setContextTabs([])
       return
     }
 
-    const existingCodeTab = contextTabs.find(tab => tab.type === 'code')
-    
-    if (existingCodeTab) {
-      setContextTabs(prev => 
-        prev.map(tab => 
-          tab.id === existingCodeTab.id 
-            ? { ...tab, content: context, name: fileName || 'Code Context', lineRange }
-            : tab
-        )
-      )
-    } else {
-      addContextTab('code', fileName || 'Chat Context', context, lineRange)
-    }
+    // Always add a new tab instead of updating existing ones
+    addContextTab('code', name, context, range)
   }
-
-  useEffect(() => {
-    if (editorRef?.current) {
-      const editor = editorRef.current;
-      
-      // Configure editor options for better copy handling
-      editor.updateOptions({
-        copyWithSyntaxHighlighting: true,
-        emptySelectionClipboard: false
-      });
-
-      // Track selection changes
-      const disposable = editor.onDidChangeCursorSelection((e) => {
-        if (!e.selection.isEmpty()) {
-          lastCopiedRangeRef.current = {
-            startLine: e.selection.startLineNumber,
-            endLine: e.selection.endLineNumber
-          };
-        }
-      });
-
-      return () => disposable.dispose();
-    }
-  }, [editorRef?.current]);
 
   return (
     <div className="flex flex-col h-screen w-full">
@@ -193,6 +156,7 @@ export default function AIChat({
         className="flex-grow overflow-y-auto p-4 space-y-4"
       >
         {messages.map((message, messageIndex) => (
+          // Render chat message component for each message 
           <ChatMessage
             key={messageIndex}
             message={message}
@@ -204,6 +168,7 @@ export default function AIChat({
         {isLoading && <LoadingDots />}
       </div>
       <div className="p-4 border-t mb-14">
+        {/* Render context tabs component */}
         <ContextTabs
           activeFileName={activeFileName}
           onAddFile={handleAddFile}
@@ -224,9 +189,9 @@ export default function AIChat({
             })
           }}
         />
+        {/* Render chat input component */}
         <ChatInput
           textareaRef={textareaRef}
-          files={[]}
           addContextTab={addContextTab}
           editorRef={editorRef}
           input={input}
@@ -243,13 +208,11 @@ export default function AIChat({
             }
             reader.readAsDataURL(file)
           }}
-          onFileMention={(fileName) => {
-          }}
           lastCopiedRangeRef={lastCopiedRangeRef}
           activeFileName={activeFileName}
           contextTabs={contextTabs.map(tab => ({
             ...tab,
-            title: tab.id // Add missing title property
+            title: tab.id 
           }))}
           onRemoveTab={removeContextTab}
         />

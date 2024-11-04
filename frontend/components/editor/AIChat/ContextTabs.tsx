@@ -1,4 +1,4 @@
-import { Plus, X, ChevronDown, ChevronUp, Image as ImageIcon, FileText } from "lucide-react"
+import { Plus, X, Image as ImageIcon, FileText } from "lucide-react"
 import { useState } from "react"
 import { Button } from "../../ui/button"
 import { TFile, TFolder } from "@/lib/types"
@@ -8,44 +8,28 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 import { Input } from "@/components/ui/input"
-import { Socket } from "socket.io-client"
-
-interface ContextTab {
-  id: string
-  type: "file" | "code" | "image"
-  name: string
-  content: string
-  sourceFile?: string
-  lineRange?: {
-    start: number
-    end: number
-  }
-}
-
-interface ContextTabsProps {
-  activeFileName: string
-  onAddFile: () => void
-  contextTabs: ContextTab[]
-  onRemoveTab: (id: string) => void
-  isExpanded: boolean
-  onToggleExpand: () => void
-  files?: (TFile | TFolder)[]
-  onFileSelect?: (file: TFile) => void
-  socket: Socket | null
-}
+import { ContextTab } from "./types"
+import { ContextTabsProps } from "./types"
 
 export default function ContextTabs({
-  onAddFile,
   contextTabs,
   onRemoveTab,
   className,
   files = [],
   onFileSelect,
 }: ContextTabsProps & { className?: string }) {
+
+  // State for preview tab
   const [previewTab, setPreviewTab] = useState<ContextTab | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
 
+  // Allow preview for images and code selections from editor
   const togglePreview = (tab: ContextTab) => {
+    if (!tab.lineRange && tab.type !== "image") {
+      return;
+    }
+    
+    // Toggle preview for images and code selections from editor
     if (previewTab?.id === tab.id) {
       setPreviewTab(null)
     } else {
@@ -53,6 +37,7 @@ export default function ContextTabs({
     }
   }
 
+  // Remove tab from context when clicking on X
   const handleRemoveTab = (id: string) => {
     if (previewTab?.id === id) {
       setPreviewTab(null)
@@ -60,6 +45,7 @@ export default function ContextTabs({
     onRemoveTab(id)
   }
 
+  // Get all files from the file tree to search for context
   const getAllFiles = (items: (TFile | TFolder)[]): TFile[] => {
     return items.reduce((acc: TFile[], item) => {
       if (item.type === "file") {
@@ -71,6 +57,7 @@ export default function ContextTabs({
     }, [])
   }
 
+  // Get all files from the file tree to search for context when adding context
   const allFiles = getAllFiles(files)
   const filteredFiles = allFiles.filter(file => 
     file.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -80,6 +67,7 @@ export default function ContextTabs({
     <div className={`border-none ${className || ''}`}>
       <div className="flex flex-col">
         <div className="flex items-center gap-1 overflow-hidden mb-2 flex-wrap">
+          {/* Add context tab button */}
           <Popover>
             <PopoverTrigger asChild>
               <Button
@@ -90,13 +78,16 @@ export default function ContextTabs({
                 <Plus className="h-4 w-4" />
               </Button>
             </PopoverTrigger>
+            {/* Add context tab popover */}
             <PopoverContent className="w-64 p-2">
-              <Input
-                placeholder="Search files..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="mb-2"
-              />
+              <div className="flex gap-2 mb-2">
+                <Input
+                  placeholder="Search files..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="flex-1"
+                />
+              </div>
               <div className="max-h-[200px] overflow-y-auto">
                 {filteredFiles.map((file) => (
                   <Button
@@ -112,11 +103,13 @@ export default function ContextTabs({
               </div>
             </PopoverContent>
           </Popover>
+          {/* Add context tab button */}
           {contextTabs.length === 0 && (
             <div className="flex items-center gap-1 px-2 rounded">
               <span className="text-sm text-muted-foreground">Add Context</span>
             </div>
           )}
+          {/* Render context tabs */}
           {contextTabs.map((tab) => (
             <div
               key={tab.id}
@@ -143,18 +136,24 @@ export default function ContextTabs({
         {/* Preview Section */}
         {previewTab && (
           <div className="p-2 bg-input rounded-md max-h-[200px] overflow-auto mb-2">
-            {previewTab.lineRange && (
-              <div className="text-xs text-muted-foreground mt-1">
-                Lines {previewTab.lineRange.start}-{previewTab.lineRange.end}
-              </div>
-            )}
             {previewTab.type === "image" ? (
               <img 
                 src={previewTab.content} 
                 alt={previewTab.name}
                 className="max-w-full h-auto"
               />
-            ) : (
+            ) : previewTab.lineRange && (
+              <>
+                <div className="text-xs text-muted-foreground mt-1">
+                  Lines {previewTab.lineRange.start}-{previewTab.lineRange.end}
+                </div>
+                <pre className="text-xs font-mono whitespace-pre-wrap">
+                  {previewTab.content}
+                </pre>
+              </>
+            )}
+            {/* Render file context tab */}
+            {previewTab.type === "file" && (
               <pre className="text-xs font-mono whitespace-pre-wrap">
                 {previewTab.content}
               </pre>

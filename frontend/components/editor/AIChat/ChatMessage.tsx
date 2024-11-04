@@ -1,24 +1,12 @@
-import { Check, ChevronDown, ChevronUp, Copy, CornerUpLeft } from "lucide-react"
+import { Check, Copy, CornerUpLeft } from "lucide-react"
 import React, { useState } from "react"
 import ReactMarkdown from "react-markdown"
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
-import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism"
 import remarkGfm from "remark-gfm"
 import { Button } from "../../ui/button"
 import { copyToClipboard, stringifyContent } from "./lib/chatUtils"
 import ContextTabs from "./ContextTabs"
-import { Socket } from "socket.io-client"
-
-interface MessageProps {
-  message: {
-    role: "user" | "assistant"
-    content: string
-    context?: string
-  }
-  setContext: (context: string | null) => void
-  setIsContextExpanded: (isExpanded: boolean) => void
-  socket: Socket | null
-}
+import { createMarkdownComponents } from './lib/markdownComponents'
+import { MessageProps } from "./types"
 
 export default function ChatMessage({
   message,
@@ -26,11 +14,16 @@ export default function ChatMessage({
   setIsContextExpanded,
   socket,
 }: MessageProps) {
+
+  // State for expanded message index
   const [expandedMessageIndex, setExpandedMessageIndex] = useState<
     number | null
   >(null)
+
+  // State for copied text
   const [copiedText, setCopiedText] = useState<string | null>(null)
 
+  // Render copy button for text content 
   const renderCopyButton = (text: any) => (
     <Button
       onClick={() => copyToClipboard(stringifyContent(text), setCopiedText)}
@@ -46,12 +39,36 @@ export default function ChatMessage({
     </Button>
   )
 
+  // Set context for code when asking about code
   const askAboutCode = (code: any) => {
     const contextString = stringifyContent(code)
-    setContext(`Regarding this code:\n${contextString}`)
+    const newContext = `Regarding this code:\n${contextString}`
+    
+    // Format timestamp to match chat message format (HH:MM PM)
+    const timestamp = new Date().toLocaleTimeString('en-US', {
+      hour12: true,
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+    
+    // Instead of replacing context, append to it
+    if (message.role === "assistant") {
+      // For assistant messages, create a new context tab with the response content and timestamp
+      setContext(newContext, `AI Response (${timestamp})`, {
+        start: 1,
+        end: contextString.split('\n').length
+      })
+    } else {
+      // For user messages, create a new context tab with the selected content and timestamp
+      setContext(newContext, `User Chat (${timestamp})`, {
+        start: 1,
+        end: contextString.split('\n').length
+      })
+    }
     setIsContextExpanded(false)
   }
 
+  // Render markdown elements for code and text
   const renderMarkdownElement = (props: any) => {
     const { node, children } = props
     const content = stringifyContent(children)
@@ -69,6 +86,7 @@ export default function ChatMessage({
             <CornerUpLeft className="w-4 h-4" />
           </Button>
         </div>
+        {/* Render markdown element */}
         {React.createElement(
           node.tagName,
           {
@@ -83,6 +101,13 @@ export default function ChatMessage({
     )
   }
 
+  // Create markdown components
+  const components = createMarkdownComponents(
+    renderCopyButton,
+    renderMarkdownElement,
+    askAboutCode
+  )
+
   return (
     <div className="text-left relative">
       <div
@@ -92,6 +117,7 @@ export default function ChatMessage({
             : "bg-transparent text-white"
         } max-w-full`}
       >
+        {/* Render context tabs */}
         {message.role === "user" && message.context && (
           <div className="mb-2 bg-input rounded-lg">
             <ContextTabs
@@ -111,6 +137,7 @@ export default function ChatMessage({
                     message.context.replace(/^Regarding this code:\n/, "")
                   )}
                 </div>
+                {/* Render code textarea */}
                 {(() => {
                   const code = message.context.replace(
                     /^Regarding this code:\n/,
@@ -124,7 +151,10 @@ export default function ChatMessage({
                         value={code}
                         onChange={(e) => {
                           const updatedContext = `Regarding this code:\n${e.target.value}`
-                          setContext(updatedContext)
+                          setContext(updatedContext, "Selected Content", {
+                            start: 1,
+                            end: e.target.value.split('\n').length
+                          })
                         }}
                         className="w-full p-2 bg-[#1e1e1e] text-white font-mono text-sm rounded"
                         rows={code.split("\n").length}
@@ -141,8 +171,9 @@ export default function ChatMessage({
             )}
           </div>
         )}
+        {/* Render copy and ask about code buttons */}
         {message.role === "user" && (
-          <div className="absolute top-0 right-0 flex opacity-0 group-hover:opacity-30 transition-opacity">
+          <div className="absolute top-0 right-0 p-1 flex opacity-40">
             {renderCopyButton(message.content)}
             <Button
               onClick={() => askAboutCode(message.content)}
@@ -154,67 +185,11 @@ export default function ChatMessage({
             </Button>
           </div>
         )}
+        {/* Render markdown content */}
         {message.role === "assistant" ? (
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
-            components={{
-              code({ node, className, children, ...props }) {
-                const match = /language-(\w+)/.exec(className || "")
-                return match ? (
-                  <div className="relative border border-input rounded-md my-4">
-                    <div className="absolute top-0 left-0 px-2 py-1 text-xs font-semibold text-gray-200 bg-#1e1e1e rounded-tl">
-                      {match[1]}
-                    </div>
-                    <div className="absolute top-0 right-0 flex">
-                      {renderCopyButton(children)}
-                      <Button
-                        onClick={() => askAboutCode(children)}
-                        size="sm"
-                        variant="ghost"
-                        className="p-1 h-6"
-                      >
-                        <CornerUpLeft className="w-4 h-4" />
-                      </Button>
-                    </div>
-                    <div className="pt-6">
-                      <SyntaxHighlighter
-                        style={vscDarkPlus as any}
-                        language={match[1]}
-                        PreTag="div"
-                        customStyle={{
-                          margin: 0,
-                          padding: "0.5rem",
-                          fontSize: "0.875rem",
-                        }}
-                      >
-                        {stringifyContent(children)}
-                      </SyntaxHighlighter>
-                    </div>
-                  </div>
-                ) : (
-                  <code className={className} {...props}>
-                    {children}
-                  </code>
-                )
-              },
-              p: renderMarkdownElement,
-              h1: renderMarkdownElement,
-              h2: renderMarkdownElement,
-              h3: renderMarkdownElement,
-              h4: renderMarkdownElement,
-              h5: renderMarkdownElement,
-              h6: renderMarkdownElement,
-              ul: (props) => (
-                <ul className="list-disc pl-6 mb-4 space-y-2">
-                  {props.children}
-                </ul>
-              ),
-              ol: (props) => (
-                <ol className="list-decimal pl-6 mb-4 space-y-2">
-                  {props.children}
-                </ol>
-              ),
-            }}
+            components={components}
           >
             {message.content}
           </ReactMarkdown>
@@ -226,6 +201,7 @@ export default function ChatMessage({
   )
 }
 
+// Parse context to tabs for context tabs component 
 function parseContextToTabs(context: string) {
   const sections = context.split(/(?=File |Code from )/)
   return sections.map((section, index) => {
@@ -236,6 +212,7 @@ function parseContextToTabs(context: string) {
     // Remove code block markers for display
     content = content.replace(/^```[\w-]*\n/, '').replace(/\n```$/, '')
     
+    // Determine if the context is a file or code
     const isFile = titleLine.startsWith('File ')
     const name = titleLine.replace(/^(File |Code from )/, '').replace(':', '')
     
