@@ -541,8 +541,6 @@ export default function CodeEditor({
             tab.id === activeFileId ? { ...tab, saved: true } : tab
           )
         )
-        console.log(`Saving file...${activeFileId}`)
-        console.log(`Saving file...${content}`)
         socket?.emit("saveFile", { fileId: activeFileId, body: content })
       }
     }, Number(process.env.FILE_SAVE_DEBOUNCE_DELAY) || 1000),
