@@ -1,6 +1,7 @@
 import { createId } from "@paralleldrive/cuid2"
 import { relations } from "drizzle-orm"
 import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core"
+import { sql } from "drizzle-orm"
 
 export const user = sqliteTable("user", {
 	id: text("id")
@@ -9,7 +10,10 @@ export const user = sqliteTable("user", {
 		.unique(),
 	name: text("name").notNull(),
 	email: text("email").notNull(),
-	image: text("image"),
+	username: text("username").notNull().unique(),
+	avatarUrl: text("avatarUrl"),
+	createdAt: integer("createdAt", { mode: "timestamp_ms" })
+		.default(sql`CURRENT_TIMESTAMP`),
 	generations: integer("generations").default(0),
 })
 
@@ -28,10 +32,13 @@ export const sandbox = sqliteTable("sandbox", {
 	name: text("name").notNull(),
 	type: text("type").notNull(),
 	visibility: text("visibility", { enum: ["public", "private"] }),
-	createdAt: integer("createdAt", { mode: "timestamp_ms" }),
+	createdAt: integer("createdAt", { mode: "timestamp_ms" })
+		.default(sql`CURRENT_TIMESTAMP`),
 	userId: text("user_id")
 		.notNull()
 		.references(() => user.id),
+	likeCount: integer("likeCount").default(0),
+	viewCount: integer("viewCount").default(0),
 })
 
 export type Sandbox = typeof sandbox.$inferSelect

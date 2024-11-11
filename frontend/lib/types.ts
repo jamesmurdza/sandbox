@@ -4,6 +4,9 @@ export type User = {
   id: string
   name: string
   email: string
+  username: string
+  avatarUrl: string | null
+  createdAt: Date
   generations: number
   sandbox: Sandbox[]
   usersToSandboxes: UsersToSandboxes[]

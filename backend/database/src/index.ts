@@ -282,14 +282,26 @@ export default {
 					id: z.string(),
 					name: z.string(),
 					email: z.string().email(),
+					username: z.string(),
+					avatarUrl: z.string().optional(),
+					createdAt: z.string().optional(),
+					generations: z.number().optional(),
 				})
 
 				const body = await request.json()
-				const { id, name, email } = userSchema.parse(body)
+				const { id, name, email, username, avatarUrl, createdAt, generations } = userSchema.parse(body)
 
 				const res = await db
 					.insert(user)
-					.values({ id, name, email })
+					.values({
+						id,
+						name,
+						email,
+						username,
+						avatarUrl,
+						createdAt: createdAt ? new Date(createdAt) : new Date(),
+						generations,
+					})
 					.returning()
 					.get()
 				return json({ res })
@@ -303,6 +315,20 @@ export default {
 			} else {
 				return methodNotAllowed
 			}
+		} else if (path === "/api/user/check-username") {
+			if (method === "GET") {
+				const params = url.searchParams
+				const username = params.get("username")
+
+				if (!username) return invalidRequest
+
+				const exists = await db.query.user.findFirst({
+					where: (user, { eq }) => eq(user.username, username)
+				})
+
+				return json({ exists: !!exists })
+			}
+			return methodNotAllowed
 		} else return notFound
 	},
 }

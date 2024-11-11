@@ -1,3 +1,4 @@
+import { ExecutionContext, R2Bucket, Headers as CFHeaders } from "@cloudflare/workers-types"
 import { z } from "zod"
 
 export interface Env {
@@ -75,14 +76,13 @@ export default {
 					if (obj === null) {
 						return new Response(`${fileId} not found`, { status: 404 })
 					}
-					const headers = new Headers()
+					const headers = new Headers() as unknown as CFHeaders
 					headers.set("etag", obj.httpEtag)
 					obj.writeHttpMetadata(headers)
 
 					const text = await obj.text()
-
 					return new Response(text, {
-						headers,
+						headers: Object.fromEntries(headers.entries()),
 					})
 				} else return invalidRequest
 			} else if (method === "POST") {
