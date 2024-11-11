@@ -25,6 +25,7 @@ export default function Dashboard({
     type: "react" | "node"
     author: string
     sharedOn: Date
+    authorAvatarUrl?: string
   }[]
 }) {
   const [screen, setScreen] = useState<TScreen>("projects")
@@ -121,7 +122,12 @@ export default function Dashboard({
             ) : null}
           </>
         ) : screen === "shared" ? (
-          <DashboardSharedWithMe shared={shared} />
+          <DashboardSharedWithMe
+            shared={shared.map((item) => ({
+              ...item,
+              authorAvatarUrl: item.authorAvatarUrl || "",
+            }))}
+          />
         ) : screen === "settings" ? null : null}
       </div>
     </>

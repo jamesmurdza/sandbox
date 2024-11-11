@@ -94,7 +94,7 @@ export default async function CodePage({ params }: { params: { id: string } }) {
             <Navbar
               userData={userData}
               sandboxData={sandboxData}
-              shared={shared}
+              shared={shared as { id: string; name: string; avatarUrl: string }[]}
             />
             <div className="w-screen flex grow">
               <CodeEditor userData={userData} sandboxData={sandboxData} />

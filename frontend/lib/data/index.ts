@@ -16,7 +16,7 @@ export const projectTemplates: {
     id: "vanillajs",
     name: "HTML/JS",
     icon: "/project-icons/more.svg",
-    description: "More coming soon, feel free to contribute on GitHub",
+    description: "A simple HTML/JS project for building web apps",
     disabled: false,
   },
   {
