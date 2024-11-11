@@ -10,7 +10,7 @@ export default function SharedUser({
   user,
   sandboxId,
 }: {
-  user: { id: string; name: string }
+  user: { id: string; name: string; avatarUrl: string }
   sandboxId: string
 }) {
   const [loading, setLoading] = useState(false)
@@ -24,7 +24,7 @@ export default function SharedUser({
   return (
     <div className="flex items-center justify-between">
       <div className="flex items-center">
-        <Avatar name={user.name} className="mr-2" />
+        <Avatar name={user.name} avatarUrl={user.avatarUrl} className="mr-2" />
         {user.name}
       </div>
       <Button

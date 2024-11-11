@@ -5,6 +5,12 @@ const nextConfig = {
       {
         hostname: "cdn.simpleicons.org",
       },
+      {
+        hostname: "img.clerk.com",
+      },
+      {
+        hostname: "images.clerk.dev",
+      },
     ],
   },
 }

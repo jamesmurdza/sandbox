@@ -15,6 +15,20 @@
       "when": 1731290863632,
       "tag": "0001_opposite_newton_destine",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1731296235880,
+      "tag": "0002_rainy_fantastic_four",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1731297339306,
+      "tag": "0003_lying_snowbird",
+      "breakpoints": true
     }
   ]
 }

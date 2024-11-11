@@ -20,6 +20,7 @@ export default function DashboardSharedWithMe({
     name: string
     type: "react" | "node"
     author: string
+    authorAvatarUrl: string
     sharedOn: Date
   }[]
 }) {
@@ -58,7 +59,11 @@ export default function DashboardSharedWithMe({
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center">
-                      <Avatar name={sandbox.author} className="mr-2" />
+                      <Avatar 
+                        name={sandbox.author}
+                        avatarUrl={sandbox.authorAvatarUrl}
+                        className="mr-2"
+                      />
                       {sandbox.author}
                     </div>
                   </TableCell>

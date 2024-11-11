@@ -169,6 +169,7 @@ export default {
 								name: sb.name,
 								type: sb.type,
 								author: sb.author.name,
+								authorAvatarUrl: sb.author.avatarUrl,
 								sharedOn: r.sharedOn,
 							}
 						})

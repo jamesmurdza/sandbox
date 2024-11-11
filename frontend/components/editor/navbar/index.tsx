@@ -23,7 +23,7 @@ export default function Navbar({
 }: {
   userData: User
   sandboxData: Sandbox
-  shared: { id: string; name: string }[]
+  shared: { id: string; name: string; avatarUrl: string }[]
 }) {
   const [isEditOpen, setIsEditOpen] = useState(false)
   const [isShareOpen, setIsShareOpen] = useState(false)

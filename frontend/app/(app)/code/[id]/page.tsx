@@ -51,7 +51,7 @@ const getSharedUsers = async (usersToSandboxes: UsersToSandboxes[]) => {
         }
       )
       const userData: User = await userRes.json()
-      return { id: userData.id, name: userData.name }
+      return { id: userData.id, name: userData.name, avatarUrl: userData.avatarUrl }
     })
   )
 

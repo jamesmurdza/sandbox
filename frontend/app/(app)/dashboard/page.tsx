@@ -35,6 +35,7 @@ export default async function DashboardPage() {
     type: "react" | "node"
     author: string
     sharedOn: Date
+    authorAvatarUrl: string
   }[]
 
   return (
