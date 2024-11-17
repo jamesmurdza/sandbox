@@ -111,7 +111,7 @@ export default function Dashboard({
               className="justify-start font-normal text-muted-foreground"
             >
               <HelpCircle className="w-4 h-4 mr-2" />
-              About
+              Help
             </Button>
           </div>
         </div>
