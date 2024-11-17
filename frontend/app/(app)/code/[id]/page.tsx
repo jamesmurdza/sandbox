@@ -1,4 +1,4 @@
-import { Room } from "@/components/editor/live/room"
+// import { Room } from "@/components/editor/live/room"
 import Loading from "@/components/editor/loading"
 import Navbar from "@/components/editor/navbar"
 import { TerminalProvider } from "@/context/TerminalContext"
@@ -89,7 +89,7 @@ export default async function CodePage({ params }: { params: { id: string } }) {
   return (
     <>
       <div className="overflow-hidden overscroll-none w-screen flex flex-col h-screen bg-background">
-        <Room id={sandboxId}>
+        {/* <Room id={sandboxId}> */}
           <TerminalProvider>
             <Navbar
               userData={userData}
@@ -100,7 +100,7 @@ export default async function CodePage({ params }: { params: { id: string } }) {
               <CodeEditor userData={userData} sandboxData={sandboxData} />
             </div>
           </TerminalProvider>
-        </Room>
+        {/* </Room> */}
       </div>
     </>
   )

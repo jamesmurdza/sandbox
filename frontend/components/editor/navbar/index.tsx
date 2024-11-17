@@ -9,7 +9,7 @@ import { Pencil, Users } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { useState } from "react"
-import { Avatars } from "../live/avatars"
+// import { Avatars } from "../live/avatars"
 import DeployButtonModal from "./deploy"
 import EditSandboxModal from "./edit"
 import RunButtonModal from "./run"
@@ -70,15 +70,15 @@ export default function Navbar({
           sandboxData={sandboxData}
         />
         <div className="flex items-center h-full space-x-4">
-          <Avatars />
+          {/* <Avatars /> */}
 
           {isOwner ? (
             <>
               <DeployButtonModal data={sandboxData} userData={userData} />
-              <Button variant="outline" onClick={() => setIsShareOpen(true)}>
+              {/* <Button variant="outline" onClick={() => setIsShareOpen(true)}>
                 <Users className="w-4 h-4 mr-2" />
                 Share
-              </Button>
+              </Button> */}
               <DownloadButton name={sandboxData.name} /></>
           ) : null}
           <ThemeSwitcher />

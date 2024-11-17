@@ -78,14 +78,14 @@ export default function Dashboard({
               <FolderDot className="w-4 h-4 mr-2" />
               My Projects
             </Button>
-            <Button
+            {/* <Button
               variant="ghost"
               onClick={() => setScreen("shared")}
               className={activeScreen("shared")}
             >
               <Users className="w-4 h-4 mr-2" />
               Shared With Me
-            </Button>
+            </Button> */}
             {/* <Button
               variant="ghost"
               onClick={() => setScreen("settings")}

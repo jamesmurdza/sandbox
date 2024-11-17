@@ -45,9 +45,14 @@ export default function Landing() {
         <h1 className="text-2xl font-medium text-center mt-16">
           A Collaborative + AI-Powered Code Environment
         </h1>
-        <p className="text-muted-foreground mt-4 text-center ">
+        {/* <p className="text-muted-foreground mt-4 text-center ">
           Sandbox is an open-source cloud-based code editing environment with
           custom AI code autocompletion and real-time collaboration.
+        </p> */}
+        <p className="text-muted-foreground mt-4 text-center ">
+          A cloud-based code editor featuring real-time collaboration,
+          intelligent code autocompletion, and an AI assistant to help you code
+          faster and smarter.
         </p>
         <div className="mt-8 flex space-x-4">
           <Link href="/sign-up">
