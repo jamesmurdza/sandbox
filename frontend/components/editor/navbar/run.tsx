@@ -34,7 +34,12 @@ export default function RunButtonModal({
       }
     }
   }, [terminals, isRunning])
-
+  // commands to run in the terminal
+  const COMMANDS = {
+    streamlit: "./venv/bin/streamlit run main.py --server.runOnSave true",
+    php: "echo http://localhost:80 && npx vite",
+    default: "npm run dev",
+  } as const
   const handleRun = async () => {
     if (isRunning && lastCreatedTerminalRef.current) {
       await closeTerminal(lastCreatedTerminalRef.current)
@@ -43,9 +48,7 @@ export default function RunButtonModal({
       previewPanelRef.current?.collapse()
     } else if (!isRunning && terminals.length < 4) {
       const command =
-        sandboxData.type === "streamlit"
-          ? "./venv/bin/streamlit run main.py --server.runOnSave true"
-          : "npm run dev"
+        COMMANDS[sandboxData.type as keyof typeof COMMANDS] ?? COMMANDS.default
 
       try {
         // Create a new terminal with the appropriate command
