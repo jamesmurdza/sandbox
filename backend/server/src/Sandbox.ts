@@ -75,7 +75,13 @@ export class Sandbox {
       } else {
         console.log("Creating container", this.sandboxId)
         // Create a new container with a specified template and timeout
-        const templateTypes = ["vanillajs", "reactjs", "nextjs", "streamlit","php"]
+        const templateTypes = [
+          "vanillajs",
+          "reactjs",
+          "nextjs",
+          "streamlit",
+          "php",
+        ]
         const template = templateTypes.includes(this.type)
           ? `gitwit-${this.type}`
           : `base`
