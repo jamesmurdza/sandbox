@@ -1,6 +1,5 @@
 import { Sandbox as E2BSandbox } from "e2b"
 import { Socket } from "socket.io"
-import { AIWorker } from "./AIWorker"
 import { CONTAINER_TIMEOUT } from "./constants"
 import { DokkuClient } from "./DokkuClient"
 import { FileManager } from "./FileManager"
@@ -29,7 +28,6 @@ function extractPortNumber(inputString: string): number | null {
 }
 
 type ServerContext = {
-  aiWorker: AIWorker
   dokkuClient: DokkuClient | null
   gitClient: SecureGitClient | null
 }
@@ -44,12 +42,11 @@ export class Sandbox {
   // Server context:
   dokkuClient: DokkuClient | null
   gitClient: SecureGitClient | null
-  aiWorker: AIWorker
 
   constructor(
     sandboxId: string,
     type: string,
-    { aiWorker, dokkuClient, gitClient }: ServerContext
+    { dokkuClient, gitClient }: ServerContext
   ) {
     // Sandbox properties:
     this.sandboxId = sandboxId
@@ -58,7 +55,6 @@ export class Sandbox {
     this.terminalManager = null
     this.container = null
     // Server context:
-    this.aiWorker = aiWorker
     this.dokkuClient = dokkuClient
     this.gitClient = gitClient
   }
@@ -234,22 +230,6 @@ export class Sandbox {
       return this.terminalManager?.closeTerminal(id)
     }
 
-    // Handle generating code
-    const handleGenerateCode: SocketHandler = ({
-      fileName,
-      code,
-      line,
-      instructions,
-    }: any) => {
-      return this.aiWorker.generateCode(
-        connection.userId,
-        fileName,
-        code,
-        line,
-        instructions
-      )
-    }
-
     // Handle downloading files by download button
     const handleDownloadFiles: SocketHandler = async () => {
       if (!this.fileManager) throw Error("No file manager")
@@ -278,7 +258,6 @@ export class Sandbox {
       resizeTerminal: handleResizeTerminal,
       terminalData: handleTerminalData,
       closeTerminal: handleCloseTerminal,
-      generateCode: handleGenerateCode,
     }
   }
 }

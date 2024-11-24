@@ -89,7 +89,8 @@ export const handleSend = async (
   setIsGenerating: React.Dispatch<React.SetStateAction<boolean>>,
   setIsLoading: React.Dispatch<React.SetStateAction<boolean>>,
   abortControllerRef: React.MutableRefObject<AbortController | null>,
-  activeFileContent: string
+  activeFileContent: string,
+  isEditMode: boolean = false
 ) => {
   // Return if input is empty and context is null
   if (input.trim() === "" && !context) return
@@ -129,17 +130,17 @@ export const handleSend = async (
     }))
 
     // Fetch AI response for chat message component
-    const response = await fetch(
-      `${process.env.NEXT_PUBLIC_AI_WORKER_URL}/api`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+    const response = await fetch("/api/ai", 
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
         },
         body: JSON.stringify({
           messages: anthropicMessages,
           context: context || undefined,
           activeFileContent: activeFileContent,
+          isEditMode: isEditMode,
         }),
         signal: abortControllerRef.current.signal,
       }
@@ -147,7 +148,8 @@ export const handleSend = async (
 
     // Throw error if response is not ok
     if (!response.ok) {
-      throw new Error("Failed to get AI response")
+      const error = await response.text()
+      throw new Error(error)
     }
 
     // Get reader for chat message component
@@ -197,7 +199,7 @@ export const handleSend = async (
       console.error("Error fetching AI response:", error)
       const errorMessage = {
         role: "assistant" as const,
-        content: "Sorry, I encountered an error. Please try again.",
+        content: error.message || "Sorry, I encountered an error. Please try again.",
       }
       setMessages((prev) => [...prev, errorMessage])
     }

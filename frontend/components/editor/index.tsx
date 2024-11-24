@@ -949,7 +949,6 @@ export default function CodeEditor({
           {generate.show ? (
             <GenerateInput
               user={userData}
-              socket={socket!}
               width={generate.width - 90}
               data={{
                 fileName: tabs.find((t) => t.id === activeFileId)?.name ?? "",

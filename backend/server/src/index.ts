@@ -4,7 +4,6 @@ import express, { Express } from "express"
 import fs from "fs"
 import { createServer } from "http"
 import { Server, Socket } from "socket.io"
-import { AIWorker } from "./AIWorker"
 
 import { ConnectionManager } from "./ConnectionManager"
 import { DokkuClient } from "./DokkuClient"
@@ -80,14 +79,6 @@ const gitClient =
       )
     : null
 
-// Add this near the top of the file, after other initializations
-const aiWorker = new AIWorker(
-  process.env.AI_WORKER_URL!,
-  process.env.CF_AI_KEY!,
-  process.env.DATABASE_WORKER_URL!,
-  process.env.WORKERS_KEY!
-)
-
 // Handle a client connecting to the server
 io.on("connection", async (socket) => {
   try {
@@ -113,7 +104,6 @@ io.on("connection", async (socket) => {
       const sandbox =
         sandboxes[data.sandboxId] ??
         new Sandbox(data.sandboxId, data.type, {
-          aiWorker,
           dokkuClient,
           gitClient,
         })

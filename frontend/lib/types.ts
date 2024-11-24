@@ -10,6 +10,9 @@ export type User = {
   generations: number
   sandbox: Sandbox[]
   usersToSandboxes: UsersToSandboxes[]
+  tier: "FREE" | "PRO" | "ENTERPRISE"
+  tierExpiresAt: Date
+  lastResetDate?: number
 }
 
 export type Sandbox = {

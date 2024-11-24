@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.32.1",
     "@atlaskit/pragmatic-drag-and-drop": "^1.1.7",
     "@clerk/nextjs": "^4.29.12",
     "@clerk/themes": "^1.7.12",

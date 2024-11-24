@@ -9,22 +9,78 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { User } from "@/lib/types"
 import { useClerk } from "@clerk/nextjs"
-import { LogOut, Sparkles } from "lucide-react"
+import { Crown, LogOut, Sparkles } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { useEffect, useState } from "react"
 import Avatar from "./avatar"
+import { Button } from "./button"
+import { TIERS } from "@/lib/tiers"
 
-export default function UserButton({ userData }: { userData: User }) {
-  if (!userData) return null
+// TODO: Remove this once we have a proper tier system
+const TIER_INFO = {
+  FREE: {
+    color: "text-gray-500",
+    icon: Sparkles,
+    limit: TIERS.FREE.generations,
+  },
+  PRO: {
+    color: "text-blue-500",
+    icon: Crown,
+    limit: TIERS.PRO.generations,
+  },
+  ENTERPRISE: {
+    color: "text-purple-500",
+    icon: Crown,
+    limit: TIERS.ENTERPRISE.generations,
+  },
+} as const
 
+export default function UserButton({ userData: initialUserData }: { userData: User }) {
+  const [userData, setUserData] = useState<User>(initialUserData)
+  const [isOpen, setIsOpen] = useState(false)
   const { signOut } = useClerk()
   const router = useRouter()
 
+  const fetchUserData = async () => {
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_DATABASE_WORKER_URL}/api/user?id=${userData.id}`,
+        {
+          headers: {
+            Authorization: `${process.env.NEXT_PUBLIC_WORKERS_KEY}`,
+          },
+          cache: 'no-store'
+        }
+      )
+      if (res.ok) {
+        const updatedUserData = await res.json()
+        setUserData(updatedUserData)
+      }
+    } catch (error) {
+      console.error("Failed to fetch user data:", error)
+    }
+  }
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchUserData()
+    }
+  }, [isOpen])
+
+  const tierInfo = TIER_INFO[userData.tier as keyof typeof TIER_INFO] || TIER_INFO.FREE
+  const TierIcon = tierInfo.icon
+  const usagePercentage = Math.floor((userData.generations || 0) * 100 / tierInfo.limit)
+
+  const handleUpgrade = async () => {
+    router.push('/upgrade')
+  }
+
   return (
-    <DropdownMenu>
+    <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
       <DropdownMenuTrigger>
         <Avatar name={userData.name} avatarUrl={userData.avatarUrl} />
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-48" align="end">
+      <DropdownMenuContent className="w-64" align="end">
         <div className="py-1.5 px-2 w-full">
           <div className="font-medium">{userData.name}</div>
           <div className="text-sm w-full overflow-hidden text-ellipsis whitespace-nowrap text-muted-foreground">
@@ -33,20 +89,48 @@ export default function UserButton({ userData }: { userData: User }) {
         </div>
 
         <DropdownMenuSeparator />
-        <div className="py-1.5 px-2 w-full flex flex-col items-start text-sm">
-          <div className="flex items-center">
-            <Sparkles className={`h-4 w-4 mr-2 text-indigo-500`} />
-            AI Usage: {userData.generations}/1000
+
+        <div className="py-1.5 px-2 w-full">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <TierIcon className={`h-4 w-4 ${tierInfo.color}`} />
+              <span className="text-sm font-medium">{userData.tier || "FREE"} Plan</span>
+            </div>
+            {/* {(userData.tier === "FREE" || userData.tier === "PRO") && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs border-b hover:border-b-foreground"
+                onClick={handleUpgrade}
+              >
+                Upgrade
+              </Button>
+            )} */}
           </div>
-          <div className="rounded-full w-full mt-2 h-2 overflow-hidden bg-secondary">
+        </div>
+
+        <DropdownMenuSeparator />
+
+        <div className="py-1.5 px-2 w-full">
+          <div className="flex items-center justify-between text-sm text-muted-foreground mb-2">
+            <span>AI Usage</span>
+            <span>{userData.generations}/{tierInfo.limit}</span>
+          </div>
+
+          <div className="rounded-full w-full h-2 overflow-hidden bg-secondary">
             <div
-              className="h-full bg-indigo-500 rounded-full"
+              className={`h-full rounded-full transition-all duration-300 ${
+                usagePercentage > 90 ? 'bg-red-500' : 
+                usagePercentage > 75 ? 'bg-yellow-500' : 
+                tierInfo.color.replace('text-', 'bg-')
+              }`}
               style={{
-                width: `${(userData.generations * 100) / 1000}%`,
+                width: `${Math.min(usagePercentage, 100)}%`,
               }}
             />
           </div>
         </div>
+
         <DropdownMenuSeparator />
 
         {/* <DropdownMenuItem className="cursor-pointer">
@@ -64,3 +148,4 @@ export default function UserButton({ userData }: { userData: User }) {
     </DropdownMenu>
   )
 }
+

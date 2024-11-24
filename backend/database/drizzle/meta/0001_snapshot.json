@@ -1,8 +1,8 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "e570d5ac-700d-4e62-8a46-482b21ae1fe1",
-  "prevId": "afe10bff-362b-402c-bdb5-038341692f35",
+  "id": "7eafd85c-d63d-43be-aa26-1a0eb2ca1805",
+  "prevId": "3241d14f-687f-4134-94ab-88bf36e8611e",
   "tables": {
     "sandbox": {
       "name": "sandbox",
@@ -147,6 +147,28 @@
           "notNull": false,
           "autoincrement": false,
           "default": 0
+        },
+        "tier": {
+          "name": "tier",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "'FREE'"
+        },
+        "tierExpiresAt": {
+          "name": "tierExpiresAt",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "lastResetDate": {
+          "name": "lastResetDate",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
         }
       },
       "indexes": {

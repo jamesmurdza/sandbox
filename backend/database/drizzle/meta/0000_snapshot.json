@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "afe10bff-362b-402c-bdb5-038341692f35",
+  "id": "3241d14f-687f-4134-94ab-88bf36e8611e",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "sandbox": {
@@ -139,13 +139,6 @@
           "notNull": false,
           "autoincrement": false,
           "default": "CURRENT_TIMESTAMP"
-        },
-        "image": {
-          "name": "image",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
         },
         "generations": {
           "name": "generations",

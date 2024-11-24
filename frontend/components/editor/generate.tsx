@@ -5,14 +5,12 @@ import { Editor } from "@monaco-editor/react"
 import { Check, Loader2, RotateCw, Sparkles, X } from "lucide-react"
 import { usePathname, useRouter } from "next/navigation"
 import { useCallback, useEffect, useRef, useState } from "react"
-import { Socket } from "socket.io-client"
 import { toast } from "sonner"
 import { Button } from "../ui/button"
 // import monaco from "monaco-editor"
 
 export default function GenerateInput({
   user,
-  socket,
   width,
   data,
   editor,
@@ -21,7 +19,6 @@ export default function GenerateInput({
   onClose,
 }: {
   user: User
-  socket: Socket
   width: number
   data: {
     fileName: string
@@ -59,32 +56,54 @@ export default function GenerateInput({
   }: {
     regenerate?: boolean
   }) => {
-    if (user.generations >= 1000) {
-      toast.error("You reached the maximum # of generations.")
-      return
-    }
+    try {
+      setLoading({ generate: !regenerate, regenerate })
+      setCurrentPrompt(input)
 
-    setLoading({ generate: !regenerate, regenerate })
-    setCurrentPrompt(input)
-    socket.emit(
-      "generateCode",
-      {
-        fileName: data.fileName,
-        code: data.code,
-        line: data.line,
-        instructions: regenerate ? currentPrompt : input,
-      },
-      (res: { response: string; success: boolean }) => {
-        console.log("Generated code", res.response, res.success)
-        // if (!res.success) {
-        //   toast.error("Failed to generate code.");
-        //   return;
-        // }
+      const response = await fetch("/api/ai", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messages: [{
+            role: "user",
+            content: regenerate ? currentPrompt : input
+          }],
+          context: null,
+          activeFileContent: data.code,
+          isEditMode: true,
+          fileName: data.fileName,
+          line: data.line
+        }),
+      })
 
-        setCode(res.response)
-        router.refresh()
+      if (!response.ok) {
+        const error = await response.text()
+        toast.error(error)
+        return
       }
-    )
+
+      const reader = response.body?.getReader()
+      const decoder = new TextDecoder()
+      let result = ""
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          result += decoder.decode(value, { stream: true })
+        }
+      }
+
+      setCode(result.trim())
+      router.refresh()
+    } catch (error) {
+      console.error("Generation error:", error)
+      toast.error("Failed to generate code")
+    } finally {
+      setLoading({ generate: false, regenerate: false })
+    }
   }
   const handleGenerateForm = useCallback(
     (e: React.FormEvent<HTMLFormElement>) => {

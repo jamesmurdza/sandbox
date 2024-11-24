@@ -232,32 +232,6 @@ export default {
 
 				return success
 			} else return methodNotAllowed
-		} else if (path === "/api/sandbox/generate" && method === "POST") {
-			const generateSchema = z.object({
-				userId: z.string(),
-			})
-			const body = await request.json()
-			const { userId } = generateSchema.parse(body)
-
-			const dbUser = await db.query.user.findFirst({
-				where: (user, { eq }) => eq(user.id, userId),
-			})
-			if (!dbUser) {
-				return new Response("User not found.", { status: 400 })
-			}
-			if (dbUser.generations !== null && dbUser.generations >= 10) {
-				return new Response("You reached the maximum # of generations.", {
-					status: 400,
-				})
-			}
-
-			await db
-				.update(user)
-				.set({ generations: sql`${user.generations} + 1` })
-				.where(eq(user.id, userId))
-				.get()
-
-			return success
 		} else if (path === "/api/user") {
 			if (method === "GET") {
 				const params = url.searchParams
@@ -287,10 +261,12 @@ export default {
 					avatarUrl: z.string().optional(),
 					createdAt: z.string().optional(),
 					generations: z.number().optional(),
+					tier: z.enum(["FREE", "PRO", "ENTERPRISE"]).optional(),
+					tierExpiresAt: z.number().optional(),
 				})
 
 				const body = await request.json()
-				const { id, name, email, username, avatarUrl, createdAt, generations } = userSchema.parse(body)
+				const { id, name, email, username, avatarUrl, createdAt, generations, tier, tierExpiresAt } = userSchema.parse(body)
 
 				const res = await db
 					.insert(user)
@@ -302,6 +278,8 @@ export default {
 						avatarUrl,
 						createdAt: createdAt ? new Date(createdAt) : new Date(),
 						generations,
+						tier,
+						tierExpiresAt,
 					})
 					.returning()
 					.get()
@@ -330,6 +308,76 @@ export default {
 				return json({ exists: !!exists })
 			}
 			return methodNotAllowed
+		} else if (path === "/api/user/increment-generations" && method === "POST") {
+			const schema = z.object({
+				userId: z.string(),
+			})
+
+			const body = await request.json()
+			const { userId } = schema.parse(body)
+
+			await db
+				.update(user)
+				.set({ generations: sql`${user.generations} + 1` })
+				.where(eq(user.id, userId))
+				.get()
+
+			return success
+		} else if (path === "/api/user/update-tier" && method === "POST") {
+			const schema = z.object({
+				userId: z.string(),
+				tier: z.enum(["FREE", "PRO", "ENTERPRISE"]),
+				tierExpiresAt: z.date(),
+			})
+
+			const body = await request.json()
+			const { userId, tier, tierExpiresAt } = schema.parse(body)
+
+			await db
+				.update(user)
+				.set({ 
+					tier,
+					tierExpiresAt: tierExpiresAt.getTime(),
+					// Reset generations when upgrading tier
+					generations: 0
+				})
+				.where(eq(user.id, userId))
+				.get()
+
+			return success
+		} else if (path === "/api/user/check-reset" && method === "POST") {
+			const schema = z.object({
+				userId: z.string(),
+			})
+
+			const body = await request.json()
+			const { userId } = schema.parse(body)
+
+			const dbUser = await db.query.user.findFirst({
+				where: (user, { eq }) => eq(user.id, userId),
+			})
+
+			if (!dbUser) {
+				return new Response("User not found", { status: 404 })
+			}
+
+			const now = new Date()
+			const lastReset = dbUser.lastResetDate ? new Date(dbUser.lastResetDate) : new Date(0)
+
+			if (now.getMonth() !== lastReset.getMonth() || now.getFullYear() !== lastReset.getFullYear()) {
+				await db
+					.update(user)
+					.set({ 
+						generations: 0,
+						lastResetDate: now.getTime()
+					})
+					.where(eq(user.id, userId))
+					.get()
+				
+				return new Response("Reset successful", { status: 200 })
+			}
+
+			return new Response("No reset needed", { status: 200 })
 		} else return notFound
 	},
 }
