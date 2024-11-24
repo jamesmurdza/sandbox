@@ -1233,6 +1233,7 @@ export default function CodeEditor({
                   editorRef={{ current: editorRef }}
                   lastCopiedRangeRef={lastCopiedRangeRef}
                   files={files}
+                  templateType={sandboxData.type}
                 />
               </ResizablePanel>
             </>

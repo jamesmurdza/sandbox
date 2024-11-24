@@ -17,6 +17,7 @@ export default function AIChat({
   editorRef,
   lastCopiedRangeRef,
   files,
+  templateType,
 }: AIChatProps) {
   // Initialize socket and messages
   const { socket } = useSocket()
@@ -143,7 +144,9 @@ export default function AIChat({
       setIsGenerating,
       setIsLoading,
       abortControllerRef,
-      activeFileContent
+      activeFileContent,
+      false,
+      templateType
     )
     // Clear context tabs after sending
     setContextTabs([])

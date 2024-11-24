@@ -7,6 +7,7 @@ import { Sandbox } from "@/lib/types"
 import { Play, StopCircle } from "lucide-react"
 import { useEffect, useRef } from "react"
 import { toast } from "sonner"
+import { templateConfigs } from "@/lib/templates"
 
 export default function RunButtonModal({
   isRunning,
@@ -42,10 +43,7 @@ export default function RunButtonModal({
       setIsPreviewCollapsed(true)
       previewPanelRef.current?.collapse()
     } else if (!isRunning && terminals.length < 4) {
-      const command =
-        sandboxData.type === "streamlit"
-          ? "./venv/bin/streamlit run main.py --server.runOnSave true"
-          : "npm run dev"
+      const command = templateConfigs[sandboxData.type]?.runCommand || "npm run dev"
 
       try {
         // Create a new terminal with the appropriate command

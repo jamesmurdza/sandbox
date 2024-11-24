@@ -90,7 +90,8 @@ export const handleSend = async (
   setIsLoading: React.Dispatch<React.SetStateAction<boolean>>,
   abortControllerRef: React.MutableRefObject<AbortController | null>,
   activeFileContent: string,
-  isEditMode: boolean = false
+  isEditMode: boolean = false,
+  templateType: string
 ) => {
   // Return if input is empty and context is null
   if (input.trim() === "" && !context) return
@@ -141,6 +142,7 @@ export const handleSend = async (
           context: context || undefined,
           activeFileContent: activeFileContent,
           isEditMode: isEditMode,
+          templateType: templateType,
         }),
         signal: abortControllerRef.current.signal,
       }

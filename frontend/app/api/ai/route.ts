@@ -1,6 +1,7 @@
 import { currentUser } from "@clerk/nextjs"
 import { Anthropic } from "@anthropic-ai/sdk"
 import { TIERS } from "@/lib/tiers"
+import { templateConfigs } from "@/lib/templates"
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
@@ -56,13 +57,35 @@ export async function POST(request: Request) {
       activeFileContent, 
       isEditMode,
       fileName,
-      line 
+      line,
+      templateType 
     } = await request.json()
+
+    // Get template configuration
+    const templateConfig = templateConfigs[templateType]
+
+    // Create template context
+    const templateContext = templateConfig ? `
+Project Template: ${templateConfig.name}
+
+File Structure:
+${Object.entries(templateConfig.fileStructure)
+  .map(([path, info]) => `${path} - ${info.description}`)
+  .join('\n')}
+
+Conventions:
+${templateConfig.conventions.join('\n')}
+
+Dependencies:
+${JSON.stringify(templateConfig.dependencies, null, 2)}
+` : ''
 
     // Create system message based on mode
     let systemMessage
     if (isEditMode) {
-      systemMessage = `You are an AI code editor. Your task is to modify the given code based on the user's instructions. Only output the modified code, without any explanations or markdown formatting. The code should be a direct replacement for the existing code. If there is no code to modify, refer to the active file content and only output the code that is relevant to the user's instructions.
+      systemMessage = `You are an AI code editor working in a ${templateType} project. Your task is to modify the given code based on the user's instructions. Only output the modified code, without any explanations or markdown formatting. The code should be a direct replacement for the existing code. If there is no code to modify, refer to the active file content and only output the code that is relevant to the user's instructions.
+
+${templateContext}
 
 File: ${fileName}
 Line: ${line}
@@ -77,13 +100,16 @@ Instructions: ${messages[0].content}
 
 Respond only with the modified code that can directly replace the existing code.`
     } else {
-      systemMessage =  `You are an intelligent programming assistant. Please respond to the following request concisely. If your response includes code, please format it using triple backticks (\`\`\`) with the appropriate language identifier. For example:
+      systemMessage = `You are an intelligent programming assistant for a ${templateType} project. Please respond to the following request concisely. If your response includes code, please format it using triple backticks (\`\`\`) with the appropriate language identifier. For example:
 
       \`\`\`python
       print("Hello, World!")
       \`\`\`
       
       Provide a clear and concise explanation along with any code snippets. Keep your response brief and to the point.
+
+This is the project template:
+${templateContext}
 
 ${context ? `Context:\n${context}\n` : ""}
 ${activeFileContent ? `Active File Content:\n${activeFileContent}\n` : ""}`

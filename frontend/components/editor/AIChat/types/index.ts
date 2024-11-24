@@ -1,3 +1,4 @@
+import { TemplateConfig } from "@/lib/templates"
 import { TFile, TFolder } from "@/lib/types"
 import * as monaco from "monaco-editor"
 import { Socket } from "socket.io-client"
@@ -53,6 +54,8 @@ export interface AIChatProps {
     endLine: number
   } | null>
   files: (TFile | TFolder)[]
+  templateType: string
+  templateConfig?: TemplateConfig
 }
 
 // Chat input props interface
