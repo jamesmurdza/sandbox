@@ -1,6 +1,6 @@
 import { useSocket } from "@/context/SocketContext"
 import { TFile } from "@/lib/types"
-import { X } from "lucide-react"
+import { X, ChevronDown } from "lucide-react"
 import { nanoid } from "nanoid"
 import { useEffect, useRef, useState } from "react"
 import LoadingDots from "../../ui/LoadingDots"
@@ -38,22 +38,46 @@ export default function AIChat({
   // Initialize textarea ref
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
-  // Scroll to bottom of chat when messages change
-  useEffect(() => {
-    scrollToBottom()
-  }, [messages])
+  // state variables for auto scroll and scroll button
+  const [autoScroll, setAutoScroll] = useState(true)
+  const [showScrollButton, setShowScrollButton] = useState(false)
 
-  // Scroll to bottom of chat when messages change
-  const scrollToBottom = () => {
-    if (chatContainerRef.current) {
-      setTimeout(() => {
-        chatContainerRef.current?.scrollTo({
-          top: chatContainerRef.current.scrollHeight,
-          behavior: "smooth",
-        })
-      }, 100)
+  // scroll to bottom of chat when messages change
+  useEffect(() => {
+    if (autoScroll) {
+      scrollToBottom()
     }
+  }, [messages, autoScroll])
+
+  // scroll to bottom of chat when messages change
+  const scrollToBottom = (force: boolean = false) => {
+    if (!chatContainerRef.current || (!autoScroll && !force)) return
+    
+    chatContainerRef.current.scrollTo({
+      top: chatContainerRef.current.scrollHeight,
+      behavior: force ? "smooth" : "auto",
+    })
   }
+
+  // function to handle scroll events
+  const handleScroll = () => {
+    if (!chatContainerRef.current) return
+    
+    const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current
+    const isAtBottom = Math.abs(scrollHeight - scrollTop - clientHeight) < 50
+    
+    setAutoScroll(isAtBottom)
+    setShowScrollButton(!isAtBottom)
+  }
+
+  // scroll event listener
+  useEffect(() => {
+    const container = chatContainerRef.current
+    if (container) {
+      container.addEventListener('scroll', handleScroll)
+      return () => container.removeEventListener('scroll', handleScroll)
+    }
+  }, [])
 
   // Add context tab to context tabs
   const addContextTab = (
@@ -160,7 +184,7 @@ export default function AIChat({
       </div>
       <div
         ref={chatContainerRef}
-        className="flex-grow overflow-y-auto p-4 space-y-4"
+        className="flex-grow overflow-y-auto p-4 space-y-4 relative"
       >
         {messages.map((message, messageIndex) => (
           // Render chat message component for each message
@@ -173,6 +197,17 @@ export default function AIChat({
           />
         ))}
         {isLoading && <LoadingDots />}
+        
+        {/* Add scroll to bottom button */}
+        {showScrollButton && (
+          <button
+            onClick={() => scrollToBottom(true)}
+            className="fixed bottom-36 right-6 bg-primary text-primary-foreground rounded-md border border-primary p-0.5 shadow-lg hover:bg-primary/90 transition-all"
+            aria-label="Scroll to bottom"
+          >
+            <ChevronDown className="h-5 w-5" />
+          </button>
+        )}
       </div>
       <div className="p-4 border-t mb-14">
         {/* Render context tabs component */}
