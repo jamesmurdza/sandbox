@@ -231,7 +231,10 @@ function ProfileCard({
             <div className="flex flex-col items-center gap-2">
               <p className="text-xs text-muted-foreground">{joinedAt}</p>
               {typeof generations === "number" && (
-                <SubscriptionBadge generations={generations} tier={tier as keyof typeof TIERS} />
+                <SubscriptionBadge
+                  generations={generations}
+                  tier={tier as keyof typeof TIERS}
+                />
               )}
             </div>
           </>
@@ -445,7 +448,13 @@ const StatsItem = ({ icon: Icon, label }: StatsItemProps) => (
 // #endregion
 
 // #region Sub Badge
-const SubscriptionBadge = ({ generations, tier = "FREE" }: { generations: number, tier?: keyof typeof TIERS }) => {
+const SubscriptionBadge = ({
+  generations,
+  tier = "FREE",
+}: {
+  generations: number
+  tier?: keyof typeof TIERS
+}) => {
   return (
     <div className="flex gap-2 items-center">
       <Badge variant="secondary" className="text-sm cursor-pointer">

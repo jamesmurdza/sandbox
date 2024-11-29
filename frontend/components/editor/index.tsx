@@ -1087,62 +1087,62 @@ export default function CodeEditor({
                       </div>
                     </>
                   ) : // Note clerk.loaded is required here due to a bug: https://github.com/clerk/javascript/issues/1643
-                    clerk.loaded ? (
-                      <>
-                        {/* {provider && userInfo ? (
+                  clerk.loaded ? (
+                    <>
+                      {/* {provider && userInfo ? (
                           <Cursors yProvider={provider} userInfo={userInfo} />
                         ) : null} */}
-                        <Editor
-                          height="100%"
-                          language={editorLanguage}
-                          beforeMount={handleEditorWillMount}
-                          onMount={handleEditorMount}
-                          onChange={(value) => {
-                            // If the new content is different from the cached content, update it
-                            if (value !== fileContents[activeFileId]) {
-                              setActiveFileContent(value ?? "") // Update the active file content
-                              // Mark the file as unsaved by setting 'saved' to false
-                              setTabs((prev) =>
-                                prev.map((tab) =>
-                                  tab.id === activeFileId
-                                    ? { ...tab, saved: false }
-                                    : tab
-                                )
+                      <Editor
+                        height="100%"
+                        language={editorLanguage}
+                        beforeMount={handleEditorWillMount}
+                        onMount={handleEditorMount}
+                        onChange={(value) => {
+                          // If the new content is different from the cached content, update it
+                          if (value !== fileContents[activeFileId]) {
+                            setActiveFileContent(value ?? "") // Update the active file content
+                            // Mark the file as unsaved by setting 'saved' to false
+                            setTabs((prev) =>
+                              prev.map((tab) =>
+                                tab.id === activeFileId
+                                  ? { ...tab, saved: false }
+                                  : tab
                               )
-                            } else {
-                              // If the content matches the cached content, mark the file as saved
-                              setTabs((prev) =>
-                                prev.map((tab) =>
-                                  tab.id === activeFileId
-                                    ? { ...tab, saved: true }
-                                    : tab
-                                )
+                            )
+                          } else {
+                            // If the content matches the cached content, mark the file as saved
+                            setTabs((prev) =>
+                              prev.map((tab) =>
+                                tab.id === activeFileId
+                                  ? { ...tab, saved: true }
+                                  : tab
                               )
-                            }
-                          }}
-                          options={{
-                            tabSize: 2,
-                            minimap: {
-                              enabled: false,
-                            },
-                            padding: {
-                              bottom: 4,
-                              top: 4,
-                            },
-                            scrollBeyondLastLine: false,
-                            fixedOverflowWidgets: true,
-                            fontFamily: "var(--font-geist-mono)",
-                          }}
-                          theme={theme === "light" ? "vs" : "vs-dark"}
-                          value={activeFileContent}
-                        />
-                      </>
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-xl font-medium text-muted-foreground/50 select-none">
-                        <Loader2 className="animate-spin w-6 h-6 mr-3" />
-                        Waiting for Clerk to load...
-                      </div>
-                    )}
+                            )
+                          }
+                        }}
+                        options={{
+                          tabSize: 2,
+                          minimap: {
+                            enabled: false,
+                          },
+                          padding: {
+                            bottom: 4,
+                            top: 4,
+                          },
+                          scrollBeyondLastLine: false,
+                          fixedOverflowWidgets: true,
+                          fontFamily: "var(--font-geist-mono)",
+                        }}
+                        theme={theme === "light" ? "vs" : "vs-dark"}
+                        value={activeFileContent}
+                      />
+                    </>
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-xl font-medium text-muted-foreground/50 select-none">
+                      <Loader2 className="animate-spin w-6 h-6 mr-3" />
+                      Waiting for Clerk to load...
+                    </div>
+                  )}
                 </div>
               </ResizablePanel>
               <ResizableHandle />

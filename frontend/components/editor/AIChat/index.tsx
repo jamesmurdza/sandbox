@@ -53,7 +53,7 @@ export default function AIChat({
   // scroll to bottom of chat when messages change
   const scrollToBottom = (force: boolean = false) => {
     if (!chatContainerRef.current || (!autoScroll && !force)) return
-    
+
     chatContainerRef.current.scrollTo({
       top: chatContainerRef.current.scrollHeight,
       behavior: force ? "smooth" : "auto",
@@ -63,10 +63,10 @@ export default function AIChat({
   // function to handle scroll events
   const handleScroll = () => {
     if (!chatContainerRef.current) return
-    
+
     const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current
     const isAtBottom = Math.abs(scrollHeight - scrollTop - clientHeight) < 50
-    
+
     setAutoScroll(isAtBottom)
     setShowScrollButton(!isAtBottom)
   }
@@ -75,8 +75,8 @@ export default function AIChat({
   useEffect(() => {
     const container = chatContainerRef.current
     if (container) {
-      container.addEventListener('scroll', handleScroll)
-      return () => container.removeEventListener('scroll', handleScroll)
+      container.addEventListener("scroll", handleScroll)
+      return () => container.removeEventListener("scroll", handleScroll)
     }
   }, [])
 
@@ -200,7 +200,7 @@ export default function AIChat({
           />
         ))}
         {isLoading && <LoadingDots />}
-        
+
         {/* Add scroll to bottom button */}
         {showScrollButton && (
           <button

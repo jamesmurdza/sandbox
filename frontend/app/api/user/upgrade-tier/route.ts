@@ -8,9 +8,9 @@ export async function POST(request: Request) {
     }
 
     const { tier } = await request.json()
-    
+
     // handle payment processing here
-        
+
     const response = await fetch(
       `${process.env.NEXT_PUBLIC_DATABASE_WORKER_URL}/api/user/update-tier`,
       {

@@ -43,42 +43,45 @@ export async function POST(request: Request) {
     const userData = await dbUser.json()
 
     // Get tier settings
-    const tierSettings = TIERS[userData.tier as keyof typeof TIERS] || TIERS.FREE
+    const tierSettings =
+      TIERS[userData.tier as keyof typeof TIERS] || TIERS.FREE
     if (userData.generations >= tierSettings.generations) {
       return new Response(
-        `AI generation limit reached for your ${userData.tier || "FREE"} tier`, 
+        `AI generation limit reached for your ${userData.tier || "FREE"} tier`,
         { status: 429 }
       )
     }
 
-    const { 
-      messages, 
-      context, 
-      activeFileContent, 
+    const {
+      messages,
+      context,
+      activeFileContent,
       isEditMode,
       fileName,
       line,
-      templateType 
+      templateType,
     } = await request.json()
 
     // Get template configuration
     const templateConfig = templateConfigs[templateType]
 
     // Create template context
-    const templateContext = templateConfig ? `
+    const templateContext = templateConfig
+      ? `
 Project Template: ${templateConfig.name}
 
 File Structure:
 ${Object.entries(templateConfig.fileStructure)
   .map(([path, info]) => `${path} - ${info.description}`)
-  .join('\n')}
+  .join("\n")}
 
 Conventions:
-${templateConfig.conventions.join('\n')}
+${templateConfig.conventions.join("\n")}
 
 Dependencies:
 ${JSON.stringify(templateConfig.dependencies, null, 2)}
-` : ''
+`
+      : ""
 
     // Create system message based on mode
     let systemMessage
@@ -146,7 +149,10 @@ ${activeFileContent ? `Active File Content:\n${activeFileContent}\n` : ""}`
       new ReadableStream({
         async start(controller) {
           for await (const chunk of stream) {
-            if (chunk.type === "content_block_delta" && chunk.delta.type === "text_delta") {
+            if (
+              chunk.type === "content_block_delta" &&
+              chunk.delta.type === "text_delta"
+            ) {
               controller.enqueue(encoder.encode(chunk.delta.text))
             }
           }
@@ -164,7 +170,7 @@ ${activeFileContent ? `Active File Content:\n${activeFileContent}\n` : ""}`
   } catch (error) {
     console.error("AI generation error:", error)
     return new Response(
-      error instanceof Error ? error.message : "Internal Server Error", 
+      error instanceof Error ? error.message : "Internal Server Error",
       { status: 500 }
     )
   }

@@ -66,15 +66,17 @@ export default function GenerateInput({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          messages: [{
-            role: "user",
-            content: regenerate ? currentPrompt : input
-          }],
+          messages: [
+            {
+              role: "user",
+              content: regenerate ? currentPrompt : input,
+            },
+          ],
           context: null,
           activeFileContent: data.code,
           isEditMode: true,
           fileName: data.fileName,
-          line: data.line
+          line: data.line,
         }),
       })
 

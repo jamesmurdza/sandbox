@@ -38,6 +38,6 @@ export const projectTemplates: {
     name: "PHP",
     description: "PHP development environment",
     icon: "/project-icons/php.svg",
-    disabled: false
+    disabled: false,
   },
 ]

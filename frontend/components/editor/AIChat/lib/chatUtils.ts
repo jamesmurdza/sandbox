@@ -131,22 +131,20 @@ export const handleSend = async (
     }))
 
     // Fetch AI response for chat message component
-    const response = await fetch("/api/ai", 
-    {
+    const response = await fetch("/api/ai", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          messages: anthropicMessages,
-          context: context || undefined,
-          activeFileContent: activeFileContent,
-          isEditMode: isEditMode,
-          templateType: templateType,
-        }),
-        signal: abortControllerRef.current.signal,
-      }
-    )
+      },
+      body: JSON.stringify({
+        messages: anthropicMessages,
+        context: context || undefined,
+        activeFileContent: activeFileContent,
+        isEditMode: isEditMode,
+        templateType: templateType,
+      }),
+      signal: abortControllerRef.current.signal,
+    })
 
     // Throw error if response is not ok
     if (!response.ok) {
@@ -201,7 +199,8 @@ export const handleSend = async (
       console.error("Error fetching AI response:", error)
       const errorMessage = {
         role: "assistant" as const,
-        content: error.message || "Sorry, I encountered an error. Please try again.",
+        content:
+          error.message || "Sorry, I encountered an error. Please try again.",
       }
       setMessages((prev) => [...prev, errorMessage])
     }

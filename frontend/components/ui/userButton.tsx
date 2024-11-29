@@ -10,7 +10,7 @@ import {
 import { User } from "@/lib/types"
 import { useClerk } from "@clerk/nextjs"
 import {
-    Crown,
+  Crown,
   LayoutDashboard,
   LogOut,
   Sparkles,
@@ -43,7 +43,11 @@ const TIER_INFO = {
   },
 } as const
 
-export default function UserButton({ userData: initialUserData }: { userData: User }) {
+export default function UserButton({
+  userData: initialUserData,
+}: {
+  userData: User
+}) {
   const [userData, setUserData] = useState<User>(initialUserData)
   const [isOpen, setIsOpen] = useState(false)
   const { signOut } = useClerk()
@@ -57,7 +61,7 @@ export default function UserButton({ userData: initialUserData }: { userData: Us
           headers: {
             Authorization: `${process.env.NEXT_PUBLIC_WORKERS_KEY}`,
           },
-          cache: 'no-store'
+          cache: "no-store",
         }
       )
       if (res.ok) {
@@ -75,9 +79,12 @@ export default function UserButton({ userData: initialUserData }: { userData: Us
     }
   }, [isOpen])
 
-  const tierInfo = TIER_INFO[userData.tier as keyof typeof TIER_INFO] || TIER_INFO.FREE
+  const tierInfo =
+    TIER_INFO[userData.tier as keyof typeof TIER_INFO] || TIER_INFO.FREE
   const TierIcon = tierInfo.icon
-  const usagePercentage = Math.floor((userData.generations || 0) * 100 / tierInfo.limit)
+  const usagePercentage = Math.floor(
+    ((userData.generations || 0) * 100) / tierInfo.limit
+  )
 
   const handleUpgrade = async () => {
     router.push(`/@${userData.username}`)
@@ -98,7 +105,6 @@ export default function UserButton({ userData: initialUserData }: { userData: Us
 
         <DropdownMenuSeparator />
 
-
         <DropdownMenuItem className="cursor-pointer" asChild>
           <Link href={"/dashboard"}>
             <LayoutDashboard className="mr-2 size-4" />
@@ -114,12 +120,13 @@ export default function UserButton({ userData: initialUserData }: { userData: Us
         </DropdownMenuItem>
         <DropdownMenuSeparator />
 
-
         <div className="py-1.5 px-2 w-full">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5">
               <TierIcon className={`h-4 w-4 ${tierInfo.color}`} />
-              <span className="text-sm font-medium">{userData.tier || "FREE"} Plan</span>
+              <span className="text-sm font-medium">
+                {userData.tier || "FREE"} Plan
+              </span>
             </div>
             {(userData.tier === "FREE" || userData.tier === "PRO") && (
               <Button
@@ -139,16 +146,20 @@ export default function UserButton({ userData: initialUserData }: { userData: Us
           <div className="w-full">
             <div className="flex items-center justify-between text-sm text-muted-foreground mb-2">
               <span>AI Usage</span>
-              <span>{userData.generations}/{tierInfo.limit}</span>
+              <span>
+                {userData.generations}/{tierInfo.limit}
+              </span>
             </div>
 
-            <div className="rounded-full w-full h-2 overflow-hidden bg-secondary mb-1">  
+            <div className="rounded-full w-full h-2 overflow-hidden bg-secondary mb-1">
               <div
                 className={`h-full rounded-full transition-all duration-300 ${
-                usagePercentage > 90 ? 'bg-red-500' : 
-                usagePercentage > 75 ? 'bg-yellow-500' : 
-                tierInfo.color.replace('text-', 'bg-')
-              }`}
+                  usagePercentage > 90
+                    ? "bg-red-500"
+                    : usagePercentage > 75
+                    ? "bg-yellow-500"
+                    : tierInfo.color.replace("text-", "bg-")
+                }`}
                 style={{
                   width: `${Math.min(usagePercentage, 100)}%`,
                 }}
@@ -173,4 +184,3 @@ export default function UserButton({ userData: initialUserData }: { userData: Us
     </DropdownMenu>
   )
 }
-
