@@ -201,7 +201,8 @@ export default function ChatMessage({
 
 // Parse context to tabs for context tabs component
 function parseContextToTabs(context: string) {
-  const sections = context.split(/(?=File |Code from )/)
+  // Use specific regex patterns to avoid matching import statements
+  const sections = context.split(/(?=File |Code from |Image \d{1,2}:)/)
   return sections
     .map((section, index) => {
       const lines = section.trim().split("\n")
@@ -211,16 +212,29 @@ function parseContextToTabs(context: string) {
       // Remove code block markers for display
       content = content.replace(/^```[\w-]*\n/, "").replace(/\n```$/, "")
 
-      // Determine if the context is a file or code
+      // Determine the type of context
       const isFile = titleLine.startsWith("File ")
-      const name = titleLine.replace(/^(File |Code from )/, "").replace(":", "")
+      const isImage = titleLine.startsWith("Image ")
+      const type = isFile ? "file" : isImage ? "image" : "code"
+      const name = titleLine
+        .replace(/^(File |Code from |Image )/, "")
+        .replace(":", "")
+        .trim()
+
+      // Skip if the content is empty or if it's just an import statement
+      if (!content || content.trim().startsWith('from "')) {
+        return null
+      }
 
       return {
         id: `context-${index}`,
-        type: isFile ? ("file" as const) : ("code" as const),
+        type: type as "file" | "code" | "image",
         name: name,
         content: content,
       }
     })
-    .filter((tab) => tab.content.length > 0)
+    .filter(
+      (tab): tab is NonNullable<typeof tab> =>
+        tab !== null && tab.content.length > 0
+    )
 }

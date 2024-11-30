@@ -125,6 +125,8 @@ export default function AIChat({
         } else if (tab.type === "code") {
           const cleanContent = formatCodeContent(tab.content)
           return `Code from ${tab.name}:\n\`\`\`typescript\n${cleanContent}\n\`\`\``
+        } else if (tab.type === "image") {
+          return `Image ${tab.name}:\n${tab.content}`
         }
         return `${tab.name}:\n${tab.content}`
       })
