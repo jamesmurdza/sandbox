@@ -2,10 +2,43 @@ import { currentUser } from "@clerk/nextjs"
 import { Anthropic } from "@anthropic-ai/sdk"
 import { TIERS } from "@/lib/tiers"
 import { templateConfigs } from "@/lib/templates"
+import { TFile, TFolder } from "@/lib/types"
+import { ignoredFiles, ignoredFolders } from "@/components/editor/AIChat/lib/ignored-paths"
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
 })
+
+// Format file structure for context 
+function formatFileStructure(items: (TFile | TFolder)[] | undefined, prefix = ""): string {
+  if (!items || !Array.isArray(items)) {
+    return "No files available"
+  }
+
+  // Sort items to show folders first, then files
+  const sortedItems = [...items].sort((a, b) => {
+    if (a.type === b.type) return a.name.localeCompare(b.name)
+    return a.type === "folder" ? -1 : 1
+  })
+
+  return sortedItems
+    .map((item) => {
+      if (item.type === "file" && !ignoredFiles.some(
+        (pattern) => item.name.endsWith(pattern.replace("*", "")) || item.name === pattern
+      )) {
+        return `${prefix}├── ${item.name}`
+      } else if (
+        item.type === "folder" && 
+        !ignoredFolders.some((folder) => folder === item.name)
+      ) {
+        const folderContent = formatFileStructure(item.children, `${prefix}│   `)
+        return `${prefix}├── ${item.name}/\n${folderContent}`
+      }
+      return null
+    })
+    .filter(Boolean)
+    .join("\n")
+}
 
 export async function POST(request: Request) {
   try {
@@ -60,6 +93,7 @@ export async function POST(request: Request) {
       fileName,
       line,
       templateType,
+      files,
     } = await request.json()
 
     // Get template configuration
@@ -70,16 +104,17 @@ export async function POST(request: Request) {
       ? `
 Project Template: ${templateConfig.name}
 
-File Structure:
-${Object.entries(templateConfig.fileStructure)
-  .map(([path, info]) => `${path} - ${info.description}`)
-  .join("\n")}
+Current File Structure:
+${files ? formatFileStructure(files) : "No files available"}
 
 Conventions:
 ${templateConfig.conventions.join("\n")}
 
 Dependencies:
 ${JSON.stringify(templateConfig.dependencies, null, 2)}
+
+Scripts:
+${JSON.stringify(templateConfig.scripts, null, 2)}
 `
       : ""
 

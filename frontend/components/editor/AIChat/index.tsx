@@ -148,7 +148,8 @@ export default function AIChat({
       abortControllerRef,
       activeFileContent,
       false,
-      templateType
+      templateType,
+      files
     )
   }
 

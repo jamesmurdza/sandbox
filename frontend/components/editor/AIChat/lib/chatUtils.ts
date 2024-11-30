@@ -1,3 +1,4 @@
+import { TFolder, TFile } from "@/lib/types"
 import React from "react"
 
 // Stringify content for chat message component
@@ -91,7 +92,8 @@ export const handleSend = async (
   abortControllerRef: React.MutableRefObject<AbortController | null>,
   activeFileContent: string,
   isEditMode: boolean = false,
-  templateType: string
+  templateType: string,
+  files: (TFile | TFolder)[]
 ) => {
   // Return if input is empty and context is null
   if (input.trim() === "" && !context) return
@@ -142,6 +144,7 @@ export const handleSend = async (
         activeFileContent: activeFileContent,
         isEditMode: isEditMode,
         templateType: templateType,
+        files: files, 
       }),
       signal: abortControllerRef.current.signal,
     })
