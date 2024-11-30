@@ -7,7 +7,7 @@ import "./xterm.css"
 import { debounce } from "@/lib/utils"
 import { Loader2 } from "lucide-react"
 import { useTheme } from "next-themes"
-import { ElementRef, useEffect, useRef } from "react"
+import { ElementRef, useEffect, useRef, useCallback } from "react"
 import { Socket } from "socket.io-client"
 export default function EditorTerminal({
   socket,
@@ -28,7 +28,6 @@ export default function EditorTerminal({
 
   useEffect(() => {
     if (!terminalContainerRef.current) return
-    // console.log("new terminal", id, term ? "reusing" : "creating");
 
     const terminal = new Terminal({
       cursorBlink: true,
@@ -37,13 +36,54 @@ export default function EditorTerminal({
       fontSize: 14,
       lineHeight: 1.5,
       letterSpacing: 0,
+      allowTransparency: true,
+      rightClickSelectsWord: true,
+      allowProposedApi: true, // for custom key events
+    })
+
+    // right-click paste handler
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault()
+      navigator.clipboard.readText().then((text) => {
+        if (text) {
+          socket.emit("terminalData", { id, data: text })
+        }
+      })
+    }
+
+    terminalContainerRef.current.addEventListener(
+      "contextmenu",
+      handleContextMenu
+    )
+
+    // keyboard paste handler
+    terminal.attachCustomKeyEventHandler((event: KeyboardEvent) => {
+      if (event.type === "keydown") {
+        if (
+          (event.ctrlKey || event.metaKey) &&
+          event.key.toLowerCase() === "v"
+        ) {
+          event.preventDefault()
+          navigator.clipboard.readText().then((text) => {
+            if (text) {
+              socket.emit("terminalData", { id, data: text })
+            }
+          })
+          return false
+        }
+      }
+      return true
     })
 
     setTerm(terminal)
-    const dispose = () => {
+
+    return () => {
       terminal.dispose()
+      terminalContainerRef.current?.removeEventListener(
+        "contextmenu",
+        handleContextMenu
+      )
     }
-    return dispose
   }, [])
 
   useEffect(() => {
@@ -81,7 +121,6 @@ export default function EditorTerminal({
 
         const { width, height } = entry.contentRect
 
-        // Only call fit if the size has actually changed
         if (
           width !== terminalContainerRef.current.offsetWidth ||
           height !== terminalContainerRef.current.offsetHeight
@@ -92,10 +131,9 @@ export default function EditorTerminal({
             console.error("Error during fit:", err)
           }
         }
-      }, 50) // Debounce for 50ms
+      }, 50)
     )
 
-    // start observing for resize
     resizeObserver.observe(terminalContainerRef.current)
     return () => {
       disposableOnData.dispose()
@@ -124,6 +162,7 @@ export default function EditorTerminal({
         ref={terminalContainerRef}
         style={{ display: visible ? "block" : "none" }}
         className="w-full h-full text-left"
+        tabIndex={0}
       >
         {term === null ? (
           <div className="flex items-center text-muted-foreground p-2">
