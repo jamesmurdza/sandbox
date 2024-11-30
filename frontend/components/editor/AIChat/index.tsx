@@ -150,8 +150,6 @@ export default function AIChat({
       false,
       templateType
     )
-    // Clear context tabs after sending
-    setContextTabs([])
   }
 
   // Set context for the chat
@@ -168,6 +166,22 @@ export default function AIChat({
     // Always add a new tab instead of updating existing ones
     addContextTab("code", name, context, range)
   }
+
+  // update context tabs when file contents change
+  useEffect(() => {
+    setContextTabs((prevTabs) =>
+      prevTabs.map((tab) => {
+        if (tab.type === "file" && tab.name === activeFileName) {
+          const fileExt = tab.name.split(".").pop() || "txt"
+          return {
+            ...tab,
+            content: `\`\`\`${fileExt}\n${activeFileContent}\n\`\`\``
+          }
+        }
+        return tab
+      })
+    )
+  }, [activeFileContent, activeFileName])
 
   return (
     <div className="flex flex-col h-screen w-full">
