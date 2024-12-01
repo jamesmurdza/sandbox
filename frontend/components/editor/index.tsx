@@ -104,6 +104,13 @@ export default function CodeEditor({
   // Added this state to track the most recent content for each file
   const [fileContents, setFileContents] = useState<Record<string, string>>({})
 
+  // Apply Button merger decoration state
+  const [mergeDecorations, setMergeDecorations] = useState<
+    monaco.editor.IModelDeltaDecoration[]
+  >([])
+  const [mergeDecorationsCollection, setMergeDecorationsCollection] =
+    useState<monaco.editor.IEditorDecorationsCollection>()
+
   // Editor state
   const [editorLanguage, setEditorLanguage] = useState("plaintext")
   const [cursorLine, setCursorLine] = useState(0)
@@ -374,6 +381,49 @@ export default function CodeEditor({
       }
     })
   }, [editorRef])
+
+  // handle apply code
+  const handleApplyCode = useCallback(
+    (mergedCode: string) => {
+      if (!editorRef) return
+
+      const originalLines = activeFileContent.split("\n")
+      const mergedLines = mergedCode.split("\n")
+
+      const decorations: monaco.editor.IModelDeltaDecoration[] = []
+
+      for (
+        let i = 0;
+        i < Math.max(originalLines.length, mergedLines.length);
+        i++
+      ) {
+        if (originalLines[i] !== mergedLines[i]) {
+          decorations.push({
+            range: new monaco.Range(i + 1, 1, i + 1, 1),
+            options: {
+              isWholeLine: true,
+              className:
+                i < originalLines.length
+                  ? "removed-line-decoration"
+                  : "added-line-decoration",
+              glyphMarginClassName:
+                i < originalLines.length
+                  ? "removed-line-glyph"
+                  : "added-line-glyph",
+            },
+          })
+        }
+      }
+
+      // Update editor content
+      editorRef.setValue(mergedCode)
+
+      // Apply decorations
+      const newDecorations = editorRef.createDecorationsCollection(decorations)
+      setMergeDecorationsCollection(newDecorations)
+    },
+    [editorRef, activeFileContent]
+  )
 
   // Generate widget effect
   useEffect(() => {
@@ -1234,6 +1284,9 @@ export default function CodeEditor({
                   lastCopiedRangeRef={lastCopiedRangeRef}
                   files={files}
                   templateType={sandboxData.type}
+                  handleApplyCode={handleApplyCode}
+                  mergeDecorationsCollection={mergeDecorationsCollection}
+                  setMergeDecorationsCollection={setMergeDecorationsCollection}
                 />
               </ResizablePanel>
             </>

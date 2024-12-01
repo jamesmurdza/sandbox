@@ -13,6 +13,12 @@ export default function ChatMessage({
   setContext,
   setIsContextExpanded,
   socket,
+  handleApplyCode,
+  activeFileName,
+  activeFileContent,
+  editorRef,
+  mergeDecorationsCollection,
+  setMergeDecorationsCollection,
 }: MessageProps) {
   // State for expanded message index
   const [expandedMessageIndex, setExpandedMessageIndex] = useState<
@@ -104,7 +110,13 @@ export default function ChatMessage({
   const components = createMarkdownComponents(
     renderCopyButton,
     renderMarkdownElement,
-    askAboutCode
+    askAboutCode,
+    activeFileName,
+    activeFileContent,
+    editorRef,
+    handleApplyCode,
+    mergeDecorationsCollection,
+    setMergeDecorationsCollection
   )
 
   return (

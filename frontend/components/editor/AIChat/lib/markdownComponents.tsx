@@ -1,15 +1,23 @@
-import { CornerUpLeft } from "lucide-react"
+import { Check, CornerUpLeft, X } from "lucide-react"
+import monaco from "monaco-editor"
 import { Components } from "react-markdown"
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism"
 import { Button } from "../../../ui/button"
+import ApplyButton from "../ApplyButton"
 import { stringifyContent } from "./chatUtils"
 
 // Create markdown components for chat message component
 export const createMarkdownComponents = (
   renderCopyButton: (text: any) => JSX.Element,
   renderMarkdownElement: (props: any) => JSX.Element,
-  askAboutCode: (code: any) => void
+  askAboutCode: (code: any) => void,
+  activeFileName: string,
+  activeFileContent: string,
+  editorRef: any,
+  handleApplyCode: (mergedCode: string) => void,
+  mergeDecorationsCollection?: monaco.editor.IEditorDecorationsCollection,
+  setMergeDecorationsCollection?: (collection: undefined) => void
 ): Components => ({
   code: ({
     node,
@@ -32,6 +40,57 @@ export const createMarkdownComponents = (
         <div className="sticky top-0 right-0 flex justify-end z-10">
           <div className="flex border border-input shadow-lg bg-background rounded-md">
             {renderCopyButton(children)}
+            <div className="w-px bg-input"></div>
+            {!mergeDecorationsCollection ? (
+              <ApplyButton
+                code={String(children)}
+                activeFileName={activeFileName}
+                activeFileContent={activeFileContent}
+                editorRef={editorRef}
+                onApply={handleApplyCode}
+              />
+            ) : (
+              <>
+                <Button
+                  onClick={() => {
+                    if (
+                      setMergeDecorationsCollection &&
+                      mergeDecorationsCollection &&
+                      editorRef?.current
+                    ) {
+                      mergeDecorationsCollection.clear()
+                      setMergeDecorationsCollection(undefined)
+                    }
+                  }}
+                  size="sm"
+                  variant="ghost"
+                  className="p-1 h-6"
+                  title="Accept Changes"
+                >
+                  <Check className="w-4 h-4 text-green-500" />
+                </Button>
+                <div className="w-px bg-input"></div>
+                <Button
+                  onClick={() => {
+                    if (
+                      setMergeDecorationsCollection &&
+                      mergeDecorationsCollection &&
+                      editorRef?.current
+                    ) {
+                      editorRef.current.getModel()?.setValue(activeFileContent)
+                      mergeDecorationsCollection.clear()
+                      setMergeDecorationsCollection(undefined)
+                    }
+                  }}
+                  size="sm"
+                  variant="ghost"
+                  className="p-1 h-6"
+                  title="Discard Changes"
+                >
+                  <X className="w-4 h-4 text-red-500" />
+                </Button>
+              </>
+            )}
             <div className="w-px bg-input"></div>
             <Button
               onClick={(e) => {

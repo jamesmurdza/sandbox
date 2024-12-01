@@ -175,3 +175,23 @@
 .tab-scroll::-webkit-scrollbar {
   display: none;
 }
+
+.added-line-decoration {
+  background-color: rgba(0, 255, 0, 0.1);
+}
+
+.removed-line-decoration {
+  background-color: rgba(255, 0, 0, 0.1);
+}
+
+.added-line-glyph {
+  background-color: #28a745;
+  width: 4px !important;
+  margin-left: 3px;
+}
+
+.removed-line-glyph {
+  background-color: #dc3545;
+  width: 4px !important;
+  margin-left: 3px;
+}

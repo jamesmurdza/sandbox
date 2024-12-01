@@ -1,6 +1,6 @@
 import { useSocket } from "@/context/SocketContext"
 import { TFile } from "@/lib/types"
-import { X, ChevronDown } from "lucide-react"
+import { ChevronDown, X } from "lucide-react"
 import { nanoid } from "nanoid"
 import { useEffect, useRef, useState } from "react"
 import LoadingDots from "../../ui/LoadingDots"
@@ -18,6 +18,9 @@ export default function AIChat({
   lastCopiedRangeRef,
   files,
   templateType,
+  handleApplyCode,
+  mergeDecorationsCollection,
+  setMergeDecorationsCollection,
 }: AIChatProps) {
   // Initialize socket and messages
   const { socket } = useSocket()
@@ -176,7 +179,7 @@ export default function AIChat({
           const fileExt = tab.name.split(".").pop() || "txt"
           return {
             ...tab,
-            content: `\`\`\`${fileExt}\n${activeFileContent}\n\`\`\``
+            content: `\`\`\`${fileExt}\n${activeFileContent}\n\`\`\``,
           }
         }
         return tab
@@ -214,6 +217,12 @@ export default function AIChat({
             setContext={setContext}
             setIsContextExpanded={setIsContextExpanded}
             socket={socket}
+            handleApplyCode={handleApplyCode}
+            activeFileName={activeFileName}
+            activeFileContent={activeFileContent}
+            editorRef={editorRef}
+            mergeDecorationsCollection={mergeDecorationsCollection}
+            setMergeDecorationsCollection={setMergeDecorationsCollection}
           />
         ))}
         {isLoading && <LoadingDots />}

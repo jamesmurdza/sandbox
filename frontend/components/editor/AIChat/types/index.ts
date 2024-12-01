@@ -56,6 +56,9 @@ export interface AIChatProps {
   files: (TFile | TFolder)[]
   templateType: string
   templateConfig?: TemplateConfig
+  handleApplyCode: (mergedCode: string) => void
+  mergeDecorationsCollection?: monaco.editor.IEditorDecorationsCollection
+  setMergeDecorationsCollection?: (collection: undefined) => void
 }
 
 // Chat input props interface
@@ -105,6 +108,12 @@ export interface MessageProps {
   ) => void
   setIsContextExpanded: (isExpanded: boolean) => void
   socket: Socket | null
+  handleApplyCode: (mergedCode: string) => void
+  activeFileName: string
+  activeFileContent: string
+  editorRef: any
+  mergeDecorationsCollection?: monaco.editor.IEditorDecorationsCollection
+  setMergeDecorationsCollection?: (collection: undefined) => void
 }
 
 // Context tabs props interface
