@@ -146,6 +146,8 @@ io.on("connection", async (socket) => {
         )
       })
 
+      socket.emit("ready")
+
       // Handle disconnection event
       socket.on("disconnect", async () => {
         try {

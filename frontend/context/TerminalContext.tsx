@@ -20,6 +20,7 @@ interface TerminalContextType {
   createNewTerminal: (command?: string) => Promise<void>
   closeTerminal: (id: string) => void
   deploy: (callback: () => void) => void
+  getAppExists: ((appName: string) => Promise<boolean>) | null
 }
 
 const TerminalContext = createContext<TerminalContextType | undefined>(
@@ -35,6 +36,19 @@ export const TerminalProvider: React.FC<{ children: React.ReactNode }> = ({
   >([])
   const [activeTerminalId, setActiveTerminalId] = useState<string>("")
   const [creatingTerminal, setCreatingTerminal] = useState<boolean>(false)
+  const [isSocketReady, setIsSocketReady] = useState<boolean>(false)
+
+  // Listen for the "ready" signal from the socket
+  React.useEffect(() => {
+    if (socket) {
+      socket.on("ready", () => {
+        setIsSocketReady(true)
+      })
+    }
+    return () => {
+      if (socket) socket.off("ready")
+    }
+  }, [socket])
 
   const createNewTerminal = async (command?: string): Promise<void> => {
     if (!socket) return
@@ -78,6 +92,18 @@ export const TerminalProvider: React.FC<{ children: React.ReactNode }> = ({
     })
   }
 
+  const getAppExists = async (appName: string): Promise<boolean> => {
+    console.log("Is there a socket: " + !!socket)
+    if (!socket) {
+      console.error("Couldn't check if app exists: No socket")
+      return false
+    }
+    const response: { exists: boolean } = await new Promise((resolve) =>
+      socket.emit("getAppExists", { appName }, resolve)
+    )
+    return response.exists
+  }
+
   const value = {
     terminals,
     setTerminals,
@@ -88,6 +114,7 @@ export const TerminalProvider: React.FC<{ children: React.ReactNode }> = ({
     createNewTerminal,
     closeTerminal,
     deploy,
+    getAppExists: isSocketReady ? getAppExists : null,
   }
 
   return (

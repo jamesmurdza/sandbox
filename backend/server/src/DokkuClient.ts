@@ -31,9 +31,30 @@ export class DokkuClient extends SSHSocketClient {
 
   // List all deployed Dokku apps
   async listApps(): Promise<string[]> {
-    const response = await this.sendCommand("apps:list")
-    // Split the output by newline and remove the header
-    return response.output.split("\n").slice(1)
+    const response = await this.sendCommand("--quiet apps:list")
+    return response.output.split("\n")
+  }
+
+  // Get the creation timestamp of an app
+  async getAppCreatedAt(appName: string): Promise<number> {
+    const response = await this.sendCommand(
+      `apps:report --app-created-at ${appName}`
+    )
+    const createdAt = parseInt(response.output.trim(), 10)
+
+    if (isNaN(createdAt)) {
+      throw new Error(
+        `Failed to retrieve creation timestamp for app ${appName}`
+      )
+    }
+
+    return createdAt
+  }
+
+  // Check if an app exists
+  async appExists(appName: string): Promise<boolean> {
+    const response = await this.sendCommand(`apps:exists ${appName}`)
+    return response.output.includes("App") === false
   }
 }
 

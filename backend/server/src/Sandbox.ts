@@ -156,6 +156,28 @@ export class Sandbox {
       return { success: true, apps: await this.dokkuClient.listApps() }
     }
 
+    // Handle getting app creation timestamp
+    const handleGetAppCreatedAt: SocketHandler = async ({ appName }) => {
+      if (!this.dokkuClient)
+        throw new Error(
+          "Failed to retrieve app creation timestamp: No Dokku client"
+        )
+      return {
+        success: true,
+        createdAt: await this.dokkuClient.getAppCreatedAt(appName),
+      }
+    }
+
+    // Handle checking if an app exists
+    const handleAppExists: SocketHandler = async ({ appName }) => {
+      if (!this.dokkuClient)
+        throw new Error("Failed to check app existence: No Dokku client")
+      return {
+        success: true,
+        exists: await this.dokkuClient.appExists(appName),
+      }
+    }
+
     // Handle deploying code
     const handleDeploy: SocketHandler = async (_: any) => {
       if (!this.gitClient) throw Error("No git client")
@@ -253,7 +275,9 @@ export class Sandbox {
       getFolder: handleGetFolder,
       saveFile: handleSaveFile,
       moveFile: handleMoveFile,
-      list: handleListApps,
+      listApps: handleListApps,
+      getAppCreatedAt: handleGetAppCreatedAt,
+      getAppExists: handleAppExists,
       deploy: handleDeploy,
       createFile: handleCreateFile,
       createFolder: handleCreateFolder,
