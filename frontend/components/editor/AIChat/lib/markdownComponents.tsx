@@ -1,11 +1,13 @@
-import { Check, CornerUpLeft, X, FileText } from "lucide-react"
+import { useSocket } from "@/context/SocketContext"
+import { TTab } from "@/lib/types"
+import { Check, CornerUpLeft, FileText, X } from "lucide-react"
 import monaco from "monaco-editor"
 import { Components } from "react-markdown"
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism"
 import { Button } from "../../../ui/button"
 import ApplyButton from "../ApplyButton"
-import { stringifyContent, isFilePath } from "./chatUtils"
+import { isFilePath, stringifyContent } from "./chatUtils"
 
 // Create markdown components for chat message component
 export const createMarkdownComponents = (
@@ -16,6 +18,7 @@ export const createMarkdownComponents = (
   activeFileContent: string,
   editorRef: any,
   handleApplyCode: (mergedCode: string) => void,
+  selectFile: (tab: TTab) => void,
   mergeDecorationsCollection?: monaco.editor.IEditorDecorationsCollection,
   setMergeDecorationsCollection?: (collection: undefined) => void
 ): Components => ({
@@ -128,16 +131,58 @@ export const createMarkdownComponents = (
   // Render markdown elements
   p: ({ node, children, ...props }) => {
     const content = stringifyContent(children)
-    
+    const { socket } = useSocket()
+
     if (isFilePath(content)) {
+      const isNewFile = content.endsWith("(new file)")
+      const filePath = (
+        isNewFile ? content.replace(" (new file)", "") : content
+      )
+        .split("/")
+        .filter((part, index) => index !== 0)
+        .join("/")
+
+      const handleFileClick = () => {
+        if (isNewFile) {
+          socket?.emit(
+            "createFile",
+            {
+              name: filePath,
+            },
+            (response: any) => {
+              if (response.success) {
+                const tab: TTab = {
+                  id: filePath,
+                  name: filePath.split("/").pop() || "",
+                  saved: true,
+                  type: "file",
+                }
+                selectFile(tab)
+              }
+            }
+          )
+        } else {
+          const tab: TTab = {
+            id: filePath,
+            name: filePath.split("/").pop() || "",
+            saved: true,
+            type: "file",
+          }
+          selectFile(tab)
+        }
+      }
+
       return (
-        <div className="relative group flex items-center gap-2 px-2 py-1 bg-secondary/50 rounded-md my-2 text-xs w-fit">
-          <FileText className="h-4 w-4 text-muted-foreground" />
-          <span className="font-mono">{content}</span>
+        <div
+          onClick={handleFileClick}
+          className="group flex items-center gap-2 px-2 py-1 bg-secondary/50 rounded-md my-2 text-xs hover:bg-secondary cursor-pointer w-fit"
+        >
+          <FileText className="h-4 w-4" />
+          <span className="font-mono group-hover:underline">{content}</span>
         </div>
       )
     }
-    
+
     return renderMarkdownElement({ node, children, ...props })
   },
   h1: ({ node, children, ...props }) =>

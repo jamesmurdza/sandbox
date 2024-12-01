@@ -1288,6 +1288,7 @@ export default function CodeEditor({
                   handleApplyCode={handleApplyCode}
                   mergeDecorationsCollection={mergeDecorationsCollection}
                   setMergeDecorationsCollection={setMergeDecorationsCollection}
+                  selectFile={selectFile}
                 />
               </ResizablePanel>
             </>

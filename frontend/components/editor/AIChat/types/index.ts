@@ -1,5 +1,5 @@
 import { TemplateConfig } from "@/lib/templates"
-import { TFile, TFolder } from "@/lib/types"
+import { TFile, TFolder, TTab } from "@/lib/types"
 import * as monaco from "monaco-editor"
 import { Socket } from "socket.io-client"
 
@@ -60,6 +60,7 @@ export interface AIChatProps {
   handleApplyCode: (mergedCode: string) => void
   mergeDecorationsCollection?: monaco.editor.IEditorDecorationsCollection
   setMergeDecorationsCollection?: (collection: undefined) => void
+  selectFile: (tab: TTab) => void
 }
 
 // Chat input props interface
@@ -115,6 +116,7 @@ export interface MessageProps {
   editorRef: any
   mergeDecorationsCollection?: monaco.editor.IEditorDecorationsCollection
   setMergeDecorationsCollection?: (collection: undefined) => void
+  selectFile: (tab: TTab) => void
 }
 
 // Context tabs props interface

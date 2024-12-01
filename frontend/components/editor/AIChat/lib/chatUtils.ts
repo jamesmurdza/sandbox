@@ -1,4 +1,4 @@
-import { TFolder, TFile } from "@/lib/types"
+import { TFile, TFolder } from "@/lib/types"
 import React from "react"
 
 // Stringify content for chat message component
@@ -246,6 +246,8 @@ export const looksLikeCode = (text: string): boolean => {
 
 // Add this new function after looksLikeCode function
 export const isFilePath = (text: string): boolean => {
-  // Match patterns like project/path/to/file.ext or project/path/to/file.ext (new file)
-  return /^[a-zA-Z0-9_-]+\/[\w/-]+\.[a-zA-Z0-9]+(\s+\(new file\))?$/.test(text)
+  // Match patterns like next/styles/SignIn.module.css or path/to/file.ext (new file)
+  const pattern =
+    /^(?:[a-zA-Z0-9_.-]+\/)*[a-zA-Z0-9_.-]+\.[a-zA-Z0-9]+(\s+\(new file\))?$/
+  return pattern.test(text)
 }

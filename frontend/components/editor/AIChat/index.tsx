@@ -19,6 +19,7 @@ export default function AIChat({
   files,
   templateType,
   handleApplyCode,
+  selectFile,
   mergeDecorationsCollection,
   setMergeDecorationsCollection,
   projectName,
@@ -225,6 +226,7 @@ export default function AIChat({
             editorRef={editorRef}
             mergeDecorationsCollection={mergeDecorationsCollection}
             setMergeDecorationsCollection={setMergeDecorationsCollection}
+            selectFile={selectFile}
           />
         ))}
         {isLoading && <LoadingDots />}
