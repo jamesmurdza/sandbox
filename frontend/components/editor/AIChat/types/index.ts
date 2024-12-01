@@ -56,6 +56,7 @@ export interface AIChatProps {
   files: (TFile | TFolder)[]
   templateType: string
   templateConfig?: TemplateConfig
+  projectName: string
   handleApplyCode: (mergedCode: string) => void
   mergeDecorationsCollection?: monaco.editor.IEditorDecorationsCollection
   setMergeDecorationsCollection?: (collection: undefined) => void

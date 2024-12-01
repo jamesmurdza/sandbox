@@ -1,11 +1,11 @@
-import { Check, CornerUpLeft, X } from "lucide-react"
+import { Check, CornerUpLeft, X, FileText } from "lucide-react"
 import monaco from "monaco-editor"
 import { Components } from "react-markdown"
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism"
 import { Button } from "../../../ui/button"
 import ApplyButton from "../ApplyButton"
-import { stringifyContent } from "./chatUtils"
+import { stringifyContent, isFilePath } from "./chatUtils"
 
 // Create markdown components for chat message component
 export const createMarkdownComponents = (
@@ -126,8 +126,20 @@ export const createMarkdownComponents = (
     )
   },
   // Render markdown elements
-  p: ({ node, children, ...props }) =>
-    renderMarkdownElement({ node, children, ...props }),
+  p: ({ node, children, ...props }) => {
+    const content = stringifyContent(children)
+    
+    if (isFilePath(content)) {
+      return (
+        <div className="relative group flex items-center gap-2 px-2 py-1 bg-secondary/50 rounded-md my-2 text-xs w-fit">
+          <FileText className="h-4 w-4 text-muted-foreground" />
+          <span className="font-mono">{content}</span>
+        </div>
+      )
+    }
+    
+    return renderMarkdownElement({ node, children, ...props })
+  },
   h1: ({ node, children, ...props }) =>
     renderMarkdownElement({ node, children, ...props }),
   h2: ({ node, children, ...props }) =>

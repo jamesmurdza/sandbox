@@ -93,7 +93,8 @@ export const handleSend = async (
   activeFileContent: string,
   isEditMode: boolean = false,
   templateType: string,
-  files: (TFile | TFolder)[]
+  files: (TFile | TFolder)[],
+  projectName: string
 ) => {
   // Return if input is empty and context is null
   if (input.trim() === "" && !context) return
@@ -144,7 +145,8 @@ export const handleSend = async (
         activeFileContent: activeFileContent,
         isEditMode: isEditMode,
         templateType: templateType,
-        files: files, 
+        files: files,
+        projectName: projectName,
       }),
       signal: abortControllerRef.current.signal,
     })
@@ -240,4 +242,10 @@ export const looksLikeCode = (text: string): boolean => {
   ]
 
   return codeIndicators.some((pattern) => pattern.test(text))
+}
+
+// Add this new function after looksLikeCode function
+export const isFilePath = (text: string): boolean => {
+  // Match patterns like project/path/to/file.ext or project/path/to/file.ext (new file)
+  return /^[a-zA-Z0-9_-]+\/[\w/-]+\.[a-zA-Z0-9]+(\s+\(new file\))?$/.test(text)
 }

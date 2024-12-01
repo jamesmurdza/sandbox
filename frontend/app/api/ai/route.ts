@@ -1,16 +1,22 @@
-import { currentUser } from "@clerk/nextjs"
-import { Anthropic } from "@anthropic-ai/sdk"
-import { TIERS } from "@/lib/tiers"
+import {
+  ignoredFiles,
+  ignoredFolders,
+} from "@/components/editor/AIChat/lib/ignored-paths"
 import { templateConfigs } from "@/lib/templates"
+import { TIERS } from "@/lib/tiers"
 import { TFile, TFolder } from "@/lib/types"
-import { ignoredFiles, ignoredFolders } from "@/components/editor/AIChat/lib/ignored-paths"
+import { Anthropic } from "@anthropic-ai/sdk"
+import { currentUser } from "@clerk/nextjs"
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
 })
 
-// Format file structure for context 
-function formatFileStructure(items: (TFile | TFolder)[] | undefined, prefix = ""): string {
+// Format file structure for context
+function formatFileStructure(
+  items: (TFile | TFolder)[] | undefined,
+  prefix = ""
+): string {
   if (!items || !Array.isArray(items)) {
     return "No files available"
   }
@@ -23,15 +29,23 @@ function formatFileStructure(items: (TFile | TFolder)[] | undefined, prefix = ""
 
   return sortedItems
     .map((item) => {
-      if (item.type === "file" && !ignoredFiles.some(
-        (pattern) => item.name.endsWith(pattern.replace("*", "")) || item.name === pattern
-      )) {
+      if (
+        item.type === "file" &&
+        !ignoredFiles.some(
+          (pattern) =>
+            item.name.endsWith(pattern.replace("*", "")) ||
+            item.name === pattern
+        )
+      ) {
         return `${prefix}├── ${item.name}`
       } else if (
-        item.type === "folder" && 
+        item.type === "folder" &&
         !ignoredFolders.some((folder) => folder === item.name)
       ) {
-        const folderContent = formatFileStructure(item.children, `${prefix}│   `)
+        const folderContent = formatFileStructure(
+          item.children,
+          `${prefix}│   `
+        )
         return `${prefix}├── ${item.name}/\n${folderContent}`
       }
       return null
@@ -94,6 +108,7 @@ export async function POST(request: Request) {
       line,
       templateType,
       files,
+      projectName,
     } = await request.json()
 
     // Get template configuration
@@ -138,13 +153,23 @@ Instructions: ${messages[0].content}
 
 Respond only with the modified code that can directly replace the existing code.`
     } else {
-      systemMessage = `You are an intelligent programming assistant for a ${templateType} project. Please respond to the following request concisely. If your response includes code, please format it using triple backticks (\`\`\`) with the appropriate language identifier. For example:
+      systemMessage = `You are an intelligent programming assistant for a ${templateType} project. Please respond to the following request concisely. When providing code:
 
-      \`\`\`python
-      print("Hello, World!")
-      \`\`\`
-      
-      Provide a clear and concise explanation along with any code snippets. Keep your response brief and to the point.
+1. Format it using triple backticks (\`\`\`) with the appropriate language identifier.
+2. Always specify the complete file path in the format:
+   ${projectName}/filepath/to/file.ext
+
+3. If creating a new file, specify the path as:
+   ${projectName}/filepath/to/file.ext (new file)
+
+4. Format your code blocks as:
+
+${projectName}/filepath/to/file.ext
+\`\`\`language
+code here
+\`\`\`
+
+If multiple files are involved, repeat the format for each file. Provide a clear and concise explanation along with any code snippets. Keep your response brief and to the point.
 
 This is the project template:
 ${templateContext}

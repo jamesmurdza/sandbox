@@ -1284,6 +1284,7 @@ export default function CodeEditor({
                   lastCopiedRangeRef={lastCopiedRangeRef}
                   files={files}
                   templateType={sandboxData.type}
+                  projectName={sandboxData.name}
                   handleApplyCode={handleApplyCode}
                   mergeDecorationsCollection={mergeDecorationsCollection}
                   setMergeDecorationsCollection={setMergeDecorationsCollection}

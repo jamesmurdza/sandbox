@@ -21,6 +21,7 @@ export default function AIChat({
   handleApplyCode,
   mergeDecorationsCollection,
   setMergeDecorationsCollection,
+  projectName,
 }: AIChatProps) {
   // Initialize socket and messages
   const { socket } = useSocket()
@@ -152,7 +153,8 @@ export default function AIChat({
       activeFileContent,
       false,
       templateType,
-      files
+      files,
+      projectName
     )
   }
 
