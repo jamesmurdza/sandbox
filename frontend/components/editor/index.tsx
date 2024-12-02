@@ -384,10 +384,10 @@ export default function CodeEditor({
 
   // handle apply code
   const handleApplyCode = useCallback(
-    (mergedCode: string) => {
+    (mergedCode: string, originalCode: string) => {
       if (!editorRef) return
 
-      const originalLines = activeFileContent.split("\n")
+      const originalLines = originalCode.split("\n")
       const mergedLines = mergedCode.split("\n")
 
       const decorations: monaco.editor.IModelDeltaDecoration[] = []
@@ -397,32 +397,31 @@ export default function CodeEditor({
         i < Math.max(originalLines.length, mergedLines.length);
         i++
       ) {
-        if (originalLines[i] !== mergedLines[i]) {
+        // Only highlight new lines (green highlights)
+        if (i >= originalLines.length || originalLines[i] !== mergedLines[i]) {
           decorations.push({
             range: new monaco.Range(i + 1, 1, i + 1, 1),
             options: {
               isWholeLine: true,
-              className:
-                i < originalLines.length
-                  ? "removed-line-decoration"
-                  : "added-line-decoration",
-              glyphMarginClassName:
-                i < originalLines.length
-                  ? "removed-line-glyph"
-                  : "added-line-glyph",
+              className: "added-line-decoration",
+              glyphMarginClassName: "added-line-glyph",
             },
           })
         }
       }
 
-      // Update editor content
+      // Store original content in the model
+      const model = editorRef.getModel()
+      if (model) {
+        ;(model as any).originalContent = originalCode
+      }
       editorRef.setValue(mergedCode)
 
       // Apply decorations
       const newDecorations = editorRef.createDecorationsCollection(decorations)
       setMergeDecorationsCollection(newDecorations)
     },
-    [editorRef, activeFileContent]
+    [editorRef]
   )
 
   // Generate widget effect

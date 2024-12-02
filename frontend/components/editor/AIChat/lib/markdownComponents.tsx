@@ -17,7 +17,7 @@ export const createMarkdownComponents = (
   activeFileName: string,
   activeFileContent: string,
   editorRef: any,
-  handleApplyCode: (mergedCode: string) => void,
+  handleApplyCode: (mergedCode: string, originalCode: string) => void,
   selectFile: (tab: TTab) => void,
   mergeDecorationsCollection?: monaco.editor.IEditorDecorationsCollection,
   setMergeDecorationsCollection?: (collection: undefined) => void
@@ -61,7 +61,7 @@ export const createMarkdownComponents = (
                       mergeDecorationsCollection &&
                       editorRef?.current
                     ) {
-                      mergeDecorationsCollection.clear()
+                      mergeDecorationsCollection?.clear()
                       setMergeDecorationsCollection(undefined)
                     }
                   }}
@@ -75,14 +75,15 @@ export const createMarkdownComponents = (
                 <div className="w-px bg-input"></div>
                 <Button
                   onClick={() => {
-                    if (
-                      setMergeDecorationsCollection &&
-                      mergeDecorationsCollection &&
-                      editorRef?.current
-                    ) {
-                      editorRef.current.getModel()?.setValue(activeFileContent)
-                      mergeDecorationsCollection.clear()
-                      setMergeDecorationsCollection(undefined)
+                    if (editorRef?.current && mergeDecorationsCollection) {
+                      const model = editorRef.current.getModel()
+                      if (model && (model as any).originalContent) {
+                        editorRef.current?.setValue(
+                          (model as any).originalContent
+                        )
+                        mergeDecorationsCollection.clear()
+                        setMergeDecorationsCollection?.(undefined)
+                      }
                     }
                   }}
                   size="sm"

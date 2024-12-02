@@ -19,7 +19,9 @@ export async function POST(request: Request) {
    - Explanations or comments
    - Markdown formatting
 
-The output should be the exact code that will replace the existing code, nothing more and nothing less.`
+The output should be the exact code that will replace the existing code, nothing more and nothing less.
+
+Important: When merging, preserve the original code structure as much as possible. Only make necessary changes to integrate the new code while maintaining the original code's organization and style.`
 
     const mergedCode = `Original file (${fileName}):\n${originalCode}\n\nNew code to merge:\n${newCode}`
 

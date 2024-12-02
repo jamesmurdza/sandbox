@@ -57,7 +57,7 @@ export interface AIChatProps {
   templateType: string
   templateConfig?: TemplateConfig
   projectName: string
-  handleApplyCode: (mergedCode: string) => void
+  handleApplyCode: (mergedCode: string, originalCode: string) => void
   mergeDecorationsCollection?: monaco.editor.IEditorDecorationsCollection
   setMergeDecorationsCollection?: (collection: undefined) => void
   selectFile: (tab: TTab) => void
@@ -110,7 +110,7 @@ export interface MessageProps {
   ) => void
   setIsContextExpanded: (isExpanded: boolean) => void
   socket: Socket | null
-  handleApplyCode: (mergedCode: string) => void
+  handleApplyCode: (mergedCode: string, originalCode: string) => void
   activeFileName: string
   activeFileContent: string
   editorRef: any

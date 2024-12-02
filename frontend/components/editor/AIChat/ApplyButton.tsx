@@ -8,7 +8,7 @@ interface ApplyButtonProps {
   activeFileName: string
   activeFileContent: string
   editorRef: { current: any }
-  onApply: (mergedCode: string) => void
+  onApply: (mergedCode: string, originalCode: string) => void
 }
 
 export default function ApplyButton({
@@ -48,7 +48,7 @@ export default function ApplyButton({
           mergedCode += decoder.decode(value, { stream: true })
         }
       }
-      onApply(mergedCode.trim())
+      onApply(mergedCode.trim(), activeFileContent)
     } catch (error) {
       console.error("Error applying code:", error)
       toast.error(
