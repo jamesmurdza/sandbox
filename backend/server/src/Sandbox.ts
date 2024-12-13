@@ -1,5 +1,6 @@
 import { Sandbox as E2BSandbox } from "e2b"
 import { Socket } from "socket.io"
+import { GithubManager } from "../../GitHubAuth/GithubManager"
 import { CONTAINER_TIMEOUT } from "./constants"
 import { DokkuClient } from "./DokkuClient"
 import { FileManager } from "./FileManager"
@@ -14,6 +15,7 @@ import { SecureGitClient } from "./SecureGitClient"
 import { TerminalManager } from "./TerminalManager"
 import { TFile, TFolder } from "./types"
 import { LockManager } from "./utils"
+
 const lockManager = new LockManager()
 
 // Define a type for SocketHandler functions
@@ -42,8 +44,9 @@ export class Sandbox {
   // Server context:
   dokkuClient: DokkuClient | null
   gitClient: SecureGitClient | null
+  githubManager: GithubManager // Dynamically import the ESM module
 
-  constructor(
+   constructor(
     sandboxId: string,
     type: string,
     { dokkuClient, gitClient }: ServerContext
@@ -57,6 +60,7 @@ export class Sandbox {
     // Server context:
     this.dokkuClient = dokkuClient
     this.gitClient = gitClient
+    this.githubManager = new GithubManager()
   }
 
   // Initializes the container for the sandbox environment
@@ -267,7 +271,17 @@ export class Sandbox {
 
       return { zipBlob: zipBase64 }
     }
+    const handleAuthenticateGithubWithCode: SocketHandler = async (data) => {
+      const { code } = data
 
+      const username = await this.githubManager.authenticate(code)
+      console.log("Received GitHub OAuth code:", username)
+    }
+
+    const handleAuthenticateGithub: SocketHandler = async () => {
+      const authUrl = `https://github.com/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}&scope=repo`
+      return { authUrl }
+    }
     return {
       heartbeat: handleHeartbeat,
       getFile: handleGetFile,
@@ -278,6 +292,9 @@ export class Sandbox {
       listApps: handleListApps,
       getAppCreatedAt: handleGetAppCreatedAt,
       getAppExists: handleAppExists,
+      list: handleListApps,
+      authenticateGithubWithCode: handleAuthenticateGithubWithCode,
+      authenticateGithub: handleAuthenticateGithub,
       deploy: handleDeploy,
       createFile: handleCreateFile,
       createFolder: handleCreateFolder,
