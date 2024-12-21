@@ -1,9 +1,9 @@
 import { Sandbox as E2BSandbox } from "e2b"
 import { Socket } from "socket.io"
-import { GithubManager } from "../../GitHubAuth/GithubManager"
 import { CONTAINER_TIMEOUT } from "./constants"
 import { DokkuClient } from "./DokkuClient"
 import { FileManager } from "./FileManager"
+import { GithubManager } from "./GithubManager"
 import {
   createFileRL,
   createFolderRL,
@@ -46,7 +46,7 @@ export class Sandbox {
   gitClient: SecureGitClient | null
   githubManager: GithubManager // Dynamically import the ESM module
 
-   constructor(
+  constructor(
     sandboxId: string,
     type: string,
     { dokkuClient, gitClient }: ServerContext
@@ -271,11 +271,68 @@ export class Sandbox {
 
       return { zipBlob: zipBase64 }
     }
-    const handleAuthenticateGithubWithCode: SocketHandler = async (data) => {
+    const handleGitHubUserName: SocketHandler = async (data) => {
       const { code } = data
-
       const username = await this.githubManager.authenticate(code)
-      console.log("Received GitHub OAuth code:", username)
+      return { username }
+    }
+    // Add to handlers function
+
+    const handleCreateRepo: SocketHandler = async (data) => {
+      if (!this.githubManager?.octokit) {
+        return {
+          success: false,
+          error: "Please authenticate with GitHub first",
+        }
+      }
+    
+      const { repoName } = data
+    
+      try {
+        if (await this.githubManager.repoExists(repoName)) {
+          return { success: false, error: "Repository already exists" }
+        }
+    
+        const repoUrl = await this.githubManager.createRepo(repoName)
+    
+        const files = await this.fileManager?.loadFileContent()
+        if (files) {
+          await this.githubManager.createCommit(repoName, files, "Add Files from by GitWit")
+        }
+    
+        return { success: true, repoUrl }
+      } catch (error) {
+        console.error("Failed to create repository:", error)
+        return { success: false, error: "Failed to create repository" }
+      }
+    }
+    const handleCreateCommit: SocketHandler = async (data) => {
+      const username = this.githubManager.getUsername()
+      if (!this.githubManager?.octokit || !username) {
+        return {
+          success: false,
+          error: "Please authenticate with GitHub first",
+        }
+      }
+
+      const { repoName, message = "Update from GitWit Sandbox" } = data
+
+      try {
+        const files = await this.fileManager?.loadFileContent()
+        if (!files || files.length === 0) {
+          return { success: false, error: "No files to commit" }
+        }
+
+        await this.githubManager.createCommit(repoName, files, message)
+
+        return {
+          success: true,
+          repoUrl: `https://github.com/${username}/${repoName}`,
+        }
+      } catch (error) {
+        console.error("Failed to create commit:", error)
+        return { success: false, error: "Failed to create commit" }
+      }
     }
 
     const handleAuthenticateGithub: SocketHandler = async () => {
@@ -291,9 +348,10 @@ export class Sandbox {
       moveFile: handleMoveFile,
       listApps: handleListApps,
       getAppCreatedAt: handleGetAppCreatedAt,
-      getAppExists: handleAppExists,
+      createCommit: handleCreateCommit,
+      createRepo: handleCreateRepo,
       list: handleListApps,
-      authenticateGithubWithCode: handleAuthenticateGithubWithCode,
+      getGitHubUserName: handleGitHubUserName,
       authenticateGithub: handleAuthenticateGithub,
       deploy: handleDeploy,
       createFile: handleCreateFile,
