@@ -170,8 +170,20 @@ export class Sandbox {
 
     // Handle checking if an app exists
     const handleAppExists: SocketHandler = async ({ appName }) => {
-      if (!this.dokkuClient)
-        throw new Error("Failed to check app existence: No Dokku client")
+      if (!this.dokkuClient) {
+        console.log("Failed to check app existence: No Dokku client")
+        return {
+          success: false,
+        }
+      }
+      if (!this.dokkuClient.isConnected) {
+        console.log(
+          "Failed to check app existence: The Dokku client is not connected"
+        )
+        return {
+          success: false,
+        }
+      }
       return {
         success: true,
         exists: await this.dokkuClient.appExists(appName),

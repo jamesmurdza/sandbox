@@ -13,7 +13,10 @@ export class SSHSocketClient {
   private conn: Client
   private config: SSHConfig
   private socketPath: string
-  private isConnected: boolean = false
+  private _isConnected: boolean = false
+  public get isConnected(): boolean {
+    return this._isConnected
+  }
 
   // Constructor initializes the SSH client and sets up configuration
   constructor(config: SSHConfig, socketPath: string) {
@@ -34,7 +37,7 @@ export class SSHSocketClient {
   private closeConnection() {
     console.log("Closing SSH connection...")
     this.conn.end()
-    this.isConnected = false
+    this._isConnected = false
     process.exit(0)
   }
 
@@ -44,17 +47,17 @@ export class SSHSocketClient {
       this.conn
         .on("ready", () => {
           console.log("SSH connection established")
-          this.isConnected = true
+          this._isConnected = true
           resolve()
         })
         .on("error", (err) => {
           console.error("SSH connection error:", err)
-          this.isConnected = false
+          this._isConnected = false
           reject(err)
         })
         .on("close", () => {
           console.log("SSH connection closed")
-          this.isConnected = false
+          this._isConnected = false
         })
         .connect(this.config)
     })

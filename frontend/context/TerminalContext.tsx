@@ -20,7 +20,9 @@ interface TerminalContextType {
   createNewTerminal: (command?: string) => Promise<void>
   closeTerminal: (id: string) => void
   deploy: (callback: () => void) => void
-  getAppExists: ((appName: string) => Promise<boolean>) | null
+  getAppExists:
+    | ((appName: string) => Promise<{ success: boolean; exists?: boolean }>)
+    | null
 }
 
 const TerminalContext = createContext<TerminalContextType | undefined>(
@@ -92,16 +94,18 @@ export const TerminalProvider: React.FC<{ children: React.ReactNode }> = ({
     })
   }
 
-  const getAppExists = async (appName: string): Promise<boolean> => {
+  const getAppExists = async (
+    appName: string
+  ): Promise<{ success: boolean; exists?: boolean }> => {
     console.log("Is there a socket: " + !!socket)
     if (!socket) {
       console.error("Couldn't check if app exists: No socket")
-      return false
+      return { success: false }
     }
-    const response: { exists: boolean } = await new Promise((resolve) =>
-      socket.emit("getAppExists", { appName }, resolve)
+    const response: { success: boolean; exists?: boolean } = await new Promise(
+      (resolve) => socket.emit("getAppExists", { appName }, resolve)
     )
-    return response.exists
+    return response
   }
 
   const value = {
