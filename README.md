@@ -174,6 +174,15 @@ Setting up deployments first requires a separate domain (such as gitwit.app, whi
 
 We then deploy Dokku on a separate server, according to this guide: https://dev.to/jamesmurdza/host-your-own-paas-platform-as-a-service-on-amazon-web-services-3f0d
 
+And we install [dokku-daemon](https://github.com/dokku/dokku-daemon) with the following commands:
+
+```
+git clone https://github.com/dokku/dokku-daemon
+cd dokku-daemon
+sudo make install
+systemctl start dokku-daemon
+```
+
 The Sandbox platform connects to the Dokku server via SSH, using SSH keys specifically generated for this connection. The SSH key is stored on the Sandbox server, and the following environment variables are set in /backend/server/.env:
 
 ```bash
