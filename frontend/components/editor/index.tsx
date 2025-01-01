@@ -793,31 +793,32 @@ export default function CodeEditor({
     setGenerate((prev) => ({ ...prev, show: false }))
 
     // Check if the tab already exists in the list of open tabs
-    const exists = tabs.find((t) => t.id === tab.id)
-    setTabs((prev) => {
-      if (exists) {
-        // If the tab exists, make it the active tab
-        setActiveFileId(exists.id)
-        return prev
-      }
-      // If the tab doesn't exist, add it to the list of tabs and make it active
-      return [...prev, tab]
-    })
+    const existingTab = tabs.find((t) => t.id === tab.id)
 
-    // If the file's content is already cached, set it as the active content
-    if (fileContents[tab.id]) {
-      setActiveFileContent(fileContents[tab.id])
+    if (existingTab) {
+      // If the tab exists, just make it active
+      setActiveFileId(existingTab.id)
+      if (fileContents[existingTab.id]) {
+        setActiveFileContent(fileContents[existingTab.id])
+      }
     } else {
-      // Otherwise, fetch the content of the file and cache it
-      debouncedGetFile(tab.id, (response: string) => {
-        setFileContents((prev) => ({ ...prev, [tab.id]: response }))
-        setActiveFileContent(response)
-      })
+      // If the tab doesn't exist, add it to the list and make it active
+      setTabs((prev) => [...prev, tab])
+
+      // Fetch content if not cached
+      if (!fileContents[tab.id]) {
+        debouncedGetFile(tab.id, (response: string) => {
+          setFileContents((prev) => ({ ...prev, [tab.id]: response }))
+          setActiveFileContent(response)
+        })
+      } else {
+        setActiveFileContent(fileContents[tab.id])
+      }
     }
 
     // Set the editor language based on the file type
     setEditorLanguage(processFileType(tab.name))
-    // Set the active file ID to the new tab
+    // Set the active file ID
     setActiveFileId(tab.id)
   }
 
