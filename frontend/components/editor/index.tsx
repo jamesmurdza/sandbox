@@ -387,9 +387,16 @@ export default function CodeEditor({
     (mergedCode: string, originalCode: string) => {
       if (!editorRef) return
 
+      const model = editorRef.getModel()
+      if (!model) return // Store original content
+      ;(model as any).originalContent = originalCode
+
+      // Calculate the full range of the document
+      const fullRange = model.getFullModelRange()
+
+      // Create decorations before applying the edit
       const originalLines = originalCode.split("\n")
       const mergedLines = mergedCode.split("\n")
-
       const decorations: monaco.editor.IModelDeltaDecoration[] = []
 
       for (
@@ -410,14 +417,16 @@ export default function CodeEditor({
         }
       }
 
-      // Store original content in the model
-      const model = editorRef.getModel()
-      if (model) {
-        ;(model as any).originalContent = originalCode
-      }
-      editorRef.setValue(mergedCode)
+      // Execute the edit operation
+      editorRef.executeEdits("apply-code", [
+        {
+          range: fullRange,
+          text: mergedCode,
+          forceMoveMarkers: true,
+        },
+      ])
 
-      // Apply decorations
+      // Apply decorations after the edit
       const newDecorations = editorRef.createDecorationsCollection(decorations)
       setMergeDecorationsCollection(newDecorations)
     },
