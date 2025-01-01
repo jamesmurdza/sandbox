@@ -89,10 +89,13 @@ export class SSHSocketClient {
               )
             })
             .on("data", (data: Buffer) => {
+              // Netcat remains open until it is closed, so we close the connection once we receive data.
               resolve(data.toString())
+              stream.close()
             })
             .stderr.on("data", (data: Buffer) => {
               reject(new Error(data.toString()))
+              stream.close()
             })
         }
       )
