@@ -68,25 +68,6 @@ export class GithubManager {
     return data.html_url
   }
 
-  // async uploadFilesToRepo(
-  //   repoName: string,
-  //   files: Array<{ id: string; data: string }>
-  // ) {
-  //   for (const file of files) {
-  //     const cleanPath = file.id.replace(/^\/+/, "").replace(/^project\/+/, "");
-  
-  //     console.log("Uploading file:", { originalPath: file.id, cleanedPath: cleanPath });
-  
-  //     await this.octokit.request("PUT /repos/{owner}/{repo}/contents/{path}", {
-  //       owner: this.getUsername(),
-  //       repo: repoName,
-  //       path: cleanPath,
-  //       message: "Initial commit from GitWit Sandbox",
-  //       content: Buffer.from(file.data).toString("base64"),
-  //     });
-  //   }
-  // }
-  
 
   async createCommit(
     repoName: string,

@@ -315,15 +315,16 @@ export class Sandbox {
         }
       }
 
-      const { repoName, message = "Update from GitWit Sandbox" } = data
+      const { repoName, message } = data
 
       try {
         const files = await this.fileManager?.loadFileContent()
         if (!files || files.length === 0) {
           return { success: false, error: "No files to commit" }
         }
+        const commitMessage = message || "Initial commit from GitWit";
 
-        await this.githubManager.createCommit(repoName, files, message)
+        await this.githubManager.createCommit(repoName, files, commitMessage)
 
         return {
           success: true,

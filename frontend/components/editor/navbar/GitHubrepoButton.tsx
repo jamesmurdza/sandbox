@@ -28,8 +28,13 @@ export default function CreateRepoButton({ sandboxName }: { sandboxName: string 
   };
 
   const handleCreateCommit = () => {
-    const commitMessage = `New commit to ${sandboxName}`;
-    setIsCreating(true); // Set the loading state
+    const commitMessage = prompt("Enter your commit message:", `New commit to ${sandboxName}`);
+    if (!commitMessage) {
+      alert("Commit message is required!");
+      return;
+    }
+
+    setIsCreating(true);
 
     socket?.emit(
       "createCommit",
