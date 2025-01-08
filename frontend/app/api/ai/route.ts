@@ -220,10 +220,8 @@ ${activeFileContent ? `Active File Content:\n${activeFileContent}\n` : ""}`
             for await (const chunk of response.body) {
               if (chunk.chunk?.bytes) {
                 const jsonString = new TextDecoder().decode(chunk.chunk.bytes)
-                console.log('Received chunk:', jsonString)
                 try {
                   const parsed = JSON.parse(jsonString)
-                  console.log('Parsed chunk:', parsed)
                   if (parsed.type === 'message_start') {
                     continue
                   }
