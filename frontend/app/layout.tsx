@@ -11,7 +11,22 @@ import "./globals.css"
 
 export const metadata: Metadata = {
   title: "Sandbox",
-  description: "A collaborative, AI-powered cloud code editing environment",
+  description:
+    "an open-source cloud-based code editing environment with custom AI code generation, live preview, real-time collaboration, and AI chat",
+  openGraph: {
+    type: "website",
+    url: "https://sandbox.gitwit.dev",
+    title: "Sandbox",
+    description:
+      "an open-source cloud-based code editing environment with custom AI code generation, live preview, real-time collaboration, and AI chat",
+  },
+  twitter: {
+    site: "https://sandbox.gitwit.dev",
+    title: "Sandbox by Gitwit",
+    description:
+      "an open-source cloud-based code editing environment with custom AI code generation, live preview, real-time collaboration, and AI chat",
+    creator: "@gitwitdev",
+  },
 }
 
 export default function RootLayout({

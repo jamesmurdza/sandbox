@@ -218,28 +218,69 @@ function ProfileCard({
           </TooltipProvider>
         </div>
       )}
-      <CardContent className="flex flex-col gap-4 items-center pt-6">
-        <Avatar name={name} avatarUrl={avatarUrl} className="size-36" />
-
+      <CardContent className="flex flex-col gap-4 pt-6">
         {isEditing ? (
-          <EditProfileForm
-            {...{
-              name,
-              username,
-              avatarUrl,
-              bio,
-              personalWebsite,
-              socialLinks,
-              toggleEdit,
-            }}
-          />
+          <div className="flex flex-col gap-2 items-center ">
+            <Avatar name={name} avatarUrl={avatarUrl} className="size-36" />
+            <EditProfileForm
+              {...{
+                name,
+                username,
+                avatarUrl,
+                bio,
+                personalWebsite,
+                socialLinks,
+                toggleEdit,
+              }}
+            />
+          </div>
         ) : (
-          <div className="flex flex-col gap-2.5 items-center">
-            <div className="space-y-1.5">
-              <div className="">
+          <>
+            <div className="flex flex-col gap-2 items-center">
+              <Avatar name={name} avatarUrl={avatarUrl} className="size-36" />
+              <div className="space-y-1">
                 <CardTitle className="text-2xl text-center">{name}</CardTitle>
                 <CardDescription className="text-center">{`@${username}`}</CardDescription>
               </div>
+              {bio && <p className="text-sm text-center">{bio}</p>}
+              {(socialLinks.length > 0 || personalWebsite) && (
+                <div className="flex gap-2 justify-center">
+                  {personalWebsite && (
+                    <Button variant="secondary" size="smIcon" asChild>
+                      <a
+                        href={personalWebsite}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <Globe className="size-4" />
+                        <span className="sr-only">Personal Website</span>
+                      </a>
+                    </Button>
+                  )}
+                  {socialLinks.map((link, index) => {
+                    const Icon = socialIcons[link.platform]
+                    return (
+                      <Button
+                        key={index}
+                        variant="secondary"
+                        size="smIcon"
+                        asChild
+                      >
+                        <a
+                          href={link.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <Icon className="size-4" />
+                          <span className="sr-only">{link.platform}</span>
+                        </a>
+                      </Button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+            <div className="flex flex-col gap-1 items-center">
               {typeof generations === "number" && (
                 <div className="flex justify-center">
                   <SubscriptionBadge
@@ -248,47 +289,15 @@ function ProfileCard({
                   />
                 </div>
               )}
-            </div>
-            <div className="flex gap-4">
-              <StatsItem icon={Package2} label={stats.sandboxes} />
-              <StatsItem icon={Heart} label={stats.likes} />
-            </div>
-            {bio && <p className="text-sm text-center">{bio}</p>}
-            {(socialLinks.length > 0 || personalWebsite) && (
-              <div className="flex gap-2 justify-center">
-                {personalWebsite && (
-                  <Button variant="ghost" size="smIcon" asChild>
-                    <a
-                      href={personalWebsite}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <Globe className="size-4" />
-                      <span className="sr-only">Personal Website</span>
-                    </a>
-                  </Button>
-                )}
-                {socialLinks.map((link, index) => {
-                  const Icon = socialIcons[link.platform]
-                  return (
-                    <Button key={index} variant="ghost" size="smIcon" asChild>
-                      <a
-                        href={link.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        <Icon className="size-4" />
-                        <span className="sr-only">{link.platform}</span>
-                      </a>
-                    </Button>
-                  )
-                })}
+              <div className="flex gap-4">
+                <StatsItem icon={Package2} label={stats.sandboxes} />
+                <StatsItem icon={Heart} label={stats.likes} />
               </div>
-            )}
+            </div>
             <p className="text-xs mt-2 text-muted-foreground text-center">
               {joinedAt}
             </p>
-          </div>
+          </>
         )}
       </CardContent>
     </Card>
@@ -713,7 +722,7 @@ const SubscriptionBadge = ({
       </Badge>
       <HoverCard>
         <HoverCardTrigger>
-          <Button variant="ghost" size="smIcon">
+          <Button variant="ghost" size="smIcon" className="size-[26px]">
             <Info size={16} />
           </Button>
         </HoverCardTrigger>
