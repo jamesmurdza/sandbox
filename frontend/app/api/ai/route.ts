@@ -5,11 +5,15 @@ import {
 import { templateConfigs } from "@/lib/templates"
 import { TIERS } from "@/lib/tiers"
 import { TFile, TFolder } from "@/lib/types"
-import { Anthropic } from "@anthropic-ai/sdk"
 import { currentUser } from "@clerk/nextjs"
+import { BedrockRuntimeClient, InvokeModelWithResponseStreamCommand } from "@aws-sdk/client-bedrock-runtime"
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY!,
+const bedrockClient = new BedrockRuntimeClient({
+  region: process.env.AWS_REGION || 'us-east-1',
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!
+  }
 })
 
 // Format file structure for context
@@ -56,10 +60,18 @@ function formatFileStructure(
 
 export async function POST(request: Request) {
   try {
-    const user = await currentUser()
-    if (!user) {
-      return new Response("Unauthorized", { status: 401 })
-    }
+    // Auth is now handled by middleware
+    const {
+      messages,
+      context,
+      activeFileContent,
+      isEditMode,
+      fileName,
+      line,
+      templateType,
+      files,
+      projectName,
+    } = await request.json()
 
     // Check and potentially reset monthly usage
     const resetResponse = await fetch(
@@ -70,7 +82,8 @@ export async function POST(request: Request) {
           Authorization: `${process.env.NEXT_PUBLIC_WORKERS_KEY}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ userId: user.id }),
+        body: JSON.stringify({ userId: request.headers.get('x-clerk-user-id') }),
+        cache: 'no-store'
       }
     )
 
@@ -80,11 +93,12 @@ export async function POST(request: Request) {
 
     // Get user data and check tier
     const dbUser = await fetch(
-      `${process.env.NEXT_PUBLIC_DATABASE_WORKER_URL}/api/user?id=${user.id}`,
+      `${process.env.NEXT_PUBLIC_DATABASE_WORKER_URL}/api/user?id=${request.headers.get('x-clerk-user-id')}`,
       {
         headers: {
           Authorization: `${process.env.NEXT_PUBLIC_WORKERS_KEY}`,
         },
+        cache: 'no-store'
       }
     )
     const userData = await dbUser.json()
@@ -98,18 +112,6 @@ export async function POST(request: Request) {
         { status: 429 }
       )
     }
-
-    const {
-      messages,
-      context,
-      activeFileContent,
-      isEditMode,
-      fileName,
-      line,
-      templateType,
-      files,
-      projectName,
-    } = await request.json()
 
     // Get template configuration
     const templateConfig = templateConfigs[templateType]
@@ -179,51 +181,82 @@ ${activeFileContent ? `Active File Content:\n${activeFileContent}\n` : ""}`
     }
 
     // Create stream response
-    const stream = await anthropic.messages.create({
-      model: tierSettings.model,
-      max_tokens: tierSettings.maxTokens,
-      system: systemMessage,
-      messages: messages.map((msg: { role: string; content: string }) => ({
-        role: msg.role === "human" ? "user" : "assistant",
-        content: msg.content,
-      })),
-      stream: true,
-    })
+    const input = {
+      modelId: tierSettings.model,
+      contentType: "application/json",
+      accept: "application/json",
+      body: JSON.stringify({
+        anthropic_version: "bedrock-2023-05-31",
+        max_tokens: tierSettings.maxTokens,
+        temperature: 0.7,
+        messages: [
+          {
+            role: "user",
+            content: systemMessage
+          },
+          ...messages.map((msg: { role: string; content: string }) => ({
+            role: msg.role === "human" ? "user" : "assistant",
+            content: msg.content,
+          }))
+        ]
+      })
+    }
 
-    // Increment user's generation count
-    await fetch(
-      `${process.env.NEXT_PUBLIC_DATABASE_WORKER_URL}/api/user/increment-generations`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `${process.env.NEXT_PUBLIC_WORKERS_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ userId: user.id }),
-      }
-    )
+    const command = new InvokeModelWithResponseStreamCommand(input)
+    const response = await bedrockClient.send(command)
 
     // Return streaming response
     const encoder = new TextEncoder()
     return new Response(
       new ReadableStream({
         async start(controller) {
-          for await (const chunk of stream) {
-            if (
-              chunk.type === "content_block_delta" &&
-              chunk.delta.type === "text_delta"
-            ) {
-              controller.enqueue(encoder.encode(chunk.delta.text))
-            }
+          if (!response.body) {
+            console.error('No response body received')
+            controller.close()
+            return
           }
-          controller.close()
-        },
+
+          try {
+            for await (const chunk of response.body) {
+              if (chunk.chunk?.bytes) {
+                const jsonString = new TextDecoder().decode(chunk.chunk.bytes)
+                console.log('Received chunk:', jsonString)
+                try {
+                  const parsed = JSON.parse(jsonString)
+                  console.log('Parsed chunk:', parsed)
+                  if (parsed.type === 'message_start') {
+                    continue
+                  }
+                  if (parsed.type === 'content_block_start') {
+                    continue
+                  }
+                  if (parsed.type === 'content_block_delta') {
+                    if (parsed.delta?.text) {
+                      controller.enqueue(encoder.encode(parsed.delta.text))
+                    }
+                  }
+                  if (parsed.type === 'message_delta') {
+                    if (parsed.delta?.text) {
+                      controller.enqueue(encoder.encode(parsed.delta.text))
+                    }
+                  }
+                } catch (parseError) {
+                  console.error('Error parsing chunk:', parseError)
+                }
+              }
+            }
+            controller.close()
+          } catch (error) {
+            console.error("Streaming error:", error)
+            controller.error(error)
+          }
+        }
       }),
       {
         headers: {
           "Content-Type": "text/plain; charset=utf-8",
           "Cache-Control": "no-cache",
-          Connection: "keep-alive",
+          "Connection": "keep-alive",
         },
       }
     )
