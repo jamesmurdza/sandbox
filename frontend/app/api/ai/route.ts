@@ -205,6 +205,19 @@ ${activeFileContent ? `Active File Content:\n${activeFileContent}\n` : ""}`
     const command = new InvokeModelWithResponseStreamCommand(input)
     const response = await bedrockClient.send(command)
 
+    // Increment user's generation count
+    await fetch(
+      `${process.env.NEXT_PUBLIC_DATABASE_WORKER_URL}/api/user/increment-generations`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `${process.env.NEXT_PUBLIC_WORKERS_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ userId: request.headers.get('x-clerk-user-id') }),
+      }
+    )
+
     // Return streaming response
     const encoder = new TextEncoder()
     return new Response(
