@@ -2,6 +2,9 @@
 
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
+import { editUserSchema } from "./schema"
+import { UserLink } from "./types"
+import { parseSocialLink } from "./utils"
 
 export async function createSandbox(body: {
   type: string
@@ -94,7 +97,7 @@ export async function unshareSandbox(sandboxId: string, userId: string) {
 }
 
 export async function toggleLike(sandboxId: string, userId: string) {
-  await fetch(
+  const res = await fetch(
     `${process.env.NEXT_PUBLIC_DATABASE_WORKER_URL}/api/sandbox/like`,
     {
       method: "POST",
@@ -123,20 +126,31 @@ const UpdateErrorSchema = z.object({
     .optional(),
 })
 
-export async function updateUser(prevState: any, formData: FormData) {
-  const data = Object.fromEntries(formData)
-
-  const schema = z.object({
-    id: z.string(),
-    username: z.string(),
-    oldUsername: z.string(),
-    name: z.string(),
+interface FormState {
+  message: string
+  error?: any
+  newRoute?: string
+  fields?: Record<string, unknown>
+}
+export async function updateUser(
+  prevState: any,
+  formData: FormData
+): Promise<FormState> {
+  let data = Object.fromEntries(formData)
+  let links: UserLink[] = []
+  Object.entries(data).forEach(([key, value]) => {
+    if (key.startsWith("link")) {
+      const [_, index] = key.split(".")
+      if (value) {
+        links.splice(parseInt(index), 0, parseSocialLink(value as string))
+        delete data[key]
+      }
+    }
   })
-  console.log(data)
-
+  // @ts-ignore
+  data.links = links
   try {
-    const validatedData = schema.parse(data)
-
+    const validatedData = editUserSchema.parse(data)
     const changedUsername = validatedData.username !== validatedData.oldUsername
     const res = await fetch(
       `${process.env.NEXT_PUBLIC_DATABASE_WORKER_URL}/api/user`,
@@ -150,6 +164,9 @@ export async function updateUser(prevState: any, formData: FormData) {
           id: validatedData.id,
           username: data.username ?? undefined,
           name: data.name ?? undefined,
+          bio: data.bio ?? undefined,
+          personalWebsite: data.personalWebsite ?? undefined,
+          links: data.links ?? undefined,
         }),
       }
     )
@@ -160,11 +177,11 @@ export async function updateUser(prevState: any, formData: FormData) {
     const parseResult = UpdateErrorSchema.safeParse(responseData)
 
     if (!parseResult.success) {
-      return { error: "Unexpected error occurred" }
-    }
-
-    if (parseResult.data.error) {
-      return parseResult.data
+      return {
+        message: "Unexpected error occurred",
+        error: parseResult.error,
+        fields: validatedData,
+      }
     }
 
     if (changedUsername) {
@@ -175,12 +192,13 @@ export async function updateUser(prevState: any, formData: FormData) {
     return { message: "Successfully updated" }
   } catch (error) {
     if (error instanceof z.ZodError) {
-      console.log(error)
       return {
-        error: error.errors?.[0].message,
+        message: "Invalid data",
+        error: error.errors,
+        fields: data,
       }
     }
 
-    return { error: "An unexpected error occurred" }
+    return { message: "An unexpected error occurred", fields: data }
   }
 }

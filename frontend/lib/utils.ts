@@ -2,7 +2,7 @@ import { type ClassValue, clsx } from "clsx"
 // import { toast } from "sonner"
 import { twMerge } from "tailwind-merge"
 import fileExtToLang from "./file-extension-to-language.json"
-import { TFile, TFolder } from "./types"
+import { KnownPlatform, TFile, TFolder, UserLink } from "./types"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -97,4 +97,58 @@ export function sortFileExplorer(
       }
       return item
     })
+}
+
+export function parseSocialLink(url: string): UserLink {
+  try {
+    // Handle empty or invalid URLs
+    if (!url) return { url: "", platform: "generic" }
+
+    // Remove protocol and www prefix for consistent parsing
+    const cleanUrl = url
+      .toLowerCase()
+      .replace(/^https?:\/\//, "")
+      .replace(/^www\./, "")
+      .split("/")[0] // Get just the domain part
+
+    // Platform detection mapping
+    const platformPatterns: Record<
+      Exclude<KnownPlatform, "generic">,
+      RegExp
+    > = {
+      github: /github\.com/,
+      twitter: /(?:twitter\.com|x\.com|t\.co)/,
+      instagram: /instagram\.com/,
+      bluesky: /(?:bsky\.app|bluesky\.social)/,
+      linkedin: /linkedin\.com/,
+      youtube: /(?:youtube\.com|youtu\.be)/,
+      twitch: /twitch\.tv/,
+      discord: /discord\.(?:gg|com)/,
+      mastodon: /mastodon\.(?:social|online|world)/,
+      threads: /threads\.net/,
+      gitlab: /gitlab\.com/,
+    }
+
+    // Check URL against each pattern
+    for (const [platform, pattern] of Object.entries(platformPatterns)) {
+      if (pattern.test(cleanUrl)) {
+        return {
+          url,
+          platform: platform as KnownPlatform,
+        }
+      }
+    }
+
+    // Fall back to generic if no match found
+    return {
+      url,
+      platform: "generic",
+    }
+  } catch (error) {
+    console.error("Error parsing social link:", error)
+    return {
+      url: url || "",
+      platform: "generic",
+    }
+  }
 }

@@ -21,12 +21,14 @@ export default function DeployButtonModal({
   const { deploy, getAppExists } = useTerminal()
   const [isDeploying, setIsDeploying] = useState(false)
   const [isDeployed, setIsDeployed] = useState(false)
+  const [deployButtonVisible, setDeployButtonEnabled] = useState(false)
 
   useEffect(() => {
     const checkDeployment = async () => {
       if (getAppExists) {
         const exists = await getAppExists(data.id)
-        setIsDeployed(exists)
+        setDeployButtonEnabled(exists.success)
+        setIsDeployed((exists.success && exists.exists) ?? false)
       }
     }
     checkDeployment()
@@ -50,10 +52,12 @@ export default function DeployButtonModal({
     <>
       <Popover>
         <PopoverTrigger asChild>
-          <Button variant="outline">
-            <Globe className="w-4 h-4 mr-2" />
-            Deploy
-          </Button>
+          {deployButtonVisible && (
+            <Button variant="outline">
+              <Globe className="w-4 h-4 mr-2" />
+              Deploy
+            </Button>
+          )}
         </PopoverTrigger>
         <PopoverContent
           className="p-4 w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg xl:max-w-xl rounded-lg shadow-lg"

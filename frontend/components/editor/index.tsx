@@ -62,7 +62,7 @@ export default function CodeEditor({
   //SocketContext functions and effects
   const { socket, setUserAndSandboxId } = useSocket()
   // theme
-  const { theme } = useTheme()
+  const { resolvedTheme: theme } = useTheme()
   useEffect(() => {
     // Ensure userData.id and sandboxData.id are available before attempting to connect
     if (userData.id && sandboxData.id) {
@@ -387,9 +387,16 @@ export default function CodeEditor({
     (mergedCode: string, originalCode: string) => {
       if (!editorRef) return
 
+      const model = editorRef.getModel()
+      if (!model) return // Store original content
+      ;(model as any).originalContent = originalCode
+
+      // Calculate the full range of the document
+      const fullRange = model.getFullModelRange()
+
+      // Create decorations before applying the edit
       const originalLines = originalCode.split("\n")
       const mergedLines = mergedCode.split("\n")
-
       const decorations: monaco.editor.IModelDeltaDecoration[] = []
 
       for (
@@ -410,14 +417,16 @@ export default function CodeEditor({
         }
       }
 
-      // Store original content in the model
-      const model = editorRef.getModel()
-      if (model) {
-        ;(model as any).originalContent = originalCode
-      }
-      editorRef.setValue(mergedCode)
+      // Execute the edit operation
+      editorRef.executeEdits("apply-code", [
+        {
+          range: fullRange,
+          text: mergedCode,
+          forceMoveMarkers: true,
+        },
+      ])
 
-      // Apply decorations
+      // Apply decorations after the edit
       const newDecorations = editorRef.createDecorationsCollection(decorations)
       setMergeDecorationsCollection(newDecorations)
     },
@@ -784,31 +793,32 @@ export default function CodeEditor({
     setGenerate((prev) => ({ ...prev, show: false }))
 
     // Check if the tab already exists in the list of open tabs
-    const exists = tabs.find((t) => t.id === tab.id)
-    setTabs((prev) => {
-      if (exists) {
-        // If the tab exists, make it the active tab
-        setActiveFileId(exists.id)
-        return prev
-      }
-      // If the tab doesn't exist, add it to the list of tabs and make it active
-      return [...prev, tab]
-    })
+    const existingTab = tabs.find((t) => t.id === tab.id)
 
-    // If the file's content is already cached, set it as the active content
-    if (fileContents[tab.id]) {
-      setActiveFileContent(fileContents[tab.id])
+    if (existingTab) {
+      // If the tab exists, just make it active
+      setActiveFileId(existingTab.id)
+      if (fileContents[existingTab.id]) {
+        setActiveFileContent(fileContents[existingTab.id])
+      }
     } else {
-      // Otherwise, fetch the content of the file and cache it
-      debouncedGetFile(tab.id, (response: string) => {
-        setFileContents((prev) => ({ ...prev, [tab.id]: response }))
-        setActiveFileContent(response)
-      })
+      // If the tab doesn't exist, add it to the list and make it active
+      setTabs((prev) => [...prev, tab])
+
+      // Fetch content if not cached
+      if (!fileContents[tab.id]) {
+        debouncedGetFile(tab.id, (response: string) => {
+          setFileContents((prev) => ({ ...prev, [tab.id]: response }))
+          setActiveFileContent(response)
+        })
+      } else {
+        setActiveFileContent(fileContents[tab.id])
+      }
     }
 
     // Set the editor language based on the file type
     setEditorLanguage(processFileType(tab.name))
-    // Set the active file ID to the new tab
+    // Set the active file ID
     setActiveFileId(tab.id)
   }
 
@@ -970,9 +980,9 @@ export default function CodeEditor({
     )
 
   return (
-    <>
-      {/* Copilot DOM elements */}
+    <div className="flex max-h-full overflow-hidden">
       <PreviewProvider>
+        {/* Copilot DOM elements */}
         <div ref={generateRef} />
         <div ref={suggestionRef} className="absolute">
           <AnimatePresence>
@@ -1294,7 +1304,7 @@ export default function CodeEditor({
           )}
         </ResizablePanelGroup>
       </PreviewProvider>
-    </>
+    </div>
   )
 }
 

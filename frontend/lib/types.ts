@@ -1,5 +1,7 @@
 // DB Types
 
+import { KNOWN_PLATFORMS } from "./constants"
+
 export type User = {
   id: string
   name: string
@@ -8,11 +10,20 @@ export type User = {
   avatarUrl: string | null
   createdAt: Date
   generations: number
-  sandbox: Sandbox[]
-  usersToSandboxes: UsersToSandboxes[]
+  bio: string | null
+  personalWebsite: string | null
+  links: UserLink[]
   tier: "FREE" | "PRO" | "ENTERPRISE"
   tierExpiresAt: Date
-  lastResetDate?: number
+  lastResetDate: number
+  sandbox: Sandbox[]
+  usersToSandboxes: UsersToSandboxes[]
+}
+
+export type KnownPlatform = (typeof KNOWN_PLATFORMS)[number]
+export type UserLink = {
+  url: string
+  platform: KnownPlatform
 }
 
 export type Sandbox = {

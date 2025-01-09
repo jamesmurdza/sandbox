@@ -22,7 +22,7 @@ export default function EditorTerminal({
   setTerm: (term: Terminal) => void
   visible: boolean
 }) {
-  const { theme } = useTheme()
+  const { resolvedTheme: theme } = useTheme()
   const terminalContainerRef = useRef<ElementRef<"div">>(null)
   const fitAddonRef = useRef<FitAddon | null>(null)
 

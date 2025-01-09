@@ -126,8 +126,8 @@ export default function ChatMessage({
       <div
         className={`relative p-2 rounded-lg ${
           message.role === "user"
-            ? "bg-[#262626] text-white"
-            : "bg-transparent text-white"
+            ? "bg-foreground text-background"
+            : "bg-background text-foreground"
         } max-w-full`}
       >
         {/* Render context tabs */}
@@ -171,7 +171,7 @@ export default function ChatMessage({
                             end: e.target.value.split("\n").length,
                           })
                         }}
-                        className="w-full p-2 bg-[#1e1e1e] text-white font-mono text-sm rounded"
+                        className="w-full p-2 bg-[#1e1e1e] text-foreground font-mono text-sm rounded"
                         rows={code.split("\n").length}
                         style={{
                           resize: "vertical",

@@ -91,23 +91,17 @@ export default async function CodePage({ params }: { params: { id: string } }) {
   }
 
   return (
-    <>
-      <div className="overflow-hidden overscroll-none w-screen flex flex-col h-screen bg-background">
-        {/* <Room id={sandboxId}> */}
-          <TerminalProvider>
-            <Navbar
-              userData={userData}
-              sandboxData={sandboxData}
-              shared={
-                shared as { id: string; name: string; avatarUrl: string }[]
-              }
-            />
-            <div className="w-screen flex grow">
-              <CodeEditor userData={userData} sandboxData={sandboxData} />
-            </div>
-          </TerminalProvider>
-        {/* </Room> */}
+    <TerminalProvider>
+      {/* <Room id={sandboxId}> */}
+      <div className="overflow-hidden overscroll-none w-screen h-screen grid [grid-template-rows:3.5rem_auto] bg-background">
+        <Navbar
+          userData={userData}
+          sandboxData={sandboxData}
+          shared={shared as { id: string; name: string; avatarUrl: string }[]}
+        />
+        <CodeEditor userData={userData} sandboxData={sandboxData} />
       </div>
-    </>
+      {/* </Room> */}
+    </TerminalProvider>
   )
 }

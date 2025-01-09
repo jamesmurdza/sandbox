@@ -2,6 +2,26 @@ import { createId } from "@paralleldrive/cuid2"
 import { relations, sql } from "drizzle-orm"
 import { integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core"
 
+export const KNOWN_PLATFORMS = [
+  "github",
+  "twitter",
+  "instagram",
+  "bluesky",
+  "linkedin",
+  "youtube",
+  "twitch",
+  "discord",
+  "mastodon",
+  "threads",
+  "gitlab",
+  "generic",
+] as const
+
+export type KnownPlatform = (typeof KNOWN_PLATFORMS)[number]
+export type UserLink = {
+  url: string
+  platform: KnownPlatform
+}
 // #region Tables
 export const user = sqliteTable("user", {
   id: text("id")
@@ -12,10 +32,14 @@ export const user = sqliteTable("user", {
   email: text("email").notNull(),
   username: text("username").notNull().unique(),
   avatarUrl: text("avatarUrl"),
+  githubToken: text("githubToken"),
   createdAt: integer("createdAt", { mode: "timestamp_ms" }).default(
     sql`CURRENT_TIMESTAMP`
   ),
   generations: integer("generations").default(0),
+  bio: text("bio"),
+  personalWebsite: text("personalWebsite"),
+  links: text("links", { mode: "json" }).default("[]").$type<UserLink[]>(),
   tier: text("tier", { enum: ["FREE", "PRO", "ENTERPRISE"] }).default("FREE"),
   tierExpiresAt: integer("tierExpiresAt"),
   lastResetDate: integer("lastResetDate"),

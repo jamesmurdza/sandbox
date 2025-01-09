@@ -1,3 +1,4 @@
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { useSocket } from "@/context/SocketContext"
 import { TFile } from "@/lib/types"
 import { ChevronDown, X } from "lucide-react"
@@ -208,9 +209,9 @@ export default function AIChat({
           </button>
         </div>
       </div>
-      <div
+      <ScrollArea
         ref={chatContainerRef}
-        className="flex-grow overflow-y-auto p-4 space-y-4 relative"
+        className="flex-grow p-4 space-y-4 relative"
       >
         {messages.map((message, messageIndex) => (
           // Render chat message component for each message
@@ -241,7 +242,7 @@ export default function AIChat({
             <ChevronDown className="h-5 w-5" />
           </button>
         )}
-      </div>
+      </ScrollArea>
       <div className="p-4 border-t mb-14">
         {/* Render context tabs component */}
         <ContextTabs

@@ -240,7 +240,7 @@ function ProjectCardComponent({
           >
             <CanvasRevealEffect
               animationSpeed={3}
-              containerClassName="bg-black"
+              containerClassName="bg-muted"
               colors={colors[type]}
               dotSize={2}
             />

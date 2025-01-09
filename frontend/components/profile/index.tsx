@@ -10,18 +10,37 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form"
+import {
   HoverCard,
   HoverCardContent,
   HoverCardTrigger,
 } from "@/components/ui/hover-card"
-import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { deleteSandbox, updateSandbox, updateUser } from "@/lib/actions"
+import { socialIcons } from "@/lib/data"
+import { editUserSchema, EditUserSchema } from "@/lib/schema"
 import { TIERS } from "@/lib/tiers"
-import { SandboxWithLiked, User } from "@/lib/types"
+import { SandboxWithLiked, User, UserLink } from "@/lib/types"
+import { cn, parseSocialLink } from "@/lib/utils"
 import { useUser } from "@clerk/nextjs"
+import { zodResolver } from "@hookform/resolvers/zod"
 import {
   Edit,
+  Globe,
   Heart,
   Info,
   Loader2,
@@ -29,17 +48,27 @@ import {
   Package2,
   PlusCircle,
   Sparkles,
+  Trash2,
   X,
 } from "lucide-react"
 import { useRouter } from "next/navigation"
-import { Fragment, useCallback, useEffect, useMemo, useState } from "react"
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react"
 import { useFormState, useFormStatus } from "react-dom"
+import { useFieldArray, useForm } from "react-hook-form"
 import { toast } from "sonner"
 import Avatar from "../ui/avatar"
 import { Badge } from "../ui/badge"
 import { Input } from "../ui/input"
 import { Progress } from "../ui/progress"
-
+import { Textarea } from "../ui/textarea"
 // #region Profile Page
 export default function ProfilePage({
   publicSandboxes,
@@ -75,6 +104,9 @@ export default function ProfilePage({
             generations={isOwnProfile ? loggedInUser.generations : undefined}
             isOwnProfile={isOwnProfile}
             tier={profileOwner.tier}
+            bio={profileOwner.bio}
+            personalWebsite={profileOwner.personalWebsite}
+            socialLinks={profileOwner.links}
           />
         </div>
         <div className="md:col-span-2">
@@ -101,11 +133,17 @@ function ProfileCard({
   joinedDate,
   generations,
   isOwnProfile,
+  bio,
+  personalWebsite,
+  socialLinks = [],
   tier,
 }: {
   name: string
   username: string
   avatarUrl: string | null
+  bio: string | null
+  personalWebsite: string | null
+  socialLinks: UserLink[]
   sandboxes: SandboxWithLiked[]
   joinedDate: Date
   generations?: number
@@ -113,9 +151,8 @@ function ProfileCard({
   tier: string
 }) {
   const { user } = useUser()
-  const router = useRouter()
   const [isEditing, setIsEditing] = useState(false)
-  const [formState, formAction] = useFormState(updateUser, {})
+
   const joinedAt = useMemo(() => {
     const date = new Date(joinedDate).toLocaleDateString("en-US", {
       month: "long",
@@ -140,103 +177,126 @@ function ProfileCard({
     }
   }, [sandboxes])
 
-  useEffect(() => {
-    if ("message" in formState) {
-      toast.success(formState.message as String)
-      toggleEdit()
-      if ("newRoute" in formState && typeof formState.newRoute === "string") {
-        router.replace(formState.newRoute)
-      }
-    }
-    if ("error" in formState) {
-      const error = formState.error
-      if (typeof error === "string") {
-        toast.error(error)
-      } else {
-        toast.error("An Error Occured")
-      }
-    }
-  }, [formState])
+  const showAddMoreInfoBanner = useMemo(() => {
+    return !bio && !personalWebsite && (socialLinks?.length ?? 0) === 0
+  }, [personalWebsite, bio, socialLinks])
+
   return (
     <Card className="mb-6 md:mb-0 sticky top-6">
       {isOwnProfile && (
-        <Button
-          onClick={toggleEdit}
-          aria-label={isEditing ? "close edit form" : "open edit form"}
-          size="smIcon"
-          variant="secondary"
-          className="rounded-full absolute top-2 right-2"
-        >
-          {isEditing ? <X className="size-4" /> : <Edit className="size-4" />}
-        </Button>
+        <div className="absolute top-2 right-2 flex flex-col gap-2">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  onClick={toggleEdit}
+                  aria-label={isEditing ? "close edit form" : "open edit form"}
+                  size="smIcon"
+                  variant="secondary"
+                  className="rounded-full relative"
+                >
+                  {isEditing ? (
+                    <X className="size-4" />
+                  ) : showAddMoreInfoBanner ? (
+                    <>
+                      <Sparkles className="size-4 text-yellow-400 z-[2]" />
+                      <div className="z-[1] absolute inset-0 rounded-full bg-secondary animate-ping" />
+                    </>
+                  ) : (
+                    <Edit className="size-4" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>
+                  {showAddMoreInfoBanner
+                    ? "Add more information to your profile"
+                    : "Edit your profile"}
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
       )}
-      <CardContent className="flex flex-col gap-4 items-center pt-6">
-        <Avatar name={name} avatarUrl={avatarUrl} className="size-36" />
-
-        {!isEditing ? (
-          <div className="space-y-2">
-            <CardTitle className="text-2xl text-center">{name}</CardTitle>
-            <CardDescription className="text-center">{`@${username}`}</CardDescription>
+      <CardContent className="flex flex-col gap-4 pt-6">
+        {isEditing ? (
+          <div className="flex flex-col gap-2 items-center ">
+            <Avatar name={name} avatarUrl={avatarUrl} className="size-36" />
+            <EditProfileForm
+              {...{
+                name,
+                username,
+                avatarUrl,
+                bio,
+                personalWebsite,
+                socialLinks,
+                toggleEdit,
+              }}
+            />
           </div>
         ) : (
-          <form action={formAction} className="flex flex-col gap-2">
-            <Input
-              name="id"
-              placeholder="ID"
-              className="hidden "
-              value={user?.id}
-            />
-            <Input
-              name="oldUsername"
-              placeholder="ID"
-              className="hidden "
-              value={user?.username ?? undefined}
-            />
-            <div className="space-y-1">
-              <Label htmlFor="input-name">Name</Label>
-              <Input
-                id="input-name"
-                name="name"
-                placeholder="Name"
-                defaultValue={name}
-              />
-            </div>
-
-            <div className="space-y-1">
-              <Label htmlFor="input-username">User name</Label>
-              <div className="relative">
-                <Input
-                  id="input-username"
-                  className="peer ps-6"
-                  type="text"
-                  name="username"
-                  placeholder="Username"
-                  defaultValue={username}
-                />
-                <span className="pointer-events-none absolute inset-y-0 start-0 flex items-center justify-center ps-2 text-sm text-muted-foreground peer-disabled:opacity-50">
-                  @
-                </span>
-              </div>
-            </div>
-
-            <SubmitButton />
-          </form>
-        )}
-        {!isEditing && (
           <>
-            <div className="flex gap-6">
-              <StatsItem icon={Package2} label={stats.sandboxes} />
-              <StatsItem icon={Heart} label={stats.likes} />
-            </div>
-            <div className="flex flex-col items-center gap-2">
-              <p className="text-xs text-muted-foreground">{joinedAt}</p>
-              {typeof generations === "number" && (
-                <SubscriptionBadge
-                  generations={generations}
-                  tier={tier as keyof typeof TIERS}
-                />
+            <div className="flex flex-col gap-2 items-center">
+              <Avatar name={name} avatarUrl={avatarUrl} className="size-36" />
+              <div className="space-y-1">
+                <CardTitle className="text-2xl text-center">{name}</CardTitle>
+                <CardDescription className="text-center">{`@${username}`}</CardDescription>
+              </div>
+              {bio && <p className="text-sm text-center">{bio}</p>}
+              {(socialLinks.length > 0 || personalWebsite) && (
+                <div className="flex gap-2 justify-center">
+                  {personalWebsite && (
+                    <Button variant="secondary" size="smIcon" asChild>
+                      <a
+                        href={personalWebsite}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <Globe className="size-4" />
+                        <span className="sr-only">Personal Website</span>
+                      </a>
+                    </Button>
+                  )}
+                  {socialLinks.map((link, index) => {
+                    const Icon = socialIcons[link.platform]
+                    return (
+                      <Button
+                        key={index}
+                        variant="secondary"
+                        size="smIcon"
+                        asChild
+                      >
+                        <a
+                          href={link.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <Icon className="size-4" />
+                          <span className="sr-only">{link.platform}</span>
+                        </a>
+                      </Button>
+                    )
+                  })}
+                </div>
               )}
             </div>
+            <div className="flex flex-col gap-1 items-center">
+              {typeof generations === "number" && (
+                <div className="flex justify-center">
+                  <SubscriptionBadge
+                    generations={generations}
+                    tier={tier as keyof typeof TIERS}
+                  />
+                </div>
+              )}
+              <div className="flex gap-4">
+                <StatsItem icon={Package2} label={stats.sandboxes} />
+                <StatsItem icon={Heart} label={stats.likes} />
+              </div>
+            </div>
+            <p className="text-xs mt-2 text-muted-foreground text-center">
+              {joinedAt}
+            </p>
           </>
         )}
       </CardContent>
@@ -244,13 +304,213 @@ function ProfileCard({
   )
 }
 
-function SubmitButton() {
-  const { pending } = useFormStatus()
-
+function EditProfileForm(props: {
+  name: string
+  username: string
+  avatarUrl: string | null
+  bio: string | null
+  personalWebsite: string | null
+  socialLinks: UserLink[]
+  toggleEdit: () => void
+}) {
+  const router = useRouter()
+  const { user } = useUser()
+  const formRef = useRef<HTMLFormElement>(null)
+  const [formState, formAction] = useFormState(updateUser, {
+    message: "",
+  })
+  const [isPending, startTransition] = useTransition()
+  const { name, username, bio, personalWebsite, socialLinks, toggleEdit } =
+    props
+  const form = useForm<EditUserSchema>({
+    resolver: zodResolver(editUserSchema),
+    defaultValues: {
+      oldUsername: username,
+      id: user?.id,
+      name,
+      username,
+      bio: bio ?? "",
+      personalWebsite: personalWebsite ?? "",
+      links:
+        socialLinks.length > 0
+          ? socialLinks
+          : [{ url: "", platform: "generic" }],
+      ...(formState.fields ?? {}),
+    },
+  })
+  const { fields, append, remove } = useFieldArray({
+    name: "links",
+    control: form.control,
+  })
+  useEffect(() => {
+    const message = formState.message
+    if (!Boolean(message)) return
+    if ("error" in formState) {
+      toast.error(formState.message)
+      return
+    }
+    toast.success(formState.message as String)
+    toggleEdit()
+    if (formState?.newRoute) {
+      router.replace(formState.newRoute)
+    }
+  }, [formState])
   return (
-    <Button size="sm" type="submit" className="w-full mt-2" disabled={pending}>
-      {pending && <Loader2 className="animate-spin mr-2 h-4 w-4" />}
-      Save
+    <Form {...form}>
+      <form
+        ref={formRef}
+        action={formAction}
+        onSubmit={(evt) => {
+          evt.preventDefault()
+          form.handleSubmit(() => {
+            startTransition(() => {
+              formAction(new FormData(formRef.current!))
+            })
+          })(evt)
+        }}
+        className="space-y-3 w-full"
+      >
+        <input type="hidden" name="id" value={user?.id} />
+        <input type="hidden" name="oldUsername" value={username} />
+        <FormField
+          control={form.control}
+          name="name"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Name</FormLabel>
+              <FormControl>
+                <Input placeholder="marie doe" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="username"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>User name</FormLabel>
+              <FormControl>
+                <div className="relative">
+                  <Input
+                    className="peer ps-6"
+                    type="text"
+                    placeholder="Username"
+                    {...field}
+                  />
+                  <span className="pointer-events-none absolute inset-y-0 start-0 flex items-center justify-center ps-2 text-sm text-muted-foreground peer-disabled:opacity-50">
+                    @
+                  </span>
+                </div>
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="bio"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Bio</FormLabel>
+              <FormControl>
+                <Textarea
+                  placeholder="hi, I love building things!"
+                  {...field}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="personalWebsite"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Personal Website</FormLabel>
+              <FormControl>
+                <Input placeholder="https://chillguy.dev" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <div>
+          {fields.map((field, index) => (
+            <FormField
+              control={form.control}
+              key={field.id}
+              name={`links.${index}`}
+              render={({ field: { onChange, value, ...field } }) => {
+                const Icon = socialIcons[value.platform] ?? socialIcons.generic
+                return (
+                  <FormItem>
+                    <FormLabel className={cn(index !== 0 && "sr-only")}>
+                      Social Links
+                    </FormLabel>
+                    <FormDescription className={cn(index !== 0 && "sr-only")}>
+                      Add links to your blogs or social media profiles.
+                    </FormDescription>
+                    <FormControl>
+                      <div className="flex gap-2">
+                        <div className="relative flex-1">
+                          <Input
+                            {...field}
+                            className="peer ps-9"
+                            value={value.url}
+                            onChange={(e) =>
+                              onChange(parseSocialLink(e.currentTarget.value))
+                            }
+                          />
+                          <div className="pointer-events-none absolute inset-y-0 start-0 flex items-center justify-center ps-3 text-muted-foreground/80 peer-disabled:opacity-50">
+                            <Icon
+                              size={16}
+                              strokeWidth={2}
+                              aria-hidden="true"
+                            />
+                          </div>
+                        </div>
+                        <Button
+                          size="smIcon"
+                          type="button"
+                          variant="secondary"
+                          onClick={() => remove(index)}
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )
+              }}
+            />
+          ))}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="mt-2"
+            onClick={() => append({ url: "", platform: "generic" })}
+          >
+            Add URL
+          </Button>
+        </div>
+        <SubmitButton {...{ isPending }} />
+      </form>
+    </Form>
+  )
+}
+function SubmitButton({ isPending }: { isPending: boolean }) {
+  const formStatus = useFormStatus()
+  const { pending } = formStatus
+  const pend = pending || isPending
+  return (
+    <Button size="sm" type="submit" className="w-full mt-2" disabled={pend}>
+      {pend && <Loader2 className="animate-spin mr-2 h-4 w-4" />}
+      Save Changes
     </Button>
   )
 }
@@ -441,8 +701,8 @@ interface StatsItemProps {
 
 const StatsItem = ({ icon: Icon, label }: StatsItemProps) => (
   <div className="flex items-center gap-2">
-    <Icon size={18} />
-    <span className="text-sm  text-muted-foreground">{label}</span>
+    <Icon size={16} />
+    <span className="text-sm text-muted-foreground">{label}</span>
   </div>
 )
 // #endregion
@@ -462,8 +722,8 @@ const SubscriptionBadge = ({
       </Badge>
       <HoverCard>
         <HoverCardTrigger>
-          <Button variant="ghost" size="smIcon">
-            <Info size={20} />
+          <Button variant="ghost" size="smIcon" className="size-[26px]">
+            <Info size={16} />
           </Button>
         </HoverCardTrigger>
         <HoverCardContent>

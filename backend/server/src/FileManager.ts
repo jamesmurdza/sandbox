@@ -326,25 +326,69 @@ export class FileManager {
   // Save file content
   async saveFile(fileId: string, body: string): Promise<void> {
     if (!fileId) return // handles saving when no file is open
-
+  
     if (Buffer.byteLength(body, "utf-8") > MAX_BODY_SIZE) {
       throw new Error("File size too large. Please reduce the file size.")
     }
+  
+    // Save to remote storage
     await RemoteFileStorage.saveFile(this.getRemoteFileId(fileId), body)
-
+  
+    // Update local file data cache
     let file = this.fileData.find((f) => f.id === fileId)
     if (file) {
       file.data = body
     } else {
-      // If the file wasn't in our cache, add it
       file = {
         id: fileId,
         data: body,
       }
       this.fileData.push(file)
     }
-
-    await this.sandbox.files.write(path.posix.join(this.dirName, fileId), body)
+  
+    // Save to sandbox filesystem
+    const filePath = path.posix.join(this.dirName, fileId)
+    await this.sandbox.files.write(filePath, body)
+  
+    // Instead of updating the entire file structure, just ensure this file exists in it
+    const parts = fileId.split('/').filter(Boolean)
+    let current = this.files
+    let currentPath = ''
+  
+    // Navigate/create the path to the file
+    for (let i = 0; i < parts.length - 1; i++) {
+      currentPath += '/' + parts[i]
+      let folder = current.find(
+        (f) => f.type === 'folder' && f.name === parts[i]
+      ) as TFolder
+      
+      if (!folder) {
+        folder = {
+          id: currentPath,
+          type: 'folder',
+          name: parts[i],
+          children: [],
+        }
+        current.push(folder)
+      }
+      current = folder.children
+    }
+  
+    // Add/update the file in the structure if it doesn't exist
+    const fileName = parts[parts.length - 1]
+    const existingFile = current.find(
+      (f) => f.type === 'file' && f.name === fileName
+    )
+    
+    if (!existingFile) {
+      current.push({
+        id: fileId,
+        type: 'file',
+        name: fileName,
+      })
+    }
+  
+    this.refreshFileList?.(this.files)
     this.fixPermissions()
   }
 

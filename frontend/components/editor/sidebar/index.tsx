@@ -9,6 +9,7 @@ import SidebarFolder from "./folder"
 import New from "./new"
 
 import { Button } from "@/components/ui/button"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn, sortFileExplorer } from "@/lib/utils"
 import {
@@ -104,8 +105,8 @@ export default function Sidebar({
 
   return (
     <div className="h-full w-56 select-none flex flex-col text-sm">
-      <div className="flex-grow overflow-auto p-2 pb-[84px]">
-        <div className="flex w-full items-center justify-between h-8 mb-1">
+      <ScrollArea className="flex-grow overflow-auto px-2 pt-0 pb-4 relative">
+        <div className="flex w-full items-center justify-between h-8 pb-1 isolate z-10 sticky pt-2 top-0 bg-background">
           <div className="text-muted-foreground">Explorer</div>
           <div className="flex space-x-1">
             <button
@@ -179,8 +180,8 @@ export default function Sidebar({
             </>
           )}
         </div>
-      </div>
-      <div className="fixed bottom-0 w-48 flex flex-col p-2 bg-background">
+      </ScrollArea>
+      <div className="flex flex-col p-2 bg-background">
         <Button
           variant="ghost"
           className="w-full justify-start text-sm text-muted-foreground font-normal h-8 px-2 mb-2"

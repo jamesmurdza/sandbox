@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "1288b006-6410-4b1c-8c96-d9797878a116",
+  "id": "4ada398d-7e4e-448f-8cea-a10b4d844600",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "sandbox": {
@@ -94,6 +94,72 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}
     },
+    "sandbox_likes": {
+      "name": "sandbox_likes",
+      "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "sandbox_id": {
+          "name": "sandbox_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "sandbox_likes_user_id_user_id_fk": {
+          "name": "sandbox_likes_user_id_user_id_fk",
+          "tableFrom": "sandbox_likes",
+          "tableTo": "user",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "sandbox_likes_sandbox_id_sandbox_id_fk": {
+          "name": "sandbox_likes_sandbox_id_sandbox_id_fk",
+          "tableFrom": "sandbox_likes",
+          "tableTo": "sandbox",
+          "columnsFrom": [
+            "sandbox_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "sandbox_likes_sandbox_id_user_id_pk": {
+          "columns": [
+            "sandbox_id",
+            "user_id"
+          ],
+          "name": "sandbox_likes_sandbox_id_user_id_pk"
+        }
+      },
+      "uniqueConstraints": {}
+    },
     "user": {
       "name": "user",
       "columns": {
@@ -127,6 +193,13 @@
         },
         "avatarUrl": {
           "name": "avatarUrl",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "githubToken": {
+          "name": "githubToken",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
