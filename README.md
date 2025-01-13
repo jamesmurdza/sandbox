@@ -92,7 +92,6 @@ Update `/backend/database/src/wrangler.toml`:
 database_name = '🔑'
 database_id = '🔑'
 KEY = 'SUPERDUPERSECRET'
-STORAGE_WORKER_URL = 'https://storage.🍎.workers.dev'
 ```
 
 In the `/backend/database/src` directory:
@@ -118,7 +117,6 @@ Update `/backend/server/.env`:
 
 ```
 DATABASE_WORKER_URL='https://database.🍎.workers.dev'
-STORAGE_WORKER_URL='https://storage.🍎.workers.dev'
 WORKERS_KEY='SUPERDUPERSECRET'
 ```
 
@@ -149,7 +147,6 @@ Update `/frontend/.env`:
 
 ```
 NEXT_PUBLIC_DATABASE_WORKER_URL='https://database.🍎.workers.dev'
-NEXT_PUBLIC_STORAGE_WORKER_URL='https://storage.🍎.workers.dev'
 NEXT_PUBLIC_WORKERS_KEY='SUPERDUPERSECRET'
 ANTHROPIC_API_KEY='🔑'
 OPENAI_API_KEY='🔑'

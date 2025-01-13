@@ -5,13 +5,18 @@ import { z } from "zod"
 
 import { and, eq, sql } from "drizzle-orm"
 import * as schema from "./schema"
-import { Sandbox, sandbox, sandboxLikes, user, usersToSandboxes } from "./schema"
+import {
+  Sandbox,
+  sandbox,
+  sandboxLikes,
+  user,
+  usersToSandboxes,
+} from "./schema"
 
 export interface Env {
   DB: D1Database
   STORAGE: any
   KEY: string
-  STORAGE_WORKER_URL: string
 }
 
 // https://github.com/drizzle-team/drizzle-orm/tree/main/examples/cloudflare-d1
@@ -73,19 +78,6 @@ export default {
             .where(eq(usersToSandboxes.sandboxId, id))
           await db.delete(sandbox).where(eq(sandbox.id, id))
 
-          const deleteStorageRequest = new Request(
-            `${env.STORAGE_WORKER_URL}/api/project`,
-            {
-              method: "DELETE",
-              body: JSON.stringify({ sandboxId: id }),
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `${env.KEY}`,
-              },
-            }
-          )
-          await env.STORAGE.fetch(deleteStorageRequest)
-
           return success
         } else {
           return invalidRequest
@@ -135,20 +127,6 @@ export default {
           .values({ type, name, userId, visibility, createdAt: new Date() })
           .returning()
           .get()
-
-        const initStorageRequest = new Request(
-          `${env.STORAGE_WORKER_URL}/api/init`,
-          {
-            method: "POST",
-            body: JSON.stringify({ sandboxId: sb.id, type }),
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `${env.KEY}`,
-            },
-          }
-        )
-
-        await env.STORAGE.fetch(initStorageRequest)
 
         return new Response(sb.id, { status: 200 })
       } else {
