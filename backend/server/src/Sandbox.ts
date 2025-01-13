@@ -98,7 +98,6 @@ export class Sandbox {
     // Initialize the file manager if it hasn't been set up yet
     if (!this.fileManager) {
       this.fileManager = new FileManager(
-        this.sandboxId,
         this.container,
         fileWatchCallback ?? null
       )
@@ -194,10 +193,11 @@ export class Sandbox {
     const handleDeploy: SocketHandler = async (_: any) => {
       if (!this.gitClient) throw Error("No git client")
       if (!this.fileManager) throw Error("No file manager")
-      await this.gitClient.pushFiles(
+      // TODO: Get files from E2B and deploy them
+      /*await this.gitClient.pushFiles(
         await this.fileManager?.loadFileContent(),
         this.sandboxId
-      )
+      )*/
       return { success: true }
     }
 

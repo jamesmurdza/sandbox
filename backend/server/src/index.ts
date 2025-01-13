@@ -121,7 +121,7 @@ io.on("connection", async (socket) => {
       // Initialize the sandbox container
       // The file manager and terminal managers will be set up if they have been closed
       await sandbox.initialize(sendFileNotifications)
-      socket.emit("loaded", sandbox.fileManager?.files)
+      socket.emit("loaded", await sandbox.fileManager?.getFileTree())
 
       // Register event handlers for the sandbox
       // For each event handler, listen on the socket for that event
