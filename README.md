@@ -78,6 +78,8 @@ npx wrangler deploy
 
 ### 4. Deploying the database
 
+Follow this [guide](https://docs.google.com/document/d/1w5dA5daic_sIYB5Seni1KvnFx51pPV2so6lLdN2xa7Q/edit?usp=sharing) for more info.
+
 Create a database:
 
 ```
