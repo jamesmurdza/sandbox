@@ -63,6 +63,7 @@ export const sandbox = sqliteTable("sandbox", {
     .references(() => user.id),
   likeCount: integer("likeCount").default(0),
   viewCount: integer("viewCount").default(0),
+  containerId: text("containerId"),
 })
 
 export type Sandbox = typeof sandbox.$inferSelect
