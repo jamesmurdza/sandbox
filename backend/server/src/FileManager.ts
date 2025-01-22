@@ -76,6 +76,7 @@ export class FileManager {
     // Make the logged in user the owner of all project files
     this.fixPermissions()
 
+    // Only watch the directories and subdirectories of the project directory
     await this.watchDirectory(this.dirName)
     await this.watchSubdirectories(this.dirName)
   }
@@ -111,6 +112,7 @@ export class FileManager {
             )
           }
         },
+        // The timeout of zero means the watcher never times out
         { timeoutMs: 0 }
       )
       this.fileWatchers.push(handle)
@@ -120,7 +122,7 @@ export class FileManager {
     }
   }
 
-  // Watch subdirectories recursively
+  // Watch the contents of top-level subdirectories
   async watchSubdirectories(directory: string) {
     const dirContent = await this.sandbox.files.list(directory)
     await Promise.all(
@@ -159,6 +161,7 @@ export class FileManager {
     const filePath = path.posix.join(this.dirName, fileId)
     await this.sandbox.files.write(filePath, body)
 
+    // Refresh the file tree in case saving creates a new file
     this.refreshFileList?.(await this.getFileTree())
     this.fixPermissions()
   }
