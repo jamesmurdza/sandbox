@@ -21,8 +21,9 @@ export class FileManager {
 
   async getFileTree(): Promise<(TFolder | TFile)[]> {
     // Run the command to retrieve paths
+    // Ignore node_modules until we make this faster
     const result = await this.sandbox.commands.run(
-      `cd ${this.dirName} && find * \\( -type d -exec echo {}/ \\; \\) -o \\( -type f -exec echo {} \\; \\)`
+      `cd /home/user/project && find * \\( -path 'node_modules' -prune \\) -o \\( -type d -exec echo {}/ \\; -o -type f -exec echo {} \\; \\)`
     )
 
     // Process the stdout into an array of paths
