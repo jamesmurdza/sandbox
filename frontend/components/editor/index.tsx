@@ -1095,7 +1095,6 @@ export default function CodeEditor({
           handleRename={handleRename}
           handleDeleteFile={handleDeleteFile}
           handleDeleteFolder={handleDeleteFolder}
-          socket={socket!}
           setFiles={setFiles}
           deletingFolderId={deletingFolderId}
           toggleAIChat={toggleAIChat}
