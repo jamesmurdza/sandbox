@@ -168,8 +168,7 @@ export class FileManager {
     fileId: string,
     folderId: string
   ): Promise<(TFolder | TFile)[]> {
-    const parts = fileId.split("/")
-    const newFileId = folderId + "/" + parts.pop()
+    const newFileId = path.posix.join(folderId, path.posix.basename(fileId))
 
     await this.moveFileInContainer(fileId, newFileId)
     await this.fixPermissions()
@@ -195,9 +194,7 @@ export class FileManager {
 
   // Create a new file
   async createFile(name: string): Promise<boolean> {
-    const id = `/${name}`
-
-    await this.sandbox.files.write(path.posix.join(this.dirName, id), "")
+    await this.sandbox.files.write(path.posix.join(this.dirName, name), "")
     await this.fixPermissions()
 
     return true
@@ -215,8 +212,7 @@ export class FileManager {
 
   // Rename a file
   async renameFile(fileId: string, newName: string): Promise<void> {
-    const parts = fileId.split("/")
-    const newFileId = parts.slice(0, parts.length - 1).join("/") + "/" + newName
+    const newFileId = path.posix.join(path.posix.dirname(fileId), newName)
 
     await this.moveFileInContainer(fileId, newFileId)
     await this.fixPermissions()
