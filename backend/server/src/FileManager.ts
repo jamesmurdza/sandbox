@@ -1,4 +1,4 @@
-import { FilesystemEvent, Sandbox, WatchHandle } from "e2b"
+import { FilesystemEvent, FilesystemEventType, Sandbox, WatchHandle } from "e2b"
 import path from "path"
 import { MAX_BODY_SIZE } from "./ratelimit"
 import { TFile, TFolder } from "./types"
@@ -97,7 +97,11 @@ export class FileManager {
         async (event: FilesystemEvent) => {
           try {
             // Tell the client to reload the file list
-            if (event.type !== "chmod") {
+            if (
+              event.type === FilesystemEventType.CREATE ||
+              event.type === FilesystemEventType.REMOVE ||
+              event.type === FilesystemEventType.RENAME
+            ) {
               this.refreshFileList?.(await this.getFileTree())
             }
           } catch (error) {
