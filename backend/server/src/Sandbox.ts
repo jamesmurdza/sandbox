@@ -284,10 +284,42 @@ export class Sandbox {
       return { zipBlob: zipBase64 }
     }
     const handleGitHubUserName: SocketHandler = async (data) => {
-      const { code } = data
-      const username = await this.githubManager.authenticate(code)
-      return { username }
-    }
+      const { code } = data;
+      const auth = await this.githubManager.authenticate(code);
+      if (auth) {
+        // Update user's GitHub token in database
+        await fetch(`${process.env.DATABASE_WORKER_URL}/api/user`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `${process.env.WORKERS_KEY}`,
+          },
+          body: JSON.stringify({
+            id: connection.userId,
+            githubToken: auth.accessToken
+          }),
+        });
+    
+        // Fetch the updated user details
+        const userResponse = await fetch(`${process.env.DATABASE_WORKER_URL}/api/user?id=${connection.userId}`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `${process.env.WORKERS_KEY}`,
+          },
+        });
+    
+        if (userResponse.ok) {
+          const user = await userResponse.json();
+          console.log("Updated user details:", user);
+        } else {
+          console.error("Failed to fetch updated user details");
+        }
+    
+        return { username: auth.username };
+      }
+      return { error: "Authentication failed" };
+    };
     // Add to handlers function
 
     const handleCreateRepo: SocketHandler = async (data) => {
@@ -297,21 +329,25 @@ export class Sandbox {
           error: "Please authenticate with GitHub first",
         }
       }
-    
+
       const { repoName } = data
-    
+
       try {
         if (await this.githubManager.repoExists(repoName)) {
           return { success: false, error: "Repository already exists" }
         }
-    
+
         const repoUrl = await this.githubManager.createRepo(repoName)
-    
+
         const files = await this.fileManager?.loadFileContent()
         if (files) {
-          await this.githubManager.createCommit(repoName, files, "Add Files from by GitWit")
+          await this.githubManager.createCommit(
+            repoName,
+            files,
+            "Add Files from by GitWit"
+          )
         }
-    
+
         return { success: true, repoUrl }
       } catch (error) {
         console.error("Failed to create repository:", error)
@@ -334,7 +370,7 @@ export class Sandbox {
         if (!files || files.length === 0) {
           return { success: false, error: "No files to commit" }
         }
-        const commitMessage = message || "Initial commit from GitWit";
+        const commitMessage = message || "Initial commit from GitWit"
 
         await this.githubManager.createCommit(repoName, files, commitMessage)
 

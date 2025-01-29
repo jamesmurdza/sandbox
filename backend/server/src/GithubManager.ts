@@ -5,22 +5,29 @@ const { Octokit } = jiti("@octokit/core")
 export class GithubManager {
   public octokit: any = null
   private username: string | null = null
+  private accessToken: string | null = null; 
+
 
   constructor() {
     this.octokit = null
     this.username = null
+    this.accessToken = null; 
   }
 
   async authenticate(code: string) {
     try {
       console.log("Attempting to authenticate with GitHub...")
       const accessToken = await this.getAccessToken(code)
+      this.accessToken = accessToken;
       console.log("Received GitHub OAuth code:", accessToken)
 
       this.octokit = new Octokit({ auth: accessToken })
       const { data } = await this.octokit.request("GET /user")
       this.username = data.login
-      return this.username
+      return {
+        username: this.username,
+        accessToken: this.accessToken, // Return both username and token
+      }
     } catch (error) {
       console.error("GitHub authentication failed:", error)
       return null
@@ -67,7 +74,6 @@ export class GithubManager {
     })
     return data.html_url
   }
-
 
   async createCommit(
     repoName: string,

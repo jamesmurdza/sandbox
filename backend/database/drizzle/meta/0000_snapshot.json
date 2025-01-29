@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "4ada398d-7e4e-448f-8cea-a10b4d844600",
+  "id": "fb6f1a73-798c-4dad-82d3-c9af3c6beea2",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "sandbox": {
@@ -220,6 +220,28 @@
           "notNull": false,
           "autoincrement": false,
           "default": 0
+        },
+        "bio": {
+          "name": "bio",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "personalWebsite": {
+          "name": "personalWebsite",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "links": {
+          "name": "links",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "'[]'"
         },
         "tier": {
           "name": "tier",

@@ -1,1 +1,1 @@
-ALTER TABLE sandbox ADD `containerId` text; 
+ALTER TABLE sandbox ADD `containerId` text;
