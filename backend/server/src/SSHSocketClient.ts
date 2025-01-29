@@ -57,7 +57,6 @@ export class SSHSocketClient {
         })
         .on("close", () => {
           console.log("SSH connection closed")
-          this._isConnected = false
         })
         .connect(this.config)
     })
