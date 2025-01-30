@@ -68,6 +68,7 @@ export const socketAuth = async (socket: Socket, next: Function) => {
     projectId: projectId,
     isOwner: project !== undefined,
     type: dbProjectJSON.type,
+    containerId: dbProjectJSON.containerId,
   }
 
   // Allow the connection

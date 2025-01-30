@@ -1,6 +1,6 @@
 import { Sandbox as Container } from "e2b"
 import { Socket } from "socket.io"
-import { CONTAINER_TIMEOUT } from "./constants"
+import { CONTAINER_PAUSE, CONTAINER_TIMEOUT } from "./constants"
 import { DokkuClient } from "./DokkuClient"
 import { FileManager } from "./FileManager"
 import {
@@ -39,6 +39,7 @@ export class Project {
   fileManager: FileManager | null
   terminalManager: TerminalManager | null
   container: Container | null
+  containerId: string | null
   // Server context:
   dokkuClient: DokkuClient | null
   gitClient: SecureGitClient | null
@@ -54,6 +55,7 @@ export class Project {
     this.fileManager = null
     this.terminalManager = null
     this.container = null
+    this.containerId = null
     // Server context:
     this.dokkuClient = dokkuClient
     this.gitClient = gitClient
@@ -65,10 +67,24 @@ export class Project {
   ) {
     // Acquire a lock to ensure exclusive access to the container
     await lockManager.acquireLock(this.projectId, async () => {
-      // Check if a container already exists and is running
-      if (this.container && (await this.container.isRunning())) {
-        console.log(`Found existing container ${this.projectId}`)
-      } else {
+      // Don't use the project container if it timed out
+      if (this.container && !(await this.container.isRunning())) {
+        console.log("Found a timed out container")
+        this.container = null
+      }
+
+      // If the project container is already running, use that.
+      if (this.container) {
+        console.log(`Found running container ${this.projectId}`)
+      }
+      // If not, check for a paused container, and use that.
+      else if (this.containerId) {
+        console.log(`Resuming paused container ${this.containerId}`)
+        this.container = await Container.resume(this.containerId)
+      }
+
+      // Otherwise, create a completely new container based on the template.
+      if (!this.container) {
         console.log("Creating container", this.projectId)
         const templateTypes = [
           "vanillajs",
@@ -118,11 +134,25 @@ export class Project {
   }
 
   handlers(connection: { userId: string; isOwner: boolean; socket: Socket }) {
+    let pauseTimeout: NodeJS.Timeout | null = null // Store the timeout ID
+
     // Handle heartbeat from a socket connection
     const handleHeartbeat: SocketHandler = (_: any) => {
       // Only keep the container alive if the owner is still connected
       if (connection.isOwner) {
         this.container?.setTimeout(CONTAINER_TIMEOUT)
+
+        // Clear the existing timeout if it exists
+        if (pauseTimeout) {
+          clearTimeout(pauseTimeout)
+        }
+
+        // Set a new timer to pause the container one second before timeout
+        pauseTimeout = setTimeout(async () => {
+          console.log("Pausing container...")
+          this.containerId = (await this.container?.pause()) ?? null
+          console.log(`Paused container ${this.containerId}`)
+        }, CONTAINER_PAUSE)
       }
     }
 

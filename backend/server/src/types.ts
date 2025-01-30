@@ -17,6 +17,7 @@ export type Project = {
   createdAt: Date
   userId: string
   usersToSandboxes: UsersToSandboxes[]
+  containerId: string
 }
 
 export type UsersToSandboxes = {

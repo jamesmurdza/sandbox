@@ -87,6 +87,7 @@ export default {
           id: z.string(),
           name: z.string().optional(),
           visibility: z.enum(["public", "private"]).optional(),
+          containerId: z.string(),
         })
 
         const body = await request.json()
