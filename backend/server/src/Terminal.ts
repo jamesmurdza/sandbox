@@ -1,13 +1,13 @@
-import { CommandHandle, Sandbox } from "e2b"
+import { CommandHandle, Sandbox as Container } from "e2b"
 
 // Terminal class to manage a pseudo-terminal (PTY) in a sandbox environment
 export class Terminal {
   private pty: CommandHandle | undefined // Holds the PTY process handle
-  private sandbox: Sandbox // Reference to the sandbox environment
+  private container: Container // Reference to the "container," which is an E2B sandbox
 
-  // Constructor initializes the Terminal with a sandbox
-  constructor(sandbox: Sandbox) {
-    this.sandbox = sandbox
+  // Constructor initializes the Terminal with a container
+  constructor(container: Container) {
+    this.container = container
   }
 
   // Initialize the terminal with specified rows, columns, and data handler
@@ -21,7 +21,7 @@ export class Terminal {
     onData: (responseData: string) => void
   }): Promise<void> {
     // Create a new PTY process
-    this.pty = await this.sandbox.pty.create({
+    this.pty = await this.container.pty.create({
       rows,
       cols,
       timeoutMs: 0,
@@ -34,7 +34,7 @@ export class Terminal {
   // Send data to the terminal
   async sendData(data: string) {
     if (this.pty) {
-      await this.sandbox.pty.sendInput(
+      await this.container.pty.sendInput(
         this.pty.pid,
         new TextEncoder().encode(data)
       )
@@ -46,7 +46,7 @@ export class Terminal {
   // Resize the terminal
   async resize(size: { cols: number; rows: number }): Promise<void> {
     if (this.pty) {
-      await this.sandbox.pty.resize(this.pty.pid, size)
+      await this.container.pty.resize(this.pty.pid, size)
     } else {
       console.log("Cannot resize terminal because pty is not initialized.")
     }

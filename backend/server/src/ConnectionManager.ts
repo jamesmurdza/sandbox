@@ -24,38 +24,38 @@ export class ConnectionManager {
   private sockets: Record<string, Set<Socket>> = {}
 
   // Checks if the owner of a sandbox is connected
-  ownerIsConnected(sandboxId: string): boolean {
-    return this.ownerConnections[sandboxId]?.getValue() > 0
+  ownerIsConnected(projectId: string): boolean {
+    return this.ownerConnections[projectId]?.getValue() > 0
   }
 
   // Adds a connection for a sandbox
-  addConnectionForSandbox(socket: Socket, sandboxId: string, isOwner: boolean) {
-    this.sockets[sandboxId] ??= new Set()
-    this.sockets[sandboxId].add(socket)
+  addConnectionForProject(socket: Socket, projectId: string, isOwner: boolean) {
+    this.sockets[projectId] ??= new Set()
+    this.sockets[projectId].add(socket)
 
     // If the connection is for the owner, increments the owner connection counter
     if (isOwner) {
-      this.ownerConnections[sandboxId] ??= new Counter()
-      this.ownerConnections[sandboxId].increment()
+      this.ownerConnections[projectId] ??= new Counter()
+      this.ownerConnections[projectId].increment()
     }
   }
 
   // Removes a connection for a sandbox
-  removeConnectionForSandbox(
+  removeConnectionForProject(
     socket: Socket,
-    sandboxId: string,
+    projectId: string,
     isOwner: boolean
   ) {
-    this.sockets[sandboxId]?.delete(socket)
+    this.sockets[projectId]?.delete(socket)
 
     // If the connection being removed is for the owner, decrements the owner connection counter
     if (isOwner) {
-      this.ownerConnections[sandboxId]?.decrement()
+      this.ownerConnections[projectId]?.decrement()
     }
   }
 
   // Returns the set of sockets connected to a given sandbox
-  connectionsForSandbox(sandboxId: string): Set<Socket> {
-    return this.sockets[sandboxId] ?? new Set()
+  connectionsForProject(projectId: string): Set<Socket> {
+    return this.sockets[projectId] ?? new Set()
   }
 }

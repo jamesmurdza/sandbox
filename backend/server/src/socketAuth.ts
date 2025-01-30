@@ -1,6 +1,6 @@
 import { Socket } from "socket.io"
 import { z } from "zod"
-import { Sandbox, User } from "./types"
+import { Project, User } from "./types"
 
 // Middleware for socket authentication
 export const socketAuth = async (socket: Socket, next: Function) => {
@@ -21,7 +21,7 @@ export const socketAuth = async (socket: Socket, next: Function) => {
     return
   }
 
-  const { sandboxId, userId } = parseQuery.data
+  const { sandboxId: projectId, userId } = parseQuery.data
   // Fetch user data from the database
   const dbUser = await fetch(
     `${process.env.DATABASE_WORKER_URL}/api/user?id=${userId}`,
@@ -33,16 +33,16 @@ export const socketAuth = async (socket: Socket, next: Function) => {
   )
   const dbUserJSON = (await dbUser.json()) as User
 
-  // Fetch sandbox data from the database
-  const dbSandbox = await fetch(
-    `${process.env.DATABASE_WORKER_URL}/api/sandbox?id=${sandboxId}`,
+  // Fetch project data from the database
+  const dbProject = await fetch(
+    `${process.env.DATABASE_WORKER_URL}/api/sandbox?id=${projectId}`,
     {
       headers: {
         Authorization: `${process.env.WORKERS_KEY}`,
       },
     }
   )
-  const dbSandboxJSON = (await dbSandbox.json()) as Sandbox
+  const dbProjectJSON = (await dbProject.json()) as Project
 
   // Check if user data was retrieved successfully
   if (!dbUserJSON) {
@@ -50,14 +50,14 @@ export const socketAuth = async (socket: Socket, next: Function) => {
     return
   }
 
-  // Check if the user owns the sandbox or has shared access
-  const sandbox = dbUserJSON.sandbox.find((s) => s.id === sandboxId)
-  const sharedSandboxes = dbUserJSON.usersToSandboxes.find(
-    (uts) => uts.sandboxId === sandboxId
+  // Check if the user owns the project or has shared access
+  const project = dbUserJSON.sandbox.find((s) => s.id === projectId)
+  const sharedProjects = dbUserJSON.usersToSandboxes.find(
+    (uts) => uts.sandboxId === projectId
   )
 
-  // If user doesn't own or have shared access to the sandbox, deny access
-  if (!sandbox && !sharedSandboxes) {
+  // If user doesn't own or have shared access to the project, deny access
+  if (!project && !sharedProjects) {
     next(new Error("Invalid credentials."))
     return
   }
@@ -65,9 +65,9 @@ export const socketAuth = async (socket: Socket, next: Function) => {
   // Set socket data with user information
   socket.data = {
     userId,
-    sandboxId: sandboxId,
-    isOwner: sandbox !== undefined,
-    type: dbSandboxJSON.type,
+    projectId: projectId,
+    isOwner: project !== undefined,
+    type: dbProjectJSON.type,
   }
 
   // Allow the connection

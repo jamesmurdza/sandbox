@@ -1,28 +1,33 @@
-import { FilesystemEvent, FilesystemEventType, Sandbox, WatchHandle } from "e2b"
+import {
+  Sandbox as Container,
+  FilesystemEvent,
+  FilesystemEventType,
+  WatchHandle,
+} from "e2b"
 import path from "path"
 import { MAX_BODY_SIZE } from "./ratelimit"
 import { TFile, TFolder } from "./types"
 
-// FileManager class to handle file operations in a sandbox
+// FileManager class to handle file operations in a container
 export class FileManager {
-  private sandbox: Sandbox
+  private container: Container
   private fileWatchers: WatchHandle[] = []
   private dirName = "/home/user/project"
   private refreshFileList: ((files: (TFolder | TFile)[]) => void) | null
 
   // Constructor to initialize the FileManager
   constructor(
-    sandbox: Sandbox,
+    container: Container,
     refreshFileList: ((files: (TFolder | TFile)[]) => void) | null
   ) {
-    this.sandbox = sandbox
+    this.container = container
     this.refreshFileList = refreshFileList
   }
 
   async getFileTree(): Promise<(TFolder | TFile)[]> {
     // Run the command to retrieve paths
     // Ignore node_modules until we make this faster
-    const result = await this.sandbox.commands.run(
+    const result = await this.container.commands.run(
       `cd /home/user/project && find * \\( -path 'node_modules' -prune \\) -o \\( -type d -exec echo {}/ \\; -o -type f -exec echo {} \\; \\)`
     )
 
@@ -84,7 +89,7 @@ export class FileManager {
   // Change the owner of the project directory to user
   private async fixPermissions() {
     try {
-      await this.sandbox.commands.run(`sudo chown -R user "${this.dirName}"`)
+      await this.container.commands.run(`sudo chown -R user "${this.dirName}"`)
     } catch (e: any) {
       console.log("Failed to fix permissions: " + e)
     }
@@ -93,7 +98,7 @@ export class FileManager {
   // Watch a directory for changes
   async watchDirectory(directory: string): Promise<WatchHandle | undefined> {
     try {
-      const handle = await this.sandbox.files.watchDir(
+      const handle = await this.container.files.watchDir(
         directory,
         async (event: FilesystemEvent) => {
           try {
@@ -124,7 +129,7 @@ export class FileManager {
 
   // Watch the contents of top-level subdirectories
   async watchSubdirectories(directory: string) {
-    const dirContent = await this.sandbox.files.list(directory)
+    const dirContent = await this.container.files.list(directory)
     await Promise.all(
       dirContent.map(async (item) => {
         if (item.type === "dir") {
@@ -138,13 +143,13 @@ export class FileManager {
   // Get file content
   async getFile(fileId: string): Promise<string | undefined> {
     const filePath = path.posix.join(this.dirName, fileId)
-    const fileContent = await this.sandbox.files.read(filePath)
+    const fileContent = await this.container.files.read(filePath)
     return fileContent
   }
 
   // Get folder content
   async getFolder(folderId: string): Promise<string[]> {
-    return (await this.sandbox.files.list(folderId)).map((entry) =>
+    return (await this.container.files.list(folderId)).map((entry) =>
       path.posix.join(folderId, entry.name)
     )
   }
@@ -157,9 +162,9 @@ export class FileManager {
       throw new Error("File size too large. Please reduce the file size.")
     }
 
-    // Save to sandbox filesystem
+    // Save to container filesystem
     const filePath = path.posix.join(this.dirName, fileId)
-    await this.sandbox.files.write(filePath, body)
+    await this.container.files.write(filePath, body)
 
     // Refresh the file tree in case saving creates a new file
     this.refreshFileList?.(await this.getFileTree())
@@ -182,14 +187,14 @@ export class FileManager {
   // Move a file within the container
   private async moveFileInContainer(oldPath: string, newPath: string) {
     try {
-      const fileContents = await this.sandbox.files.read(
+      const fileContents = await this.container.files.read(
         path.posix.join(this.dirName, oldPath)
       )
-      await this.sandbox.files.write(
+      await this.container.files.write(
         path.posix.join(this.dirName, newPath),
         fileContents
       )
-      await this.sandbox.files.remove(path.posix.join(this.dirName, oldPath))
+      await this.container.files.remove(path.posix.join(this.dirName, oldPath))
     } catch (e) {
       console.error(`Error moving file from ${oldPath} to ${newPath}:`, e)
     }
@@ -197,7 +202,7 @@ export class FileManager {
 
   // Create a new file
   async createFile(name: string): Promise<boolean> {
-    await this.sandbox.files.write(path.posix.join(this.dirName, name), "")
+    await this.container.files.write(path.posix.join(this.dirName, name), "")
     await this.fixPermissions()
 
     return true
@@ -210,7 +215,7 @@ export class FileManager {
 
   // Create a new folder
   async createFolder(name: string): Promise<void> {
-    await this.sandbox.files.makeDir(path.posix.join(this.dirName, name))
+    await this.container.files.makeDir(path.posix.join(this.dirName, name))
   }
 
   // Rename a file
@@ -223,13 +228,13 @@ export class FileManager {
 
   // Delete a file
   async deleteFile(fileId: string): Promise<(TFolder | TFile)[]> {
-    await this.sandbox.files.remove(path.posix.join(this.dirName, fileId))
+    await this.container.files.remove(path.posix.join(this.dirName, fileId))
     return await this.getFileTree()
   }
 
   // Delete a folder
   async deleteFolder(folderId: string): Promise<(TFolder | TFile)[]> {
-    this.sandbox.files.remove(path.posix.join(this.dirName, folderId))
+    this.container.files.remove(path.posix.join(this.dirName, folderId))
     return await this.getFileTree()
   }
 
