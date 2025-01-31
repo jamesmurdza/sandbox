@@ -1,8 +1,8 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "4ada398d-7e4e-448f-8cea-a10b4d844600",
-  "prevId": "00000000-0000-0000-0000-000000000000",
+  "id": "51abcf01-2921-4885-8058-d1ccd576f3e1",
+  "prevId": "80c0b0b2-bb0e-449a-b447-c21863686f58",
   "tables": {
     "sandbox": {
       "name": "sandbox",
@@ -65,6 +65,13 @@
           "notNull": false,
           "autoincrement": false,
           "default": 0
+        },
+        "containerId": {
+          "name": "containerId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
         }
       },
       "indexes": {
@@ -220,6 +227,28 @@
           "notNull": false,
           "autoincrement": false,
           "default": 0
+        },
+        "bio": {
+          "name": "bio",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "personalWebsite": {
+          "name": "personalWebsite",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "links": {
+          "name": "links",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "'[]'"
         },
         "tier": {
           "name": "tier",
