@@ -15,6 +15,8 @@ import DownloadButton from "./downloadButton"
 import EditSandboxModal from "./edit"
 import RunButtonModal from "./run"
 import ShareSandboxModal from "./share"
+import GitHubSyncButton from "./githubSyncButton"
+import CreateRepoButton from "./GitHubrepoButton"
 
 export default function Navbar({
   userData,
@@ -79,7 +81,12 @@ export default function Navbar({
                 <Users className="w-4 h-4 mr-2" />
                 Share
               </Button> */}
-              <DownloadButton name={sandboxData.name} /></>
+              <DownloadButton name={sandboxData.name} />
+              <GitHubSyncButton />
+              <CreateRepoButton sandboxName={sandboxData.name} />
+
+              </>
+
           ) : null}
           <ThemeSwitcher />
           <UserButton userData={userData} />
