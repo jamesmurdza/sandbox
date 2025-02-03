@@ -61,7 +61,32 @@ export const createMarkdownComponents = (
                       mergeDecorationsCollection &&
                       editorRef?.current
                     ) {
-                      mergeDecorationsCollection?.clear()
+                      const model = editorRef.current.getModel()
+                      if (model) {
+                        const lines = model.getValue().split("\n")
+                        const removedLines = new Set()
+
+                        // Get decorations line by line
+                        for (let i = 1; i <= lines.length; i++) {
+                          const lineDecorations = model.getLineDecorations(i)
+                          if (
+                            lineDecorations?.some(
+                              (d: any) =>
+                                d.options.className ===
+                                "removed-line-decoration"
+                            )
+                          ) {
+                            removedLines.add(i)
+                          }
+                        }
+
+                        const finalLines = lines.filter(
+                          (_: string, index: number) =>
+                            !removedLines.has(index + 1)
+                        )
+                        model.setValue(finalLines.join("\n"))
+                      }
+                      mergeDecorationsCollection.clear()
                       setMergeDecorationsCollection(undefined)
                     }
                   }}
