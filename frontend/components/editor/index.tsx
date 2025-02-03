@@ -393,47 +393,124 @@ export default function CodeEditor({
   const handleApplyCode = useCallback(
     (mergedCode: string, originalCode: string) => {
       if (!editorRef) return
-
       const model = editorRef.getModel()
-      if (!model) return // Store original content
+      if (!model) return
       ;(model as any).originalContent = originalCode
 
-      // Calculate the full range of the document
-      const fullRange = model.getFullModelRange()
-
-      // Create decorations before applying the edit
       const originalLines = originalCode.split("\n")
       const mergedLines = mergedCode.split("\n")
       const decorations: monaco.editor.IModelDeltaDecoration[] = []
+      const combinedLines: string[] = []
 
-      for (
-        let i = 0;
-        i < Math.max(originalLines.length, mergedLines.length);
+      let i = 0
+      let inDiffBlock = false
+      let diffBlockStart = 0
+      let originalBlock: string[] = []
+      let mergedBlock: string[] = []
+
+      while (i < Math.max(originalLines.length, mergedLines.length)) {
+        if (originalLines[i] !== mergedLines[i]) {
+          if (!inDiffBlock) {
+            inDiffBlock = true
+            diffBlockStart = combinedLines.length
+            originalBlock = []
+            mergedBlock = []
+          }
+
+          if (i < originalLines.length) originalBlock.push(originalLines[i])
+          if (i < mergedLines.length) mergedBlock.push(mergedLines[i])
+        } else {
+          if (inDiffBlock) {
+            // Add the entire original block with deletion decoration
+            originalBlock.forEach((line) => {
+              combinedLines.push(line)
+              decorations.push({
+                range: new monaco.Range(
+                  combinedLines.length,
+                  1,
+                  combinedLines.length,
+                  1
+                ),
+                options: {
+                  isWholeLine: true,
+                  className: "removed-line-decoration",
+                  glyphMarginClassName: "removed-line-glyph",
+                  linesDecorationsClassName: "removed-line-number",
+                  minimap: { color: "rgb(255, 0, 0, 0.2)", position: 2 },
+                },
+              })
+            })
+
+            // Add the entire merged block with addition decoration
+            mergedBlock.forEach((line) => {
+              combinedLines.push(line)
+              decorations.push({
+                range: new monaco.Range(
+                  combinedLines.length,
+                  1,
+                  combinedLines.length,
+                  1
+                ),
+                options: {
+                  isWholeLine: true,
+                  className: "added-line-decoration",
+                  glyphMarginClassName: "added-line-glyph",
+                  linesDecorationsClassName: "added-line-number",
+                  minimap: { color: "rgb(0, 255, 0, 0.2)", position: 2 },
+                },
+              })
+            })
+
+            inDiffBlock = false
+          }
+
+          combinedLines.push(originalLines[i])
+        }
         i++
-      ) {
-        // Only highlight new lines (green highlights)
-        if (i >= originalLines.length || originalLines[i] !== mergedLines[i]) {
+      }
+
+      // Handle any remaining diff block at the end
+      if (inDiffBlock) {
+        originalBlock.forEach((line) => {
+          combinedLines.push(line)
           decorations.push({
-            range: new monaco.Range(i + 1, 1, i + 1, 1),
+            range: new monaco.Range(
+              combinedLines.length,
+              1,
+              combinedLines.length,
+              1
+            ),
+            options: {
+              isWholeLine: true,
+              className: "removed-line-decoration",
+              glyphMarginClassName: "removed-line-glyph",
+              linesDecorationsClassName: "removed-line-number",
+              minimap: { color: "rgb(255, 0, 0, 0.2)", position: 2 },
+            },
+          })
+        })
+
+        mergedBlock.forEach((line) => {
+          combinedLines.push(line)
+          decorations.push({
+            range: new monaco.Range(
+              combinedLines.length,
+              1,
+              combinedLines.length,
+              1
+            ),
             options: {
               isWholeLine: true,
               className: "added-line-decoration",
               glyphMarginClassName: "added-line-glyph",
+              linesDecorationsClassName: "added-line-number",
+              minimap: { color: "rgb(0, 255, 0, 0.2)", position: 2 },
             },
           })
-        }
+        })
       }
 
-      // Execute the edit operation
-      editorRef.executeEdits("apply-code", [
-        {
-          range: fullRange,
-          text: mergedCode,
-          forceMoveMarkers: true,
-        },
-      ])
-
-      // Apply decorations after the edit
+      model.setValue(combinedLines.join("\n"))
       const newDecorations = editorRef.createDecorationsCollection(decorations)
       setMergeDecorationsCollection(newDecorations)
     },

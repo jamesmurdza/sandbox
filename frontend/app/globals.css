@@ -177,12 +177,48 @@
   display: none;
 }
 
-.added-line-decoration {
-  background-color: rgba(0, 255, 0, 0.1);
-}
-
 .removed-line-decoration {
   background-color: rgba(255, 0, 0, 0.1);
+  text-decoration: line-through;
+  opacity: 0.7;
+  position: relative;
+}
+
+.removed-line-decoration::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  border-right: 2px solid rgba(255, 0, 0, 0.3);
+}
+
+.added-line-decoration {
+  background-color: rgba(0, 255, 0, 0.1);
+  position: relative;
+}
+
+.added-line-decoration::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  border-right: 2px solid rgba(0, 255, 0, 0.3);
+}
+
+.diff-block-separator {
+  height: 1px;
+  background: rgba(127, 127, 127, 0.3);
+  margin: 4px 0;
+}
+
+.removed-line-glyph {
+  background-color: #dc3545;
+  width: 4px !important;
+  margin-left: 3px;
 }
 
 .added-line-glyph {
@@ -191,10 +227,13 @@
   margin-left: 3px;
 }
 
-.removed-line-glyph {
-  background-color: #dc3545;
-  width: 4px !important;
-  margin-left: 3px;
+.removed-line-number {
+  color: #dc3545 !important;
+  text-decoration: line-through;
+}
+
+.added-line-number {
+  color: #28a745 !important;
 }
 
 .styled-scrollbar {
