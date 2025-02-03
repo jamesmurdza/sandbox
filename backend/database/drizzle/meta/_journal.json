@@ -8,6 +8,13 @@
       "when": 1738336244800,
       "tag": "0000_worthless_black_panther",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1738550821731,
+      "tag": "0003_exotic_hedge_knight",
+      "breakpoints": true
     }
   ]
 }
