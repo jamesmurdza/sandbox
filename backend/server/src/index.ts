@@ -4,6 +4,7 @@ import express, { Express } from "express"
 import fs from "fs"
 import { createServer } from "http"
 import { Server, Socket } from "socket.io"
+import api from "./api"
 
 import { ConnectionManager } from "./ConnectionManager"
 import { DokkuClient } from "./DokkuClient"
@@ -176,6 +177,22 @@ io.on("connection", async (socket) => {
     }
   } catch (e: any) {
     handleErrors("Error connecting:", e, socket)
+  }
+})
+app.use(express.json())
+
+// Use the API routes
+app.use(async (req: any, res) => {
+  try {
+    // The API router returns a Node.js response, but we need to send an Express.js response
+    const response = await api.fetch(req)
+    const reader = response.body?.getReader()
+    const value = await reader?.read()
+    const responseText = new TextDecoder().decode(value?.value)
+    res.status(response.status).send(responseText)
+  } catch (error) {
+    console.error("Error processing API request:", error)
+    res.status(500).send("Internal Server Error")
   }
 })
 
