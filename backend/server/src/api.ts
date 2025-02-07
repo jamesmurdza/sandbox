@@ -77,11 +77,13 @@ export default {
           containerId: z.string(),
         })
 
-        const { id, name, visibility } = postSchema.parse(request.body)
+        const { id, name, visibility, containerId } = postSchema.parse(
+          request.body
+        )
         const sb = (
           await db
             .update(sandbox)
-            .set({ name, visibility })
+            .set({ name, visibility, containerId })
             .where(eq(sandbox.id, id))
             .returning()
         )[0]

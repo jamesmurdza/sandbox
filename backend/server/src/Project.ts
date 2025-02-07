@@ -47,6 +47,7 @@ export class Project {
   constructor(
     projectId: string,
     type: string,
+    containerId: string,
     { dokkuClient, gitClient }: ServerContext
   ) {
     // Project properties:
@@ -55,7 +56,7 @@ export class Project {
     this.fileManager = null
     this.terminalManager = null
     this.container = null
-    this.containerId = null
+    this.containerId = containerId
     // Server context:
     this.dokkuClient = dokkuClient
     this.gitClient = gitClient
@@ -80,7 +81,9 @@ export class Project {
       // If not, check for a paused container, and use that.
       else if (this.containerId) {
         console.log(`Resuming paused container ${this.containerId}`)
-        this.container = await Container.resume(this.containerId)
+        this.container = await Container.resume(this.containerId, {
+          timeoutMs: CONTAINER_TIMEOUT,
+        })
       }
 
       // Otherwise, create a completely new container based on the template.
@@ -151,6 +154,19 @@ export class Project {
         pauseTimeout = setTimeout(async () => {
           console.log("Pausing container...")
           this.containerId = (await this.container?.pause()) ?? null
+
+          // Save the container ID for this project so it can be resumed later
+          await fetch(`${process.env.SERVER_URL}/api/sandbox`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              id: this.projectId,
+              containerId: this.containerId,
+            }),
+          })
+
           console.log(`Paused container ${this.containerId}`)
         }, CONTAINER_PAUSE)
       }

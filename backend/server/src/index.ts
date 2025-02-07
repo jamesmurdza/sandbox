@@ -88,6 +88,7 @@ io.on("connection", async (socket) => {
       userId: string
       projectId: string
       isOwner: boolean
+      containerId: string
       type: string
     }
 
@@ -104,7 +105,7 @@ io.on("connection", async (socket) => {
       // Create or retrieve the project manager for the given project ID
       const project =
         projects[data.projectId] ??
-        new Project(data.projectId, data.type, {
+        new Project(data.projectId, data.type, data.containerId, {
           dokkuClient,
           gitClient,
         })
