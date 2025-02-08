@@ -19,7 +19,6 @@ The application uses NodeJS for the backend, NextJS for the frontend, and Cloudf
 Needed accounts to set up:
 
 - [Clerk](https://clerk.com/): Used for user authentication.
-- [Liveblocks](https://liveblocks.io/): Used for collaborative editing.
 - [E2B](https://e2b.dev/): Used for the terminals and live preview.
 - [Cloudflare](https://www.cloudflare.com/): Used for relational data storage (D2) and file storage (R2).
 - [Anthropic](https://anthropic.com/) and [OpenAI](https://openai.com/): API keys for code generation.
@@ -120,15 +119,6 @@ DATABASE_WORKER_URL='https://database.🍎.workers.dev'
 WORKERS_KEY='SUPERDUPERSECRET'
 ```
 
-### 7. Adding Liveblocks
-
-Setup the Liveblocks account.
-
-Update `/frontend/.env`:
-
-```
-NEXT_PUBLIC_LIVEBLOCKS_PUBLIC_KEY='🔑'
-LIVEBLOCKS_SECRET_KEY='🔑'
 ```
 
 ### 8. Adding E2B
