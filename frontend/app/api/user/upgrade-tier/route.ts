@@ -16,7 +16,6 @@ export async function POST(request: Request) {
       {
         method: "POST",
         headers: {
-          Authorization: `${process.env.NEXT_PUBLIC_WORKERS_KEY}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({

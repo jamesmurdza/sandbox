@@ -16,7 +16,6 @@ export async function createSandbox(body: {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `${process.env.NEXT_PUBLIC_WORKERS_KEY}`,
     },
     body: JSON.stringify(body),
   })
@@ -33,7 +32,6 @@ export async function updateSandbox(body: {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `${process.env.NEXT_PUBLIC_WORKERS_KEY}`,
     },
     body: JSON.stringify(body),
   })
@@ -44,9 +42,6 @@ export async function updateSandbox(body: {
 export async function deleteSandbox(id: string) {
   await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/sandbox?id=${id}`, {
     method: "DELETE",
-    headers: {
-      Authorization: `${process.env.NEXT_PUBLIC_WORKERS_KEY}`,
-    },
   })
 
   revalidatePath("/dashboard")
@@ -59,7 +54,6 @@ export async function shareSandbox(sandboxId: string, email: string) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `${process.env.NEXT_PUBLIC_WORKERS_KEY}`,
       },
       body: JSON.stringify({ sandboxId, email }),
     }
@@ -79,7 +73,6 @@ export async function unshareSandbox(sandboxId: string, userId: string) {
     method: "DELETE",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `${process.env.NEXT_PUBLIC_WORKERS_KEY}`,
     },
     body: JSON.stringify({ sandboxId, userId }),
   })
@@ -94,7 +87,6 @@ export async function toggleLike(sandboxId: string, userId: string) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `${process.env.NEXT_PUBLIC_WORKERS_KEY}`,
       },
       body: JSON.stringify({ sandboxId, userId }),
     }
@@ -147,7 +139,6 @@ export async function updateUser(
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `${process.env.NEXT_PUBLIC_WORKERS_KEY}`,
       },
       body: JSON.stringify({
         id: validatedData.id,

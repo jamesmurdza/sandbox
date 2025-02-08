@@ -15,12 +15,7 @@ export default async function AppAuthLayout({
   }
 
   const dbUser = await fetch(
-    `${process.env.NEXT_PUBLIC_SERVER_URL}/api/user?id=${user.id}`,
-    {
-      headers: {
-        Authorization: `${process.env.NEXT_PUBLIC_WORKERS_KEY}`,
-      },
-    }
+    `${process.env.NEXT_PUBLIC_SERVER_URL}/api/user?id=${user.id}`
   )
   const dbUserJSON = (await dbUser.json()) as User
 
@@ -35,12 +30,7 @@ export default async function AppAuthLayout({
       (await generateUniqueUsername(async (username) => {
         // Check if username exists in database
         const userCheck = await fetch(
-          `${process.env.NEXT_PUBLIC_SERVER_URL}/api/user/check-username?username=${username}`,
-          {
-            headers: {
-              Authorization: `${process.env.NEXT_PUBLIC_WORKERS_KEY}`,
-            },
-          }
+          `${process.env.NEXT_PUBLIC_SERVER_URL}/api/user/check-username?username=${username}`
         )
         const exists = await userCheck.json()
         return exists.exists
@@ -50,7 +40,6 @@ export default async function AppAuthLayout({
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `${process.env.NEXT_PUBLIC_WORKERS_KEY}`,
       },
       body: JSON.stringify({
         id: user.id,

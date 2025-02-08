@@ -11,12 +11,7 @@ export const revalidate = 0
 
 const getUserData = async (id: string) => {
   const userRes = await fetch(
-    `${process.env.NEXT_PUBLIC_SERVER_URL}/api/user?id=${id}`,
-    {
-      headers: {
-        Authorization: `${process.env.NEXT_PUBLIC_WORKERS_KEY}`,
-      },
-    }
+    `${process.env.NEXT_PUBLIC_SERVER_URL}/api/user?id=${id}`
   )
   const userData: User = await userRes.json()
   return userData
@@ -24,12 +19,7 @@ const getUserData = async (id: string) => {
 
 const getSandboxData = async (id: string) => {
   const sandboxRes = await fetch(
-    `${process.env.NEXT_PUBLIC_SERVER_URL}/api/sandbox?id=${id}`,
-    {
-      headers: {
-        Authorization: `${process.env.NEXT_PUBLIC_WORKERS_KEY}`,
-      },
-    }
+    `${process.env.NEXT_PUBLIC_SERVER_URL}/api/sandbox?id=${id}`
   )
   const sandboxData: Sandbox = await sandboxRes.json()
   return sandboxData
@@ -43,12 +33,7 @@ const getSharedUsers = async (usersToSandboxes: UsersToSandboxes[]) => {
   const shared = await Promise.all(
     usersToSandboxes.map(async (user) => {
       const userRes = await fetch(
-        `${process.env.NEXT_PUBLIC_SERVER_URL}/api/user?id=${user.userId}`,
-        {
-          headers: {
-            Authorization: `${process.env.NEXT_PUBLIC_WORKERS_KEY}`,
-          },
-        }
+        `${process.env.NEXT_PUBLIC_SERVER_URL}/api/user?id=${user.userId}`
       )
       const userData: User = await userRes.json()
       return {

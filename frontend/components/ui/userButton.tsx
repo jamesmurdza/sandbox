@@ -58,9 +58,6 @@ export default function UserButton({
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_SERVER_URL}/api/user?id=${userData.id}`,
         {
-          headers: {
-            Authorization: `${process.env.NEXT_PUBLIC_WORKERS_KEY}`,
-          },
           cache: "no-store",
         }
       )
