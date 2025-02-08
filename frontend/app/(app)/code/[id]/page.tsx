@@ -11,7 +11,7 @@ export const revalidate = 0
 
 const getUserData = async (id: string) => {
   const userRes = await fetch(
-    `${process.env.NEXT_PUBLIC_DATABASE_WORKER_URL}/api/user?id=${id}`,
+    `${process.env.NEXT_PUBLIC_SERVER_URL}/api/user?id=${id}`,
     {
       headers: {
         Authorization: `${process.env.NEXT_PUBLIC_WORKERS_KEY}`,
@@ -24,7 +24,7 @@ const getUserData = async (id: string) => {
 
 const getSandboxData = async (id: string) => {
   const sandboxRes = await fetch(
-    `${process.env.NEXT_PUBLIC_DATABASE_WORKER_URL}/api/sandbox?id=${id}`,
+    `${process.env.NEXT_PUBLIC_SERVER_URL}/api/sandbox?id=${id}`,
     {
       headers: {
         Authorization: `${process.env.NEXT_PUBLIC_WORKERS_KEY}`,
@@ -43,7 +43,7 @@ const getSharedUsers = async (usersToSandboxes: UsersToSandboxes[]) => {
   const shared = await Promise.all(
     usersToSandboxes.map(async (user) => {
       const userRes = await fetch(
-        `${process.env.NEXT_PUBLIC_DATABASE_WORKER_URL}/api/user?id=${user.userId}`,
+        `${process.env.NEXT_PUBLIC_SERVER_URL}/api/user?id=${user.userId}`,
         {
           headers: {
             Authorization: `${process.env.NEXT_PUBLIC_WORKERS_KEY}`,

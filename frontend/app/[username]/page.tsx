@@ -14,7 +14,7 @@ export default async function Page({
 
   const [profileOwnerResponse, loggedInUserResponse] = await Promise.all([
     fetch(
-      `${process.env.NEXT_PUBLIC_DATABASE_WORKER_URL}/api/user?username=${username}&currentUserId=${loggedInClerkUser?.id}`,
+      `${process.env.NEXT_PUBLIC_SERVER_URL}/api/user?username=${username}&currentUserId=${loggedInClerkUser?.id}`,
       {
         headers: {
           Authorization: `${process.env.NEXT_PUBLIC_WORKERS_KEY}`,
@@ -22,7 +22,7 @@ export default async function Page({
       }
     ),
     fetch(
-      `${process.env.NEXT_PUBLIC_DATABASE_WORKER_URL}/api/user?id=${loggedInClerkUser?.id}`,
+      `${process.env.NEXT_PUBLIC_SERVER_URL}/api/user?id=${loggedInClerkUser?.id}`,
       {
         headers: {
           Authorization: `${process.env.NEXT_PUBLIC_WORKERS_KEY}`,

@@ -24,7 +24,7 @@ export const socketAuth = async (socket: Socket, next: Function) => {
   const { sandboxId: projectId, userId } = parseQuery.data
   // Fetch user data from the database
   const dbUser = await fetch(
-    `${process.env.DATABASE_WORKER_URL}/api/user?id=${userId}`,
+    `${process.env.SERVER_URL}/api/user?id=${userId}`,
     {
       headers: {
         Authorization: `${process.env.WORKERS_KEY}`,
@@ -35,7 +35,7 @@ export const socketAuth = async (socket: Socket, next: Function) => {
 
   // Fetch project data from the database
   const dbProject = await fetch(
-    `${process.env.DATABASE_WORKER_URL}/api/sandbox?id=${projectId}`,
+    `${process.env.SERVER_URL}/api/sandbox?id=${projectId}`,
     {
       headers: {
         Authorization: `${process.env.WORKERS_KEY}`,
