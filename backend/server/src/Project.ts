@@ -43,6 +43,7 @@ export class Project {
   // Server context:
   dokkuClient: DokkuClient | null
   gitClient: SecureGitClient | null
+  pauseTimeout: NodeJS.Timeout | null = null // Store the timeout ID
 
   constructor(
     projectId: string,
@@ -60,6 +61,7 @@ export class Project {
     // Server context:
     this.dokkuClient = dokkuClient
     this.gitClient = gitClient
+    this.pauseTimeout = null
   }
 
   // Initializes the project and the "container," which is an E2B sandbox
@@ -107,6 +109,8 @@ export class Project {
     // Ensure a container was successfully created
     if (!this.container) throw new Error("Failed to create container")
 
+    this.createPauseTimer()
+
     // Initialize the terminal manager if it hasn't been set up yet
     if (!this.terminalManager) {
       this.terminalManager = new TerminalManager(this.container)
@@ -136,39 +140,42 @@ export class Project {
     this.fileManager = null
   }
 
-  handlers(connection: { userId: string; isOwner: boolean; socket: Socket }) {
-    let pauseTimeout: NodeJS.Timeout | null = null // Store the timeout ID
+  createPauseTimer() {
+    // Clear the existing timeout if it exists
+    if (this.pauseTimeout) {
+      clearTimeout(this.pauseTimeout)
+    }
 
+    // Set a new timer to pause the container one second before timeout
+    this.pauseTimeout = setTimeout(async () => {
+      console.log("Pausing container...")
+      this.containerId = (await this.container?.pause()) ?? null
+
+      // Save the container ID for this project so it can be resumed later
+      await fetch(`${process.env.SERVER_URL}/api/sandbox`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          id: this.projectId,
+          containerId: this.containerId,
+        }),
+      })
+
+      console.log(`Paused container ${this.containerId}`)
+    }, CONTAINER_PAUSE)
+  }
+
+  handlers(connection: { userId: string; isOwner: boolean; socket: Socket }) {
     // Handle heartbeat from a socket connection
     const handleHeartbeat: SocketHandler = async (_: any) => {
       // Only keep the container alive if the owner is still connected
       if (connection.isOwner) {
         await this.container?.setTimeout(CONTAINER_TIMEOUT)
 
-        // Clear the existing timeout if it exists
-        if (pauseTimeout) {
-          clearTimeout(pauseTimeout)
-        }
-
         // Set a new timer to pause the container one second before timeout
-        pauseTimeout = setTimeout(async () => {
-          console.log("Pausing container...")
-          this.containerId = (await this.container?.pause()) ?? null
-
-          // Save the container ID for this project so it can be resumed later
-          await fetch(`${process.env.SERVER_URL}/api/sandbox`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              id: this.projectId,
-              containerId: this.containerId,
-            }),
-          })
-
-          console.log(`Paused container ${this.containerId}`)
-        }, CONTAINER_PAUSE)
+        this.createPauseTimer()
       }
     }
 
