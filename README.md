@@ -71,7 +71,6 @@ In the `/backend/server/` directory:
 ```
 npm run generate
 npm run migrate
-
 ```
 
 ### 6. Adding E2B
