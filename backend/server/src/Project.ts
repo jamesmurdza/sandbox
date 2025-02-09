@@ -140,10 +140,10 @@ export class Project {
     let pauseTimeout: NodeJS.Timeout | null = null // Store the timeout ID
 
     // Handle heartbeat from a socket connection
-    const handleHeartbeat: SocketHandler = (_: any) => {
+    const handleHeartbeat: SocketHandler = async (_: any) => {
       // Only keep the container alive if the owner is still connected
       if (connection.isOwner) {
-        this.container?.setTimeout(CONTAINER_TIMEOUT)
+        await this.container?.setTimeout(CONTAINER_TIMEOUT)
 
         // Clear the existing timeout if it exists
         if (pauseTimeout) {
