@@ -172,11 +172,18 @@ export class Project {
     const handleHeartbeat: SocketHandler = async (_: any) => {
       // Only keep the container alive if the owner is still connected
       if (connection.isOwner) {
-        await this.container?.setTimeout(CONTAINER_TIMEOUT)
+        try {
+          await this.container?.setTimeout(CONTAINER_TIMEOUT)
+        } catch (error) {
+          console.error("Failed to set container timeout:", error)
+          return false
+        }
 
         // Set a new timer to pause the container one second before timeout
         this.createPauseTimer()
       }
+
+      return true
     }
 
     // Handle getting a file

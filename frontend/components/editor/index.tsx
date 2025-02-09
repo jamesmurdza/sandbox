@@ -77,7 +77,14 @@ export default function CodeEditor({
   // This heartbeat is critical to preventing the E2B sandbox from timing out
   useEffect(() => {
     // 10000 ms = 10 seconds
-    const interval = setInterval(() => socket?.emit("heartbeat"), 10000)
+    const interval = setInterval(
+      () =>
+        socket?.emit("heartbeat", {}, (success: boolean) => {
+          if (!success)
+            alert("The project has timed out. Please refresh the page!")
+        }),
+      10000
+    )
     return () => clearInterval(interval)
   }, [socket])
 
