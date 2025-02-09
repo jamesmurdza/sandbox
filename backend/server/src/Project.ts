@@ -70,27 +70,27 @@ export class Project {
   ) {
     // Acquire a lock to ensure exclusive access to the container
     await lockManager.acquireLock(this.projectId, async () => {
-      // Don't use the project container if it timed out
-      if (this.container && !(await this.container.isRunning())) {
-        console.log("Found a timed out container")
-        this.container = null
+      // Discard the current container if it has timed out
+      if (this.container) {
+        if (await this.container.isRunning()) {
+          console.log(`Found running container ${this.container.sandboxId}`)
+        } else {
+          console.log("Found a timed out container")
+          this.container = null
+        }
       }
 
-      // If the project container is already running, use that.
-      if (this.container) {
-        console.log(`Found running container ${this.projectId}`)
-      }
-      // If not, check for a paused container, and use that.
-      else if (this.containerId) {
+      // If there's no running container, check for a paused container.
+      if (!this.container && this.containerId) {
         console.log(`Resuming paused container ${this.containerId}`)
         this.container = await Container.resume(this.containerId, {
           timeoutMs: CONTAINER_TIMEOUT,
         })
       }
 
-      // Otherwise, create a completely new container based on the template.
+      // If there's no container, create a new one from the template.
       if (!this.container) {
-        console.log("Creating container", this.projectId)
+        console.log("Creating container for ", this.projectId)
         const templateTypes = [
           "vanillajs",
           "reactjs",
@@ -104,6 +104,7 @@ export class Project {
         this.container = await Container.create(template, {
           timeoutMs: CONTAINER_TIMEOUT,
         })
+        console.log("Created container ", this.container.sandboxId)
       }
     })
     // Ensure a container was successfully created
