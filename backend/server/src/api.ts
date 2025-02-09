@@ -39,7 +39,7 @@ export default {
     const searchParams = new URLSearchParams(query)
     const method = request.method
 
-    const db = drizzle(process.env.DATABASE_URL, { schema })
+    const db = drizzle(process.env.DATABASE_URL as string, { schema })
 
     if (path === "/api/sandbox") {
       if (method === "GET") {
@@ -139,14 +139,21 @@ export default {
                   author: true,
                 },
               })
-              if (!sb) return
-              return {
-                id: sb.id,
-                name: sb.name,
-                type: sb.type,
-                author: sb.author.name,
-                authorAvatarUrl: sb.author.avatarUrl,
-                sharedOn: r.sharedOn,
+              if (
+                sb &&
+                "author" in sb &&
+                sb.author &&
+                "name" in sb.author &&
+                "avatarUrl" in sb.author
+              ) {
+                return {
+                  id: sb.id,
+                  name: sb.name,
+                  type: sb.type,
+                  author: sb.author.name,
+                  authorAvatarUrl: sb.author.avatarUrl,
+                  sharedOn: r.sharedOn,
+                }
               }
             })
           )
@@ -173,13 +180,20 @@ export default {
           return new Response("No user associated with email.", { status: 400 })
         }
 
-        if (user.sandbox.find((sb) => sb.id === sandboxId)) {
+        if (
+          Array.isArray(user.sandbox) &&
+          user.sandbox.find((sb: any) => sb.id === sandboxId)
+        ) {
           return new Response("Cannot share with yourself!", { status: 400 })
         }
 
-        if (user.usersToSandboxes.find((uts) => uts.sandboxId === sandboxId)) {
+        if (
+          Array.isArray(user.usersToSandboxes) &&
+          user.usersToSandboxes.find((uts: any) => uts.sandboxId === sandboxId)
+        ) {
           return new Response("User already has access.", { status: 400 })
         }
+
 
         await db
           .insert(usersToSandboxes)
@@ -294,7 +308,7 @@ export default {
             where: (user, { eq }) => eq(user.id, id),
             with: {
               sandbox: {
-                orderBy: (sandbox, { desc }) => [desc(sandbox.createdAt)],
+                orderBy: (sandbox: any, { desc }) => [desc(sandbox.createdAt)],
                 with: {
                   likes: true,
                 },
@@ -305,10 +319,10 @@ export default {
           if (res) {
             const transformedUser: UserResponse = {
               ...res,
-              sandbox: res.sandbox.map(
-                (sb): SandboxWithLiked => ({
+              sandbox: (res.sandbox as Sandbox[]).map(
+                (sb: any): SandboxWithLiked => ({
                   ...sb,
-                  liked: sb.likes.some((like) => like.userId === id),
+                  liked: sb.likes.some((like: any) => like.userId === id),
                 })
               ),
             }
@@ -322,7 +336,7 @@ export default {
             where: (user, { eq }) => eq(user.username, username),
             with: {
               sandbox: {
-                orderBy: (sandbox, { desc }) => [desc(sandbox.createdAt)],
+                orderBy: (sandbox: any, { desc }) => [desc(sandbox.createdAt)],
                 with: {
                   likes: true,
                 },
@@ -333,12 +347,13 @@ export default {
           if (res) {
             const transformedUser: UserResponse = {
               ...res,
-              sandbox: res.sandbox.map(
-                (sb): SandboxWithLiked => ({
+              sandbox: (res.sandbox as Sandbox[]).map(
+                (sb: any): SandboxWithLiked => ({
                   ...sb,
-                  liked: sb.likes.some((like) => like.userId === userId),
+                  liked: sb.likes.some((like: any) => like.userId === userId),
                 })
               ),
+
             }
             return json(transformedUser)
           }

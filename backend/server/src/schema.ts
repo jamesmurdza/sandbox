@@ -84,10 +84,11 @@ export const sandboxLikes = pgTable(
       .references(() => sandbox.id),
     createdAt: timestamp("createdAt").default(sql`CURRENT_TIMESTAMP`),
   },
-  (table) => ({
+  (table: any) => ({
     pk: primaryKey({ columns: [table.sandboxId, table.userId] }),
   })
 )
+
 
 export const usersToSandboxes = pgTable("users_to_sandboxes", {
   userId: text("userId")
@@ -100,24 +101,27 @@ export const usersToSandboxes = pgTable("users_to_sandboxes", {
 })
 
 // #region Relations
-export const userRelations = relations(user, ({ many }) => ({
+export const userRelations = relations(user, ({ many }: any) => ({
   sandbox: many(sandbox),
   usersToSandboxes: many(usersToSandboxes),
   likes: many(sandboxLikes),
 }))
 
-export const sandboxRelations = relations(sandbox, ({ one, many }) => ({
+
+export const sandboxRelations = relations(sandbox, ({ one, many }: any) => ({
   author: one(user, {
     fields: [sandbox.userId],
+
     references: [user.id],
   }),
   usersToSandboxes: many(usersToSandboxes),
   likes: many(sandboxLikes),
 }))
 
-export const sandboxLikesRelations = relations(sandboxLikes, ({ one }) => ({
+export const sandboxLikesRelations = relations(sandboxLikes, ({ one }: any) => ({
   user: one(user, {
     fields: [sandboxLikes.userId],
+
     references: [user.id],
   }),
   sandbox: one(sandbox, {
@@ -128,9 +132,10 @@ export const sandboxLikesRelations = relations(sandboxLikes, ({ one }) => ({
 
 export const usersToSandboxesRelations = relations(
   usersToSandboxes,
-  ({ one }) => ({
+  ({ one }: any) => ({
     group: one(sandbox, {
       fields: [usersToSandboxes.sandboxId],
+
       references: [sandbox.id],
     }),
     user: one(user, {
