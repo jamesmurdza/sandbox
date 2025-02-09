@@ -165,7 +165,7 @@ export default function Sidebar({
                   />
                 )
               )}
-              {creatingNew !== null ? (
+              {creatingNew !== null && socket ? (
                 <New
                   socket={socket}
                   type={creatingNew}
