@@ -12,22 +12,12 @@ export default async function DashboardPage() {
   }
 
   const userRes = await fetch(
-    `${process.env.NEXT_PUBLIC_DATABASE_WORKER_URL}/api/user?id=${user.id}`,
-    {
-      headers: {
-        Authorization: `${process.env.NEXT_PUBLIC_WORKERS_KEY}`,
-      },
-    }
+    `${process.env.NEXT_PUBLIC_SERVER_URL}/api/user?id=${user.id}`
   )
   const userData = (await userRes.json()) as User
 
   const sharedRes = await fetch(
-    `${process.env.NEXT_PUBLIC_DATABASE_WORKER_URL}/api/sandbox/share?id=${user.id}`,
-    {
-      headers: {
-        Authorization: `${process.env.NEXT_PUBLIC_WORKERS_KEY}`,
-      },
-    }
+    `${process.env.NEXT_PUBLIC_SERVER_URL}/api/sandbox/share?id=${user.id}`
   )
   const shared = (await sharedRes.json()) as {
     id: string

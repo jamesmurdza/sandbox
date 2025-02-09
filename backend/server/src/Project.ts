@@ -1,6 +1,6 @@
-import { Sandbox as E2BSandbox } from "e2b"
+import { Sandbox as Container } from "e2b"
 import { Socket } from "socket.io"
-import { CONTAINER_TIMEOUT } from "./constants"
+import { CONTAINER_PAUSE, CONTAINER_TIMEOUT } from "./constants"
 import { DokkuClient } from "./DokkuClient"
 import { FileManager } from "./FileManager"
 import {
@@ -32,45 +32,63 @@ type ServerContext = {
   gitClient: SecureGitClient | null
 }
 
-export class Sandbox {
-  // Sandbox properties:
-  sandboxId: string
+export class Project {
+  // Project properties:
+  projectId: string
   type: string
   fileManager: FileManager | null
   terminalManager: TerminalManager | null
-  container: E2BSandbox | null
+  container: Container | null
+  containerId: string | null
   // Server context:
   dokkuClient: DokkuClient | null
   gitClient: SecureGitClient | null
 
   constructor(
-    sandboxId: string,
+    projectId: string,
     type: string,
+    containerId: string,
     { dokkuClient, gitClient }: ServerContext
   ) {
-    // Sandbox properties:
-    this.sandboxId = sandboxId
+    // Project properties:
+    this.projectId = projectId
     this.type = type
     this.fileManager = null
     this.terminalManager = null
     this.container = null
+    this.containerId = containerId
     // Server context:
     this.dokkuClient = dokkuClient
     this.gitClient = gitClient
   }
 
-  // Initializes the container for the sandbox environment
+  // Initializes the project and the "container," which is an E2B sandbox
   async initialize(
     fileWatchCallback: ((files: (TFolder | TFile)[]) => void) | undefined
   ) {
-    // Acquire a lock to ensure exclusive access to the sandbox environment
-    await lockManager.acquireLock(this.sandboxId, async () => {
-      // Check if a container already exists and is running
-      if (this.container && (await this.container.isRunning())) {
-        console.log(`Found existing container ${this.sandboxId}`)
-      } else {
-        console.log("Creating container", this.sandboxId)
-        // Create a new container with a specified template and timeout
+    // Acquire a lock to ensure exclusive access to the container
+    await lockManager.acquireLock(this.projectId, async () => {
+      // Don't use the project container if it timed out
+      if (this.container && !(await this.container.isRunning())) {
+        console.log("Found a timed out container")
+        this.container = null
+      }
+
+      // If the project container is already running, use that.
+      if (this.container) {
+        console.log(`Found running container ${this.projectId}`)
+      }
+      // If not, check for a paused container, and use that.
+      else if (this.containerId) {
+        console.log(`Resuming paused container ${this.containerId}`)
+        this.container = await Container.resume(this.containerId, {
+          timeoutMs: CONTAINER_TIMEOUT,
+        })
+      }
+
+      // Otherwise, create a completely new container based on the template.
+      if (!this.container) {
+        console.log("Creating container", this.projectId)
         const templateTypes = [
           "vanillajs",
           "reactjs",
@@ -81,7 +99,7 @@ export class Sandbox {
         const template = templateTypes.includes(this.type)
           ? `gitwit-${this.type}`
           : `base`
-        this.container = await E2BSandbox.create(template, {
+        this.container = await Container.create(template, {
           timeoutMs: CONTAINER_TIMEOUT,
         })
       }
@@ -92,13 +110,12 @@ export class Sandbox {
     // Initialize the terminal manager if it hasn't been set up yet
     if (!this.terminalManager) {
       this.terminalManager = new TerminalManager(this.container)
-      console.log(`Terminal manager set up for ${this.sandboxId}`)
+      console.log(`Terminal manager set up for ${this.projectId}`)
     }
 
     // Initialize the file manager if it hasn't been set up yet
     if (!this.fileManager) {
       this.fileManager = new FileManager(
-        this.sandboxId,
         this.container,
         fileWatchCallback ?? null
       )
@@ -107,7 +124,7 @@ export class Sandbox {
     }
   }
 
-  // Called when the client disconnects from the Sandbox
+  // Called when the client disconnects from the project
   async disconnect() {
     // Close all terminals managed by the terminal manager
     await this.terminalManager?.closeAllTerminals()
@@ -120,11 +137,38 @@ export class Sandbox {
   }
 
   handlers(connection: { userId: string; isOwner: boolean; socket: Socket }) {
+    let pauseTimeout: NodeJS.Timeout | null = null // Store the timeout ID
+
     // Handle heartbeat from a socket connection
     const handleHeartbeat: SocketHandler = (_: any) => {
-      // Only keep the sandbox alive if the owner is still connected
+      // Only keep the container alive if the owner is still connected
       if (connection.isOwner) {
         this.container?.setTimeout(CONTAINER_TIMEOUT)
+
+        // Clear the existing timeout if it exists
+        if (pauseTimeout) {
+          clearTimeout(pauseTimeout)
+        }
+
+        // Set a new timer to pause the container one second before timeout
+        pauseTimeout = setTimeout(async () => {
+          console.log("Pausing container...")
+          this.containerId = (await this.container?.pause()) ?? null
+
+          // Save the container ID for this project so it can be resumed later
+          await fetch(`${process.env.SERVER_URL}/api/sandbox`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              id: this.projectId,
+              containerId: this.containerId,
+            }),
+          })
+
+          console.log(`Paused container ${this.containerId}`)
+        }, CONTAINER_PAUSE)
       }
     }
 
@@ -194,10 +238,11 @@ export class Sandbox {
     const handleDeploy: SocketHandler = async (_: any) => {
       if (!this.gitClient) throw Error("No git client")
       if (!this.fileManager) throw Error("No file manager")
-      await this.gitClient.pushFiles(
+      // TODO: Get files from E2B and deploy them
+      /*await this.gitClient.pushFiles(
         await this.fileManager?.loadFileContent(),
-        this.sandboxId
-      )
+        this.projectId
+      )*/
       return { success: true }
     }
 
@@ -235,7 +280,7 @@ export class Sandbox {
 
     // Handle creating a terminal session
     const handleCreateTerminal: SocketHandler = async ({ id }: any) => {
-      await lockManager.acquireLock(this.sandboxId, async () => {
+      await lockManager.acquireLock(this.projectId, async () => {
         await this.terminalManager?.createTerminal(
           id,
           (responseString: string) => {
