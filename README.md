@@ -56,7 +56,7 @@ Create a Postgres database. To do so locally, run:
 psql postgres -c "CREATE DATABASE sandbox;"
 ```
 
-Update `backend/database/.env` with the database connection string.
+Update `backend/server/.env` with the database connection string.
 
 ```
 DATABASE_URL=postgresql://localhost:5432/sandbox
@@ -64,24 +64,17 @@ DATABASE_URL=postgresql://localhost:5432/sandbox
 
 ### 5. Applying the database schema
 
-Delete the `/backend/database/drizzle/meta` directory.
+Delete the `/backend/server/drizzle/meta` directory.
 
-In the `/backend/database/` directory:
+In the `/backend/server/` directory:
 
 ```
 npm run generate
 npm run migrate
-```
-
-### 6. Configuring the server
-
-Update `/backend/server/.env`:
 
 ```
-SERVER_URL='http://localhost:4000'
-```
 
-### 8. Adding E2B
+### 6. Adding E2B
 
 Setup the E2B account.
 
@@ -91,17 +84,18 @@ Update `/backend/server/.env`:
 E2B_API_KEY='🔑'
 ```
 
-### 9. Configuring the frontend
+### 7. Configuring the frontend
 
 Update `/frontend/.env`:
 
 ```
 NEXT_PUBLIC_SERVER_URL='http://localhost:4000'
 ANTHROPIC_API_KEY='🔑'
+
 OPENAI_API_KEY='🔑'
 ```
 
-### 10. Running the IDE
+### 8. Running the IDE
 
 Run `npm run dev` simultaneously in:
 
