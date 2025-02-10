@@ -1,11 +1,20 @@
 "use client"
 
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { useClerk } from "@clerk/nextjs"
 import Editor, { BeforeMount, OnMount } from "@monaco-editor/react"
 import { AnimatePresence, motion } from "framer-motion"
+import { X } from "lucide-react"
 import * as monaco from "monaco-editor"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
+import { Button } from "../ui/button"
 
 // import { TypedLiveblocksProvider, useRoom, useSelf } from "@/liveblocks.config"
 // import LiveblocksProvider from "@liveblocks/yjs"
@@ -41,7 +50,6 @@ import {
 import { useTheme } from "next-themes"
 import React from "react"
 import { ImperativePanelHandle } from "react-resizable-panels"
-import { Button } from "../ui/button"
 import Tab from "../ui/tab"
 import AIChat from "./AIChat"
 import GenerateInput from "./generate"
@@ -74,14 +82,18 @@ export default function CodeEditor({
     }
   }, [socket, userData.id, sandboxData.id, setUserAndSandboxId])
 
+  // This dialog is used to alert the user that the project has timed out
+  const [timeoutDialog, setTimeoutDialog] = useState(false)
+
   // This heartbeat is critical to preventing the E2B sandbox from timing out
   useEffect(() => {
     // 10000 ms = 10 seconds
     const interval = setInterval(
       () =>
         socket?.emit("heartbeat", {}, (success: boolean) => {
-          if (!success)
-            alert("The project has timed out. Please refresh the page!")
+          if (!success) {
+            setTimeoutDialog(true)
+          }
         }),
       10000
     )
@@ -1387,6 +1399,25 @@ export default function CodeEditor({
           )}
         </ResizablePanelGroup>
       </PreviewProvider>
+      <Dialog open={timeoutDialog} onOpenChange={setTimeoutDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <X className="h-5 w-5 text-destructive" />
+              Session Timeout
+            </DialogTitle>
+            <DialogDescription className="pt-2">
+              Your project session has timed out. Please refresh the page to
+              continue working.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end">
+            <Button variant="default" onClick={() => window.location.reload()}>
+              Refresh Page
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
