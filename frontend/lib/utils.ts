@@ -104,8 +104,14 @@ export function parseSocialLink(url: string): UserLink {
     // Handle empty or invalid URLs
     if (!url) return { url: "", platform: "generic" }
 
+    // Add https:// if no protocol is specified
+    const urlWithProtocol =
+      url.startsWith("http://") || url.startsWith("https://")
+        ? url
+        : `https://${url}`
+
     // Remove protocol and www prefix for consistent parsing
-    const cleanUrl = url
+    const cleanUrl = urlWithProtocol
       .toLowerCase()
       .replace(/^https?:\/\//, "")
       .replace(/^www\./, "")
@@ -133,7 +139,7 @@ export function parseSocialLink(url: string): UserLink {
     for (const [platform, pattern] of Object.entries(platformPatterns)) {
       if (pattern.test(cleanUrl)) {
         return {
-          url,
+          url: urlWithProtocol,
           platform: platform as KnownPlatform,
         }
       }
@@ -141,7 +147,7 @@ export function parseSocialLink(url: string): UserLink {
 
     // Fall back to generic if no match found
     return {
-      url,
+      url: urlWithProtocol,
       platform: "generic",
     }
   } catch (error) {

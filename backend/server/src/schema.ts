@@ -2,6 +2,7 @@ import { createId } from "@paralleldrive/cuid2"
 import { relations, sql } from "drizzle-orm"
 import {
   integer,
+  json,
   pgTable,
   primaryKey,
   text,
@@ -44,7 +45,10 @@ export const user = pgTable("user", {
   generations: integer("generations").default(0),
   bio: varchar("bio"),
   personalWebsite: varchar("personalWebsite"),
-  links: varchar("links").default("[]").$type<UserLink[]>(),
+  links: json("links")
+    .notNull()
+    .$type<UserLink[]>()
+    .default(sql`'[]'`),
   tier: varchar("tier", { enum: ["FREE", "PRO", "ENTERPRISE"] }).default(
     "FREE"
   ),
@@ -89,7 +93,6 @@ export const sandboxLikes = pgTable(
   })
 )
 
-
 export const usersToSandboxes = pgTable("users_to_sandboxes", {
   userId: text("userId")
     .notNull()
@@ -107,7 +110,6 @@ export const userRelations = relations(user, ({ many }: any) => ({
   likes: many(sandboxLikes),
 }))
 
-
 export const sandboxRelations = relations(sandbox, ({ one, many }: any) => ({
   author: one(user, {
     fields: [sandbox.userId],
@@ -118,17 +120,20 @@ export const sandboxRelations = relations(sandbox, ({ one, many }: any) => ({
   likes: many(sandboxLikes),
 }))
 
-export const sandboxLikesRelations = relations(sandboxLikes, ({ one }: any) => ({
-  user: one(user, {
-    fields: [sandboxLikes.userId],
+export const sandboxLikesRelations = relations(
+  sandboxLikes,
+  ({ one }: any) => ({
+    user: one(user, {
+      fields: [sandboxLikes.userId],
 
-    references: [user.id],
-  }),
-  sandbox: one(sandbox, {
-    fields: [sandboxLikes.sandboxId],
-    references: [sandbox.id],
-  }),
-}))
+      references: [user.id],
+    }),
+    sandbox: one(sandbox, {
+      fields: [sandboxLikes.sandboxId],
+      references: [sandbox.id],
+    }),
+  })
+)
 
 export const usersToSandboxesRelations = relations(
   usersToSandboxes,
