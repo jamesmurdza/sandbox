@@ -18,11 +18,11 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 
+import { TIERS } from "@/lib/tiers"
 import { useRouter } from "next/navigation"
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import Avatar from "./avatar"
 import { Button } from "./button"
-import { TIERS } from "@/lib/tiers"
 
 // TODO: Remove this once we have a proper tier system
 const TIER_INFO = {
@@ -43,38 +43,10 @@ const TIER_INFO = {
   },
 } as const
 
-export default function UserButton({
-  userData: initialUserData,
-}: {
-  userData: User
-}) {
-  const [userData, setUserData] = useState<User>(initialUserData)
+export default function UserButton({ userData }: { userData: User }) {
   const [isOpen, setIsOpen] = useState(false)
   const { signOut } = useClerk()
   const router = useRouter()
-
-  const fetchUserData = async () => {
-    try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_SERVER_URL}/api/user?id=${userData.id}`,
-        {
-          cache: "no-store",
-        }
-      )
-      if (res.ok) {
-        const updatedUserData = await res.json()
-        setUserData(updatedUserData)
-      }
-    } catch (error) {
-      console.error("Failed to fetch user data:", error)
-    }
-  }
-
-  useEffect(() => {
-    if (isOpen) {
-      fetchUserData()
-    }
-  }, [isOpen])
 
   const tierInfo =
     TIER_INFO[userData.tier as keyof typeof TIER_INFO] || TIER_INFO.FREE

@@ -50,7 +50,7 @@ CLERK_SECRET_KEY='🔑'
 
 ### 4. Deploying the database
 
-Create a Postgres database. To do so locally, run:
+Create a database:
 
 ```
 psql postgres -c "CREATE DATABASE sandbox;"
@@ -61,6 +61,8 @@ Update `backend/server/.env` with the database connection string.
 ```
 DATABASE_URL=postgresql://localhost:5432/sandbox
 ```
+
+Follow this [guide](https://docs.google.com/document/d/1w5dA5daic_sIYB5Seni1KvnFx51pPV2so6lLdN2xa7Q/edit?usp=sharing) for more info.
 
 ### 5. Applying the database schema
 
