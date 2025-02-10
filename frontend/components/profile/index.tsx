@@ -243,7 +243,7 @@ function ProfileCard({
                 <CardDescription className="text-center">{`@${username}`}</CardDescription>
               </div>
               {bio && <p className="text-sm text-center">{bio}</p>}
-              {(socialLinks.length > 0 || personalWebsite) && (
+              {(Array.isArray(socialLinks) && socialLinks.length > 0 || personalWebsite) && (
                 <div className="flex gap-2 justify-center">
                   {personalWebsite && (
                     <Button variant="secondary" size="smIcon" asChild>
@@ -257,7 +257,7 @@ function ProfileCard({
                       </a>
                     </Button>
                   )}
-                  {socialLinks.map((link, index) => {
+                  {Array.isArray(socialLinks) && socialLinks.map((link, index) => {
                     const Icon = socialIcons[link.platform]
                     return (
                       <Button

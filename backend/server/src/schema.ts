@@ -2,6 +2,7 @@ import { createId } from "@paralleldrive/cuid2"
 import { relations, sql } from "drizzle-orm"
 import {
   integer,
+  json,
   pgTable,
   primaryKey,
   text,
@@ -44,7 +45,10 @@ export const user = pgTable("user", {
   generations: integer("generations").default(0),
   bio: varchar("bio"),
   personalWebsite: varchar("personalWebsite"),
-  links: varchar("links").default("[]").$type<UserLink[]>(),
+  links: json("links")
+    .notNull()
+    .$type<UserLink[]>()
+    .default(sql`'[]'`),
   tier: varchar("tier", { enum: ["FREE", "PRO", "ENTERPRISE"] }).default(
     "FREE"
   ),
