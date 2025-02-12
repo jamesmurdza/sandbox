@@ -5,7 +5,14 @@ import { z } from "zod"
 
 import { and, eq, sql } from "drizzle-orm"
 import * as schema from "./schema"
-import { Sandbox, sandbox, sandboxLikes, user, usersToSandboxes } from "./schema"
+import {
+  Sandbox,
+  sandbox,
+  sandboxLikes,
+  user,
+  userRepos,
+  usersToSandboxes,
+} from "./schema"
 
 export interface Env {
   DB: D1Database
@@ -151,6 +158,84 @@ export default {
         await env.STORAGE.fetch(initStorageRequest)
 
         return new Response(sb.id, { status: 200 })
+      } else {
+        return methodNotAllowed
+      }
+    }else if (path === "/api/repos") {
+      if (method === "GET") {
+        const params = url.searchParams
+        if (params.has("userId")) {
+          // Get repos for a specific user
+          const userId = params.get("userId") as string
+          const repos = await db.query.userRepos.findMany({
+            where: (repos, { eq }) => eq(repos.userId, userId),
+            orderBy: (repos, { desc }) => [desc(repos.createdAt)],
+          })
+          return json(repos ?? [])
+        } else if (params.has("repoId")) {
+          // Check if specific repo exists
+          const userId = params.get("userId") as string
+          const repoId = params.get("repoId") as string
+          const repo = await db.query.userRepos.findFirst({
+            where: (repos, { eq, and }) =>
+              and(eq(repos.userId, userId), eq(repos.repoId, repoId)),
+          })
+          return json({ exists: !!repo, repo })
+        }
+        return invalidRequest
+      } else if (method === "POST") {
+        const repoSchema = z.object({
+          userId: z.string(),
+          repoId: z.string(),
+        })
+
+        try {
+          const body = await request.json()
+          const { userId, repoId } = repoSchema.parse(body)
+
+          // Check if repo already exists
+          const existingRepo = await db.query.userRepos.findFirst({
+            where: (repos, { eq, and }) =>
+              and(eq(repos.userId, userId), eq(repos.repoId, repoId)),
+          })
+
+          if (existingRepo) {
+            return new Response("Repository already exists", { status: 409 })
+          }
+
+          // Create new repo
+          const newRepo = await db
+            .insert(userRepos)
+            .values({
+              userId,
+              repoId,
+              createdAt: new Date(),
+            })
+            .returning()
+            .get()
+
+          return json(newRepo)
+        } catch (error) {
+          return new Response("Invalid request data", { status: 400 })
+        }
+      } else if (method === "DELETE") {
+        const params = url.searchParams
+        if (params.has("userId") && params.has("repoId")) {
+          const userId = params.get("userId") as string
+          const repoId = params.get("repoId") as string
+
+          await db
+            .delete(userRepos)
+            .where(
+              and(
+                eq(userRepos.userId, userId),
+                eq(userRepos.repoId, repoId)
+              )
+            )
+
+          return success
+        }
+        return invalidRequest
       } else {
         return methodNotAllowed
       }

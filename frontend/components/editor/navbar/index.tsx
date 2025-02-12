@@ -82,7 +82,7 @@ export default function Navbar({
                 Share
               </Button> */}
               <DownloadButton name={sandboxData.name} />
-              <GitHubSyncButton />
+              <GitHubSyncButton  sandboxName={sandboxData.name} />
               <CreateRepoButton sandboxName={sandboxData.name} />
 
               </>

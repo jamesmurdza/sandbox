@@ -101,6 +101,8 @@ export const userRelations = relations(user, ({ many }) => ({
   sandbox: many(sandbox),
   usersToSandboxes: many(usersToSandboxes),
   likes: many(sandboxLikes),
+	repos: many(userRepos),
+
 }))
 
 export const sandboxRelations = relations(sandbox, ({ one, many }) => ({
@@ -136,5 +138,26 @@ export const usersToSandboxesRelations = relations(
     }),
   })
 )
+export const userRepos = sqliteTable("users_to_repos", {
+  id: text("id")
+    .$defaultFn(() => createId())
+    .primaryKey()
+    .unique(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id),
+	repoId: text("repo_id").notNull(), // GitHub's repository ID
+  createdAt: integer("createdAt", { mode: "timestamp_ms" }).default(
+    sql`CURRENT_TIMESTAMP`
+  ),
+})
+
+// Add relations for the new table
+export const userReposRelations = relations(userRepos, ({ one }) => ({
+  user: one(user, {
+    fields: [userRepos.userId],
+    references: [user.id],
+  }),
+}))
 
 // #endregion

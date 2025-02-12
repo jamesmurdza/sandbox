@@ -3,6 +3,7 @@ import { Socket } from "socket.io"
 import { CONTAINER_TIMEOUT } from "./constants"
 import { DokkuClient } from "./DokkuClient"
 import { FileManager } from "./FileManager"
+import { GithubManager } from "./GithubManager"
 import {
   createFileRL,
   createFolderRL,
@@ -42,6 +43,7 @@ export class Sandbox {
   // Server context:
   dokkuClient: DokkuClient | null
   gitClient: SecureGitClient | null
+  githubManager: GithubManager // Dynamically import the ESM module
 
   constructor(
     sandboxId: string,
@@ -57,6 +59,7 @@ export class Sandbox {
     // Server context:
     this.dokkuClient = dokkuClient
     this.gitClient = gitClient
+    this.githubManager = new GithubManager()
   }
 
   // Initializes the container for the sandbox environment
@@ -280,6 +283,188 @@ export class Sandbox {
       return { zipBlob: zipBase64 }
     }
 
+    // Add to handlers function
+
+		const handleCreateRepo: SocketHandler = async (data) => {
+			if (!this.githubManager?.octokit) {
+				return {
+					success: false,
+					error: "Please authenticate with GitHub first",
+				};
+			}
+		
+			const { repoName } = data;
+		
+			try {
+				// Check if repo exists in GitHub
+				const githubRepoCheck = await this.githubManager.repoExists(repoName);
+		
+				// Check if repo exists in DB
+				const dbResponse = await fetch(
+					`${process.env.DATABASE_WORKER_URL}/api/repos?userId=${connection.userId}&repoId=${githubRepoCheck.repoId}`,
+					{
+						headers: {
+							Authorization: `${process.env.WORKERS_KEY}`,
+						},
+					}
+				);
+		
+				const dbRepo = await dbResponse.json();
+				const existsInDB = dbRepo && dbRepo.length > 0;
+		
+		
+				// Case 1: Exists in GitHub but not in DB
+				if (githubRepoCheck.exists && !existsInDB) {
+					return {
+						success: false,
+						repoExists: true,
+						existsInDB: false,
+						existsInGitHub: true,
+						error: "Repository exists in GitHub but not in database",
+					};
+				}
+				// Case 2: Exists in GitHub but not in DB
+				if (!githubRepoCheck.exists && existsInDB) {
+          await handleDeleteSandboxFromDB({ repoId: githubRepoCheck.repoId });
+
+					return {
+						success: false,
+						repoExists: false,
+						existsInDB: true,
+						existsInGitHub: true,
+						error: "Repository exists in database but not in GitHub",
+					};
+				}
+				// Case 3: Doesn't exist in either GitHub or DB - Create new
+					// Create new repo in GitHub
+					const { html_url, id } = await this.githubManager.createRepo(repoName);
+					console.log("Repo created:", id);
+		
+					// Store in DB
+					await fetch(`${process.env.DATABASE_WORKER_URL}/api/repos`, {
+						method: "POST",
+						headers: {
+							"Content-Type": "application/json",
+							Authorization: `${process.env.WORKERS_KEY}`,
+						},
+						body: JSON.stringify({
+							userId: connection.userId,
+							repoId: id,
+						}),
+					});
+		
+					return { 
+						success: true, 
+						repoUrl: html_url,
+						message: "Repository created successfully in both GitHub and database"
+					};
+		
+
+			} catch (error) {
+				console.error("Failed to create repository:", error);
+				return { 
+					success: false, 
+					error: "Failed to create repository" 
+				};
+			}
+		};
+    
+		const handleCreateCommit: SocketHandler = async (data) => {
+			const username = this.githubManager.getUsername()
+			if (!this.githubManager?.octokit || !username) {
+				return {
+					success: false,
+					error: "Please authenticate with GitHub first",
+				}
+			}
+		
+			const { repoName, message } = data
+		
+			try {
+				// First check if repo still exists
+				const repoCheck = await this.githubManager.repoExists(repoName);
+				if (!repoCheck.exists) {
+					return {
+						success: false,
+						error: "Repository no longer exists in GitHub",
+						existsInGitHub: false
+					}
+				}
+		
+				const files = await this.fileManager?.loadFileContent()
+				if (!files || files.length === 0) {
+					return { success: false, error: "No files to commit" }
+				}
+				const commitMessage = message || "Initial commit from GitWit"
+		
+				await this.githubManager.createCommit(repoName, files, commitMessage)
+		
+				return {
+					success: true,
+					repoUrl: `https://github.com/${username}/${repoName}`,
+				}
+			} catch (error) {
+				console.error("Failed to create commit:", error)
+				return { success: false, error: "Failed to create commit" }
+			}
+		}
+    const handleCheckSandboxRepo: SocketHandler = async (data) => {
+      const { repoName } = data;
+      
+      console.log(`Checking repo status for: ${repoName}`);
+    
+      // Check if repo exists in GitHub
+      const githubRepoCheck = await this.githubManager.repoExists(repoName);
+      console.log("GitHub Repo Exists:", githubRepoCheck.exists, "Repo ID:", githubRepoCheck.repoId);
+    
+      // Check if repo exists in DB
+      const dbResponse = await fetch(`${process.env.DATABASE_WORKER_URL}/api/repos?userId=${connection.userId}&repoId=${githubRepoCheck.repoId}`, {
+        headers: { Authorization: `${process.env.WORKERS_KEY}` },
+      });
+    
+      const dbRepo = await dbResponse.json();
+      console.log("DB Repo Exists:", dbRepo.length > 0);
+    
+      const existsInDB = dbRepo.length > 0;
+    
+      if (existsInDB && githubRepoCheck.exists) {
+        console.log("Both DB and GitHub Repo exist ✅");
+        return { existsInBoth:true };
+      }
+			return { existsInBoth:false};
+    };
+    
+    
+    const handleDeleteSandboxFromDB: SocketHandler = async (data) => {
+      const { repoId } = data;
+    console.log(`Deleting repo from DB: ${repoId}`);
+      try {
+        await fetch(`${process.env.DATABASE_WORKER_URL}/api/repos?userId=${connection.userId}&&repoId=${repoId}`, {
+          method: "DELETE",
+          headers: { Authorization: `${process.env.WORKERS_KEY}` },
+        });
+        console.log("Repo deleted from DB successfully");
+    
+        return { success: true };
+      } catch (error) {
+        console.error("Failed to delete repository from DB:", error);
+        return { success: false, error: "Failed to delete repository from DB" };
+      }
+    };
+		const handleGitHubUserName: SocketHandler = async (data) => {
+      const { code } = data;
+      const auth = await this.githubManager.authenticate(code,connection.userId);
+      if (auth) {
+       
+    
+        return { username: auth.username };
+      }
+      return { error: "Authentication failed" };
+    };
+    const handleAuthenticateGithub: SocketHandler = async () => {
+      const authUrl = `https://github.com/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}&scope=repo`
+      return { authUrl }
+    }
     return {
       heartbeat: handleHeartbeat,
       getFile: handleGetFile,
@@ -289,7 +474,13 @@ export class Sandbox {
       moveFile: handleMoveFile,
       listApps: handleListApps,
       getAppCreatedAt: handleGetAppCreatedAt,
-      getAppExists: handleAppExists,
+      createCommit: handleCreateCommit,
+      createRepo: handleCreateRepo,
+      list: handleListApps,
+      getGitHubUserName: handleGitHubUserName,
+      checkSandboxRepo: handleCheckSandboxRepo,
+      deleteSandboxFromDB: handleDeleteSandboxFromDB,
+      authenticateGithub: handleAuthenticateGithub,
       deploy: handleDeploy,
       createFile: handleCreateFile,
       createFolder: handleCreateFolder,

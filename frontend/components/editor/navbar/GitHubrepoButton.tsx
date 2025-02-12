@@ -1,26 +1,85 @@
-"use client";
-
 import { Button } from "@/components/ui/button";
 import { useSocket } from "@/context/SocketContext";
 import { Plus } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function CreateRepoButton({ sandboxName }: { sandboxName: string }) {
   const [isCreating, setIsCreating] = useState(false);
-  const [repoExists, setRepoExists] = useState(false); // Track if the repo exists
+  const [repoExists, setRepoExists] = useState(false);
   const { socket } = useSocket();
+
+  useEffect(() => {
+    if (!socket) return;
+
+    // Check repo status on mount
+    checkRepoStatus();
+
+    // Updated handler to accept both username and repo status
+    const handleAuthSuccess = (data: { 
+      username: string | null;
+      existsInDB?: boolean;
+      repoExists?: boolean;
+    }) => {
+      if (data.username) {
+        // If we received repo status with the auth event, use it
+        if (typeof data.existsInDB !== 'undefined' && typeof data.repoExists !== 'undefined') {
+          if (data.existsInDB && data.repoExists) {
+            setRepoExists(true);
+          } else if (data.existsInDB && !data.repoExists) {
+            console.log("Deleting from DB since repo not found in GitHub...");
+            socket.emit("deleteSandboxFromDB", { repoName: sandboxName });
+            setRepoExists(false);
+          } else {
+            setRepoExists(false);
+          }
+        } else {
+          // If no repo status in auth event, check it
+          checkRepoStatus();
+        }
+      } else {
+        setRepoExists(false);
+      }
+    };
+  
+    socket.on("githubAuthStateChange", handleAuthSuccess);
+  
+    return () => {
+      socket.off("githubAuthStateChange", handleAuthSuccess);
+    };
+  }, [socket, sandboxName]);
+
+  const checkRepoStatus = () => {
+    socket?.emit(
+      "checkSandboxRepo",
+      { repoName: sandboxName },
+      (response: { existsInDB: boolean; repoExists: boolean }) => {
+        console.log("checkSandboxRepo response:", response);
+        
+        if (response.existsInDB && response.repoExists) {
+          setRepoExists(true);
+        } else if (response.existsInDB && !response.repoExists) {
+          console.log("Deleting from DB since repo not found in GitHub...");
+          socket.emit("deleteSandboxFromDB", { repoName: sandboxName });
+          setRepoExists(false);
+        } else {
+          setRepoExists(false);
+        }
+      }
+    );
+  };
 
   const handleCreateRepo = () => {
     setIsCreating(true);
 
     socket?.emit(
       "createRepo",
-      { repoName: sandboxName }, // Use sandboxName for repo name
+      { repoName: sandboxName },
       (response: { success: boolean; repoUrl?: string; error?: string }) => {
         if (response.success && response.repoUrl) {
           window.open(response.repoUrl, "_blank");
-        } else if (response.error === "Repository already exists") {
-          setRepoExists(true); // Mark that the repo exists
+          setRepoExists(true);
+        } else if (response.error) {
+          alert(response.error);
         }
         setIsCreating(false);
       }
@@ -43,9 +102,9 @@ export default function CreateRepoButton({ sandboxName }: { sandboxName: string 
         if (response.success) {
           alert("New commit created successfully!");
         } else {
-          console.error("Failed to create commit:", response.error);
+          alert(response.error || "Failed to create commit");
         }
-        setIsCreating(false); // Reset the loading state
+        setIsCreating(false);
       }
     );
   };
@@ -53,7 +112,7 @@ export default function CreateRepoButton({ sandboxName }: { sandboxName: string 
   return (
     <Button
       variant="outline"
-      onClick={repoExists ? handleCreateCommit : handleCreateRepo} // Call the correct function based on repoExists
+      onClick={repoExists ? handleCreateCommit : handleCreateRepo}
       disabled={isCreating}
     >
       <Plus className="w-4 h-4 mr-2" />

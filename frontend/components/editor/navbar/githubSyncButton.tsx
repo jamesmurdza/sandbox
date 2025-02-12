@@ -11,7 +11,7 @@ import { useEffect, useState } from "react";
 import { Github, LogOut } from "lucide-react";
 import { useSocket } from "@/context/SocketContext";
 
-export default function GitHubSyncButton() {
+export default function GitHubSyncButton({ sandboxName }: { sandboxName: string }) {
   const [isLoading, setIsLoading] = useState(false);
   const { socket } = useSocket();
   const [githubUser, setGithubUser] = useState<string | null>(null);
@@ -29,7 +29,7 @@ export default function GitHubSyncButton() {
     setIsLoading(true);
     setGithubUser(null);
     setIsLoading(false);
-    // Perform additional logout actions if needed
+    socket?.emit("githubAuthStateChange", { username: null });
   };
 
   useEffect(() => {
@@ -45,6 +45,43 @@ export default function GitHubSyncButton() {
             if (response.username) {
               setGithubUser(response.username);
               setIsLoading(false);
+              
+              // After successful login, check sandbox repo status
+              socket?.emit(
+                "checkSandboxRepo",
+                { repoName: sandboxName },
+                (repoStatus: { 
+                  existsInDB: boolean; 
+                  repoExists: boolean;
+                }) => {
+                  console.log("Initial repo check after login:", repoStatus);
+
+                  // If repo exists in DB but not in GitHub, delete it from DB
+                  if (repoStatus.existsInDB && !repoStatus.repoExists) {
+                    console.log("Deleting repo from DB since it doesn't exist in GitHub");
+                    socket?.emit(
+                      "deleteSandboxFromDB", 
+                      { 
+                        repoName: sandboxName,
+                      },
+                      (deleteResponse: { success: boolean; error?: string }) => {
+                        if (deleteResponse.success) {
+                          console.log("Successfully deleted from DB");
+                        } else {
+                          console.error("Failed to delete from DB:", deleteResponse.error);
+                        }
+                      }
+                    );
+                  }
+
+                  // Emit event to update repo button state
+                  socket?.emit("githubAuthStateChange", { 
+                    username: response.username,
+                    existsInDB: repoStatus.existsInDB,
+                    repoExists: repoStatus.repoExists
+                  });
+                }
+              );
             }
           }
         );
@@ -57,7 +94,7 @@ export default function GitHubSyncButton() {
         socketHandler();
       }, 3000);
     }
-  }, [socket]);
+  }, [socket, sandboxName]);
 
   return (
     <>

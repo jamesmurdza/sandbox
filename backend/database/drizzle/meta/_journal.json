@@ -8,6 +8,41 @@
       "when": 1738336244800,
       "tag": "0000_worthless_black_panther",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1738571302235,
+      "tag": "0001_grey_james_howlett",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1738571822367,
+      "tag": "0002_rich_maverick",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1738571954647,
+      "tag": "0003_absent_moonstone",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1739354074538,
+      "tag": "0004_dapper_klaw",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1739354214311,
+      "tag": "0005_blue_loners",
+      "breakpoints": true
     }
   ]
 }
