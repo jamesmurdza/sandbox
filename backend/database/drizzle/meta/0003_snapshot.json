@@ -1,8 +1,8 @@
 {
   "version": "5",
   "dialect": "sqlite",
-  "id": "9a0c8733-ce6f-44a2-85fd-387f56595ec2",
-  "prevId": "dd060b36-4387-48d8-abec-ca71c90f281e",
+  "id": "1c14473b-f672-4b24-adf9-a65d479f2451",
+  "prevId": "51abcf01-2921-4885-8058-d1ccd576f3e1",
   "tables": {
     "sandbox": {
       "name": "sandbox",
@@ -246,7 +246,7 @@
           "name": "links",
           "type": "text",
           "primaryKey": false,
-          "notNull": false,
+          "notNull": true,
           "autoincrement": false,
           "default": "'[]'"
         },
@@ -293,7 +293,6 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}
     },
-
     "users_to_sandboxes": {
       "name": "users_to_sandboxes",
       "columns": {

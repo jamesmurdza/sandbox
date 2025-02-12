@@ -39,7 +39,10 @@ export const user = sqliteTable("user", {
   generations: integer("generations").default(0),
   bio: text("bio"),
   personalWebsite: text("personalWebsite"),
-  links: text("links", { mode: "json" }).default("[]").$type<UserLink[]>(),
+  links: text("links", { mode: "json" })
+    .notNull()
+    .$type<UserLink[]>()
+    .default(sql`'[]'`),
   tier: text("tier", { enum: ["FREE", "PRO", "ENTERPRISE"] }).default("FREE"),
   tierExpiresAt: integer("tierExpiresAt"),
   lastResetDate: integer("lastResetDate"),
