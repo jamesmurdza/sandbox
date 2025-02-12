@@ -5,11 +5,11 @@ export type User = {
   name: string
   email: string
   generations: number
-  sandbox: Sandbox[]
+  sandbox: Project[]
   usersToSandboxes: UsersToSandboxes[]
 }
 
-export type Sandbox = {
+export type Project = {
   id: string
   name: string
   type: "reactjs" | "vanillajs" | "nextjs" | "streamlit"
@@ -17,6 +17,7 @@ export type Sandbox = {
   createdAt: Date
   userId: string
   usersToSandboxes: UsersToSandboxes[]
+  containerId: string
 }
 
 export type UsersToSandboxes = {

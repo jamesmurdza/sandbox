@@ -63,11 +63,10 @@ export async function POST(request: Request) {
 
     // Check and potentially reset monthly usage
     const resetResponse = await fetch(
-      `${process.env.NEXT_PUBLIC_DATABASE_WORKER_URL}/api/user/check-reset`,
+      `${process.env.NEXT_PUBLIC_SERVER_URL}/api/user/check-reset`,
       {
         method: "POST",
         headers: {
-          Authorization: `${process.env.NEXT_PUBLIC_WORKERS_KEY}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ userId: user.id }),
@@ -80,12 +79,7 @@ export async function POST(request: Request) {
 
     // Get user data and check tier
     const dbUser = await fetch(
-      `${process.env.NEXT_PUBLIC_DATABASE_WORKER_URL}/api/user?id=${user.id}`,
-      {
-        headers: {
-          Authorization: `${process.env.NEXT_PUBLIC_WORKERS_KEY}`,
-        },
-      }
+      `${process.env.NEXT_PUBLIC_SERVER_URL}/api/user?id=${user.id}`
     )
     const userData = await dbUser.json()
 
@@ -192,11 +186,10 @@ ${activeFileContent ? `Active File Content:\n${activeFileContent}\n` : ""}`
 
     // Increment user's generation count
     await fetch(
-      `${process.env.NEXT_PUBLIC_DATABASE_WORKER_URL}/api/user/increment-generations`,
+      `${process.env.NEXT_PUBLIC_SERVER_URL}/api/user/increment-generations`,
       {
         method: "POST",
         headers: {
-          Authorization: `${process.env.NEXT_PUBLIC_WORKERS_KEY}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ userId: user.id }),

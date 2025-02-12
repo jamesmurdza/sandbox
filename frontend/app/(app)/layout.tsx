@@ -15,12 +15,7 @@ export default async function AppAuthLayout({
   }
 
   const dbUser = await fetch(
-    `${process.env.NEXT_PUBLIC_DATABASE_WORKER_URL}/api/user?id=${user.id}`,
-    {
-      headers: {
-        Authorization: `${process.env.NEXT_PUBLIC_WORKERS_KEY}`,
-      },
-    }
+    `${process.env.NEXT_PUBLIC_SERVER_URL}/api/user?id=${user.id}`
   )
   const dbUserJSON = (await dbUser.json()) as User
 
@@ -35,35 +30,26 @@ export default async function AppAuthLayout({
       (await generateUniqueUsername(async (username) => {
         // Check if username exists in database
         const userCheck = await fetch(
-          `${process.env.NEXT_PUBLIC_DATABASE_WORKER_URL}/api/user/check-username?username=${username}`,
-          {
-            headers: {
-              Authorization: `${process.env.NEXT_PUBLIC_WORKERS_KEY}`,
-            },
-          }
+          `${process.env.NEXT_PUBLIC_SERVER_URL}/api/user/check-username?username=${username}`
         )
         const exists = await userCheck.json()
         return exists.exists
       }))
 
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_DATABASE_WORKER_URL}/api/user`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `${process.env.NEXT_PUBLIC_WORKERS_KEY}`,
-        },
-        body: JSON.stringify({
-          id: user.id,
-          name: user.firstName + " " + user.lastName,
-          email: user.emailAddresses[0].emailAddress,
-          username: username,
-          avatarUrl: user.imageUrl || null,
-          createdAt: new Date().toISOString(),
-        }),
-      }
-    )
+    const res = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/user`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        id: user.id,
+        name: user.firstName + " " + user.lastName,
+        email: user.emailAddresses[0].emailAddress,
+        username: username,
+        avatarUrl: user.imageUrl || null,
+        createdAt: new Date().toISOString(),
+      }),
+    })
 
     if (!res.ok) {
       const error = await res.text()

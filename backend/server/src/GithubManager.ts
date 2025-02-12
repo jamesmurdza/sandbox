@@ -19,11 +19,10 @@ export class GithubManager {
       const accessToken = await this.getAccessToken(code)
       if (accessToken) {
         // Update user's GitHub token in database
-        await fetch(`${process.env.DATABASE_WORKER_URL}/api/user`, {
+        await fetch(`${process.env.SERVER_URL}/api/user`, {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `${process.env.WORKERS_KEY}`,
           },
           body: JSON.stringify({
             id: userId,

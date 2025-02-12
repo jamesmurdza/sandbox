@@ -1,5 +1,4 @@
-// import type { DrizzleD1Database } from "drizzle-orm/d1";
-import { drizzle } from "drizzle-orm/d1"
+import { drizzle } from "drizzle-orm/node-postgres" // Import drizzle for PostgreSQL
 import { json } from "itty-router-extras"
 import { z } from "zod"
 
@@ -10,16 +9,13 @@ import {
   sandbox,
   sandboxLikes,
   user,
-  userRepos,
   usersToSandboxes,
+  userRepos,
 } from "./schema"
 
-export interface Env {
-  DB: D1Database
-  STORAGE: any
-  KEY: string
-  STORAGE_WORKER_URL: string
-}
+// Add dotenv configuration
+import dotenv from "dotenv"
+dotenv.config()
 
 // https://github.com/drizzle-team/drizzle-orm/tree/main/examples/cloudflare-d1
 
@@ -34,31 +30,22 @@ interface UserResponse extends Omit<schema.User, "sandbox"> {
 }
 
 export default {
-  async fetch(
-    request: Request,
-    env: Env,
-    ctx: ExecutionContext
-  ): Promise<Response> {
+  async fetch(request: Request): Promise<Response> {
     const success = new Response("Success", { status: 200 })
     const invalidRequest = new Response("Invalid Request", { status: 400 })
     const notFound = new Response("Not Found", { status: 404 })
     const methodNotAllowed = new Response("Method Not Allowed", { status: 405 })
 
-    const url = new URL(request.url)
-    const path = url.pathname
+    const [path, query] = request.url.split("?")
+    const searchParams = new URLSearchParams(query)
     const method = request.method
 
-    if (request.headers.get("Authorization") !== env.KEY) {
-      return new Response("Unauthorized", { status: 401 })
-    }
-
-    const db = drizzle(env.DB, { schema })
+    const db = drizzle(process.env.DATABASE_URL as string, { schema })
 
     if (path === "/api/sandbox") {
       if (method === "GET") {
-        const params = url.searchParams
-        if (params.has("id")) {
-          const id = params.get("id") as string
+        if (searchParams.has("id")) {
+          const id = searchParams.get("id") as string
           const res = await db.query.sandbox.findFirst({
             where: (sandbox, { eq }) => eq(sandbox.id, id),
             with: {
@@ -67,31 +54,17 @@ export default {
           })
           return json(res ?? {})
         } else {
-          const res = await db.select().from(sandbox).all()
+          const res = await db.select().from(sandbox)
           return json(res ?? {})
         }
       } else if (method === "DELETE") {
-        const params = url.searchParams
-        if (params.has("id")) {
-          const id = params.get("id") as string
+        if (searchParams.has("id")) {
+          const id = searchParams.get("id") as string
           await db.delete(sandboxLikes).where(eq(sandboxLikes.sandboxId, id))
           await db
             .delete(usersToSandboxes)
             .where(eq(usersToSandboxes.sandboxId, id))
           await db.delete(sandbox).where(eq(sandbox.id, id))
-
-          const deleteStorageRequest = new Request(
-            `${env.STORAGE_WORKER_URL}/api/project`,
-            {
-              method: "DELETE",
-              body: JSON.stringify({ sandboxId: id }),
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `${env.KEY}`,
-              },
-            }
-          )
-          await env.STORAGE.fetch(deleteStorageRequest)
 
           return success
         } else {
@@ -102,16 +75,19 @@ export default {
           id: z.string(),
           name: z.string().optional(),
           visibility: z.enum(["public", "private"]).optional(),
+          containerId: z.string(),
         })
 
-        const body = await request.json()
-        const { id, name, visibility } = postSchema.parse(body)
-        const sb = await db
-          .update(sandbox)
-          .set({ name, visibility })
-          .where(eq(sandbox.id, id))
-          .returning()
-          .get()
+        const { id, name, visibility, containerId } = postSchema.parse(
+          request.body
+        )
+        const sb = (
+          await db
+            .update(sandbox)
+            .set({ name, visibility, containerId })
+            .where(eq(sandbox.id, id))
+            .returning()
+        )[0]
 
         return success
       } else if (method === "PUT") {
@@ -122,14 +98,14 @@ export default {
           visibility: z.enum(["public", "private"]),
         })
 
-        const body = await request.json()
-        const { type, name, userId, visibility } = initSchema.parse(body)
+        const { type, name, userId, visibility } = initSchema.parse(
+          request.body
+        )
 
         const userSandboxes = await db
           .select()
           .from(sandbox)
           .where(eq(sandbox.userId, userId))
-          .all()
 
         if (userSandboxes.length >= 8) {
           return new Response("You reached the maximum # of sandboxes.", {
@@ -137,113 +113,21 @@ export default {
           })
         }
 
-        const sb = await db
-          .insert(sandbox)
-          .values({ type, name, userId, visibility, createdAt: new Date() })
-          .returning()
-          .get()
-
-        const initStorageRequest = new Request(
-          `${env.STORAGE_WORKER_URL}/api/init`,
-          {
-            method: "POST",
-            body: JSON.stringify({ sandboxId: sb.id, type }),
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `${env.KEY}`,
-            },
-          }
-        )
-
-        await env.STORAGE.fetch(initStorageRequest)
+        const sb = (
+          await db
+            .insert(sandbox)
+            .values({ type, name, userId, visibility, createdAt: new Date() })
+            .returning()
+        )[0]
 
         return new Response(sb.id, { status: 200 })
       } else {
         return methodNotAllowed
       }
-    }else if (path === "/api/repos") {
-      if (method === "GET") {
-        const params = url.searchParams
-        if (params.has("userId")) {
-          // Get repos for a specific user
-          const userId = params.get("userId") as string
-          const repos = await db.query.userRepos.findMany({
-            where: (repos, { eq }) => eq(repos.userId, userId),
-            orderBy: (repos, { desc }) => [desc(repos.createdAt)],
-          })
-          return json(repos ?? [])
-        } else if (params.has("repoId")) {
-          // Check if specific repo exists
-          const userId = params.get("userId") as string
-          const repoId = params.get("repoId") as string
-          const repo = await db.query.userRepos.findFirst({
-            where: (repos, { eq, and }) =>
-              and(eq(repos.userId, userId), eq(repos.repoId, repoId)),
-          })
-          return json({ exists: !!repo, repo })
-        }
-        return invalidRequest
-      } else if (method === "POST") {
-        const repoSchema = z.object({
-          userId: z.string(),
-          repoId: z.string(),
-        })
-
-        try {
-          const body = await request.json()
-          const { userId, repoId } = repoSchema.parse(body)
-
-          // Check if repo already exists
-          const existingRepo = await db.query.userRepos.findFirst({
-            where: (repos, { eq, and }) =>
-              and(eq(repos.userId, userId), eq(repos.repoId, repoId)),
-          })
-
-          if (existingRepo) {
-            return new Response("Repository already exists", { status: 409 })
-          }
-
-          // Create new repo
-          const newRepo = await db
-            .insert(userRepos)
-            .values({
-              userId,
-              repoId,
-              createdAt: new Date(),
-            })
-            .returning()
-            .get()
-
-          return json(newRepo)
-        } catch (error) {
-          return new Response("Invalid request data", { status: 400 })
-        }
-      } else if (method === "DELETE") {
-        const params = url.searchParams
-        if (params.has("userId") && params.has("repoId")) {
-          const userId = params.get("userId") as string
-          const repoId = params.get("repoId") as string
-
-          await db
-            .delete(userRepos)
-            .where(
-              and(
-                eq(userRepos.userId, userId),
-                eq(userRepos.repoId, repoId)
-              )
-            )
-
-          return success
-        }
-        return invalidRequest
-      } else {
-        return methodNotAllowed
-      }
     } else if (path === "/api/sandbox/share") {
       if (method === "GET") {
-        const params = url.searchParams
-        if (params.has("id")) {
-          const id = params.get("id") as string
+        if (searchParams.has("id")) {
+          const id = searchParams.get("id") as string
           const res = await db.query.usersToSandboxes.findMany({
             where: (uts, { eq }) => eq(uts.userId, id),
           })
@@ -256,14 +140,21 @@ export default {
                   author: true,
                 },
               })
-              if (!sb) return
-              return {
-                id: sb.id,
-                name: sb.name,
-                type: sb.type,
-                author: sb.author.name,
-                authorAvatarUrl: sb.author.avatarUrl,
-                sharedOn: r.sharedOn,
+              if (
+                sb &&
+                "author" in sb &&
+                sb.author &&
+                "name" in sb.author &&
+                "avatarUrl" in sb.author
+              ) {
+                return {
+                  id: sb.id,
+                  name: sb.name,
+                  type: sb.type,
+                  author: sb.author.name,
+                  authorAvatarUrl: sb.author.avatarUrl,
+                  sharedOn: r.sharedOn,
+                }
               }
             })
           )
@@ -276,8 +167,7 @@ export default {
           email: z.string(),
         })
 
-        const body = await request.json()
-        const { sandboxId, email } = shareSchema.parse(body)
+        const { sandboxId, email } = shareSchema.parse(request.body)
 
         const user = await db.query.user.findFirst({
           where: (user, { eq }) => eq(user.email, email),
@@ -291,18 +181,24 @@ export default {
           return new Response("No user associated with email.", { status: 400 })
         }
 
-        if (user.sandbox.find((sb) => sb.id === sandboxId)) {
+        if (
+          Array.isArray(user.sandbox) &&
+          user.sandbox.find((sb: any) => sb.id === sandboxId)
+        ) {
           return new Response("Cannot share with yourself!", { status: 400 })
         }
 
-        if (user.usersToSandboxes.find((uts) => uts.sandboxId === sandboxId)) {
+        if (
+          Array.isArray(user.usersToSandboxes) &&
+          user.usersToSandboxes.find((uts: any) => uts.sandboxId === sandboxId)
+        ) {
           return new Response("User already has access.", { status: 400 })
         }
+
 
         await db
           .insert(usersToSandboxes)
           .values({ userId: user.id, sandboxId, sharedOn: new Date() })
-          .get()
 
         return success
       } else if (method === "DELETE") {
@@ -311,8 +207,7 @@ export default {
           userId: z.string(),
         })
 
-        const body = await request.json()
-        const { sandboxId, userId } = deleteShareSchema.parse(body)
+        const { sandboxId, userId } = deleteShareSchema.parse(request.body)
 
         await db
           .delete(usersToSandboxes)
@@ -325,7 +220,90 @@ export default {
 
         return success
       } else return methodNotAllowed
-    } else if (path === "/api/sandbox/like") {
+    }else if (path === "/api/repos") { 
+      if (method === "GET") { 
+          if (searchParams.has("userId")) { 
+              const userId = searchParams.get("userId") as string; 
+              const repos = await db.query.userRepos.findMany({ 
+                  where: (repos, { eq }) => eq(repos.userId, userId), 
+                  orderBy: (repos, { desc }) => [desc(repos.createdAt)], 
+              }); 
+              return json(repos ?? []); 
+          } 
+  
+          if (searchParams.has("userId") && searchParams.has("repoName")) { 
+              const userId = searchParams.get("userId") as string; 
+              const repoName = searchParams.get("repoName") as string; 
+              const repo = await db.query.userRepos.findFirst({ 
+                  where: (repos, { eq, and }) => 
+                      and(eq(repos.userId, userId), eq(repos.repoName, repoName)), 
+              }); 
+              return json({ exists: !!repo, repo }); 
+          } 
+          
+          return json({ error: "Missing parameters" }, { status: 400 });
+      } 
+      else if (method === "POST") { 
+          const repoSchema = z.object({ 
+              userId: z.string(), 
+              repoId: z.string(), 
+              repoName: z.string().min(3, "repoName must be at least 3 characters"), 
+          }); 
+  
+          try { 
+            const { userId, repoId, repoName } = repoSchema.parse(request.body);
+      
+            const existingRepo = await db.query.userRepos.findFirst({
+              where: (repos, { eq, and }) =>
+                and(eq(repos.userId, userId), eq(repos.repoName, repoName)),
+            });
+      
+            if (existingRepo) {
+              return json({ error: "Repository already exists" }, { status: 409 });
+            }
+      
+            const newRepo = (
+              await db
+                .insert(userRepos)
+                .values({
+                  userId,
+                  repoId,
+                  repoName,
+                  createdAt: new Date(),
+                })
+                .returning()
+            )[0];
+      
+            return json(newRepo);
+          } catch (error) { 
+              return json({ error: error instanceof Error ? error.message : 'An unexpected error occurred' }, { status: 500 });
+          } 
+      } 
+      else if (method === "DELETE") { 
+          if (searchParams.has("userId") && searchParams.has("repoName")) { 
+              const userId = searchParams.get("userId") as string; 
+              const repoName = searchParams.get("repoName") as string; 
+  
+              const deleted = await db 
+                  .delete(userRepos) 
+                  .where( 
+                      and(eq(userRepos.userId, userId), eq(userRepos.repoName, repoName)) 
+                  ); 
+  
+              if (deleted.rowCount === 0) { 
+                  return json({ error: "Repository not found" }, { status: 404 }); 
+              } 
+  
+              return json({ message: "Repository deleted successfully" }); 
+          } 
+          
+          return json({ error: "Missing userId or repoName" }, { status: 400 }); 
+      } 
+      else {
+        return methodNotAllowed
+      }
+  }
+  else if (path === "/api/sandbox/like") {
       if (method === "POST") {
         const likeSchema = z.object({
           sandboxId: z.string(),
@@ -333,8 +311,7 @@ export default {
         })
 
         try {
-          const body = await request.json()
-          const { sandboxId, userId } = likeSchema.parse(body)
+          const { sandboxId, userId } = likeSchema.parse(request.body)
 
           // Check if user has already liked
           const existingLike = await db.query.sandboxLikes.findFirst({
@@ -388,9 +365,8 @@ export default {
           return new Response("Invalid request format", { status: 400 })
         }
       } else if (method === "GET") {
-        const params = url.searchParams
-        const sandboxId = params.get("sandboxId")
-        const userId = params.get("userId")
+        const sandboxId = searchParams.get("sandboxId")
+        const userId = searchParams.get("userId")
 
         if (!sandboxId || !userId) {
           return invalidRequest
@@ -409,16 +385,14 @@ export default {
       }
     } else if (path === "/api/user") {
       if (method === "GET") {
-        const params = url.searchParams
-
-        if (params.has("id")) {
-          const id = params.get("id") as string
+        if (searchParams.has("id")) {
+          const id = searchParams.get("id") as string
 
           const res = await db.query.user.findFirst({
             where: (user, { eq }) => eq(user.id, id),
             with: {
               sandbox: {
-                orderBy: (sandbox, { desc }) => [desc(sandbox.createdAt)],
+                orderBy: (sandbox: any, { desc }) => [desc(sandbox.createdAt)],
                 with: {
                   likes: true,
                 },
@@ -429,24 +403,24 @@ export default {
           if (res) {
             const transformedUser: UserResponse = {
               ...res,
-              sandbox: res.sandbox.map(
-                (sb): SandboxWithLiked => ({
+              sandbox: (res.sandbox as Sandbox[]).map(
+                (sb: any): SandboxWithLiked => ({
                   ...sb,
-                  liked: sb.likes.some((like) => like.userId === id),
+                  liked: sb.likes.some((like: any) => like.userId === id),
                 })
               ),
             }
             return json(transformedUser)
           }
           return json(res ?? {})
-        } else if (params.has("username")) {
-          const username = params.get("username") as string
-          const userId = params.get("currentUserId")
+        } else if (searchParams.has("username")) {
+          const username = searchParams.get("username") as string
+          const userId = searchParams.get("currentUserId")
           const res = await db.query.user.findFirst({
             where: (user, { eq }) => eq(user.username, username),
             with: {
               sandbox: {
-                orderBy: (sandbox, { desc }) => [desc(sandbox.createdAt)],
+                orderBy: (sandbox: any, { desc }) => [desc(sandbox.createdAt)],
                 with: {
                   likes: true,
                 },
@@ -457,18 +431,19 @@ export default {
           if (res) {
             const transformedUser: UserResponse = {
               ...res,
-              sandbox: res.sandbox.map(
-                (sb): SandboxWithLiked => ({
+              sandbox: (res.sandbox as Sandbox[]).map(
+                (sb: any): SandboxWithLiked => ({
                   ...sb,
-                  liked: sb.likes.some((like) => like.userId === userId),
+                  liked: sb.likes.some((like: any) => like.userId === userId),
                 })
               ),
+
             }
             return json(transformedUser)
           }
           return json(res ?? {})
         } else {
-          const res = await db.select().from(user).all()
+          const res = await db.select().from(user)
           return json(res ?? {})
         }
       } else if (method === "POST") {
@@ -486,8 +461,6 @@ export default {
           lastResetDate: z.number().optional(),
         })
 
-        const body = await request.json()
-
         const {
           id,
           name,
@@ -500,29 +473,33 @@ export default {
           tier,
           tierExpiresAt,
           lastResetDate,
-        } = userSchema.parse(body)
-        const res = await db
-          .insert(user)
-          .values({
-            id,
-            name,
-            email,
-            username,
-            avatarUrl,
-            githubToken,
-            createdAt: createdAt ? new Date(createdAt) : new Date(),
-            generations,
-            tier,
-            tierExpiresAt,
-            lastResetDate,
-          })
-          .returning()
-          .get()
+        } = userSchema.parse(request.body)
+        const res = (
+          await db
+            .insert(user)
+            .values({
+              id,
+              name,
+              email,
+              username,
+              avatarUrl,
+              githubToken,
+              createdAt: createdAt ? new Date(createdAt) : new Date(),
+              generations,
+              tier,
+              tierExpiresAt: tierExpiresAt
+                ? new Date(tierExpiresAt)
+                : new Date(),
+              lastResetDate: lastResetDate
+                ? new Date(lastResetDate)
+                : new Date(),
+            })
+            .returning()
+        )[0]
         return json({ res })
       } else if (method === "DELETE") {
-        const params = url.searchParams
-        if (params.has("id")) {
-          const id = params.get("id") as string
+        if (searchParams.has("id")) {
+          const id = searchParams.get("id") as string
           await db.delete(user).where(eq(user.id, id))
           return success
         } else return invalidRequest
@@ -548,18 +525,15 @@ export default {
         })
 
         try {
-          const body = await request.json()
-          const validatedData = updateUserSchema.parse(body)
+          const validatedData = updateUserSchema.parse(request.body)
 
           const { id, username, ...updateData } = validatedData
 
           // If username is being updated, check for existing username
           if (username) {
-            const existingUser = await db
-              .select()
-              .from(user)
-              .where(eq(user.username, username))
-              .get()
+            const existingUser = (
+              await db.select().from(user).where(eq(user.username, username))
+            )[0]
             if (existingUser && existingUser.id !== id) {
               return json({ error: "Username already exists" }, { status: 409 })
             }
@@ -570,12 +544,13 @@ export default {
             ...(username ? { username } : {}),
           }
 
-          const res = await db
-            .update(user)
-            .set(cleanUpdateData)
-            .where(eq(user.id, id))
-            .returning()
-            .get()
+          const res = (
+            await db
+              .update(user)
+              .set(cleanUpdateData)
+              .where(eq(user.id, id))
+              .returning()
+          )[0]
 
           if (!res) {
             return json({ error: "User not found" }, { status: 404 })
@@ -593,8 +568,7 @@ export default {
       }
     } else if (path === "/api/user/check-username") {
       if (method === "GET") {
-        const params = url.searchParams
-        const username = params.get("username")
+        const username = searchParams.get("username")
 
         if (!username) return invalidRequest
 
@@ -613,14 +587,12 @@ export default {
         userId: z.string(),
       })
 
-      const body = await request.json()
-      const { userId } = schema.parse(body)
+      const { userId } = schema.parse(request.body)
 
       await db
         .update(user)
         .set({ generations: sql`${user.generations} + 1` })
         .where(eq(user.id, userId))
-        .get()
 
       return success
     } else if (path === "/api/user/update-tier" && method === "POST") {
@@ -630,19 +602,17 @@ export default {
         tierExpiresAt: z.date(),
       })
 
-      const body = await request.json()
-      const { userId, tier, tierExpiresAt } = schema.parse(body)
+      const { userId, tier, tierExpiresAt } = schema.parse(request.body)
 
       await db
         .update(user)
         .set({
           tier,
-          tierExpiresAt: tierExpiresAt.getTime(),
+          tierExpiresAt,
           // Reset generations when upgrading tier
           generations: 0,
         })
         .where(eq(user.id, userId))
-        .get()
 
       return success
     } else if (path === "/api/user/check-reset" && method === "POST") {
@@ -650,8 +620,7 @@ export default {
         userId: z.string(),
       })
 
-      const body = await request.json()
-      const { userId } = schema.parse(body)
+      const { userId } = schema.parse(request.body)
 
       const dbUser = await db.query.user.findFirst({
         where: (user, { eq }) => eq(user.id, userId),
@@ -674,10 +643,9 @@ export default {
           .update(user)
           .set({
             generations: 0,
-            lastResetDate: now.getTime(),
+            lastResetDate: now,
           })
           .where(eq(user.id, userId))
-          .get()
 
         return new Response("Reset successful", { status: 200 })
       }

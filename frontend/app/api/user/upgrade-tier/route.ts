@@ -12,11 +12,10 @@ export async function POST(request: Request) {
     // handle payment processing here
 
     const response = await fetch(
-      `${process.env.NEXT_PUBLIC_DATABASE_WORKER_URL}/api/user/update-tier`,
+      `${process.env.NEXT_PUBLIC_SERVER_URL}/api/user/update-tier`,
       {
         method: "POST",
         headers: {
-          Authorization: `${process.env.NEXT_PUBLIC_WORKERS_KEY}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({

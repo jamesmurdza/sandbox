@@ -1,9 +1,9 @@
 "use client"
 
+import { useSocket } from "@/context/SocketContext"
 import { Sandbox, TFile, TFolder, TTab } from "@/lib/types"
 import { FilePlus, FolderPlus, MessageSquareMore, Sparkles } from "lucide-react"
 import { useEffect, useMemo, useRef, useState } from "react"
-import { Socket } from "socket.io-client"
 import SidebarFile from "./file"
 import SidebarFolder from "./folder"
 import New from "./new"
@@ -24,7 +24,6 @@ export default function Sidebar({
   handleRename,
   handleDeleteFile,
   handleDeleteFolder,
-  socket,
   setFiles,
   deletingFolderId,
   toggleAIChat,
@@ -41,7 +40,6 @@ export default function Sidebar({
   ) => boolean
   handleDeleteFile: (file: TFile) => void
   handleDeleteFolder: (folder: TFolder) => void
-  socket: Socket
   setFiles: (files: (TFile | TFolder)[]) => void
   deletingFolderId: string
   toggleAIChat: () => void
@@ -50,6 +48,8 @@ export default function Sidebar({
   const ref = useRef(null) // drop target
 
   const [creatingNew, setCreatingNew] = useState<"file" | "folder" | null>(null)
+  const { socket } = useSocket()
+
   const [movingId, setMovingId] = useState("")
   const sortedFiles = useMemo(() => {
     return sortFileExplorer(files)
@@ -73,9 +73,6 @@ export default function Sidebar({
     return monitorForElements({
       onDrop({ source, location }) {
         const destination = location.current.dropTargets[0]
-        if (!destination) {
-          return
-        }
 
         const fileId = source.data.id as string
         const folderId = destination.data.id as string
@@ -88,7 +85,7 @@ export default function Sidebar({
         console.log("move file", fileId, "to folder", folderId)
 
         setMovingId(fileId)
-        socket.emit(
+        socket?.emit(
           "moveFile",
           {
             fileId,
@@ -101,7 +98,7 @@ export default function Sidebar({
         )
       },
     })
-  }, [])
+  }, [socket])
 
   return (
     <div className="h-full w-56 select-none flex flex-col text-sm">
@@ -168,7 +165,7 @@ export default function Sidebar({
                   />
                 )
               )}
-              {creatingNew !== null ? (
+              {creatingNew !== null && socket ? (
                 <New
                   socket={socket}
                   type={creatingNew}
