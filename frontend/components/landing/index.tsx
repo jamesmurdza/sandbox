@@ -1,7 +1,7 @@
-import Logo from "@/assets/logo.svg"
+import { Logo } from "@/components/logo"
+
 import CustomButton from "@/components/ui/customButton"
 import { ChevronRight } from "lucide-react"
-import Image from "next/image"
 import Link from "next/link"
 import { Button } from "../ui/button"
 import { ThemeSwitcher } from "../ui/theme-switcher"
@@ -12,13 +12,7 @@ export default function Landing() {
       <div className="w-full max-w-screen-md px-8 flex flex-col items-center relative">
         <div className="w-full flex items-center justify-between py-8">
           <div className="flex items-center font-medium">
-            <Image
-              src={Logo}
-              alt="Logo"
-              width={36}
-              height={36}
-              className="mr-2"
-            />
+            <Logo className="mr-2" />
           </div>
           <div className="flex items-center space-x-4">
             <Button variant="outline" size="icon" asChild>
