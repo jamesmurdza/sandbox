@@ -1,12 +1,10 @@
 "use client"
 
-import Logo from "@/assets/logo.svg"
-import { Button } from "@/components/ui/button"
+import { Logo } from "@/components/logo"
 import { ThemeSwitcher } from "@/components/ui/theme-switcher"
 import UserButton from "@/components/ui/userButton"
 import { Sandbox, User } from "@/lib/types"
-import { Pencil, Users } from "lucide-react"
-import Image from "next/image"
+import { Pencil } from "lucide-react"
 import Link from "next/link"
 import { useState } from "react"
 // import { Avatars } from "../live/avatars"
@@ -50,7 +48,7 @@ export default function Navbar({
             href="/"
             className="ring-offset-2 transition-all ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md"
           >
-            <Image src={Logo} alt="Logo" width={36} height={36} />
+            <Logo />
           </Link>
           <div className="text-sm font-medium flex items-center">
             {sandboxData.name}
@@ -79,7 +77,8 @@ export default function Navbar({
                 <Users className="w-4 h-4 mr-2" />
                 Share
               </Button> */}
-              <DownloadButton name={sandboxData.name} /></>
+              <DownloadButton name={sandboxData.name} />
+            </>
           ) : null}
           <ThemeSwitcher />
           <UserButton userData={userData} />

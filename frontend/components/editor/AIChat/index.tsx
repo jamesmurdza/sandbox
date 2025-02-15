@@ -192,16 +192,14 @@ export default function AIChat({
 
   return (
     <div className="flex flex-col h-screen w-full">
-      <div className="flex justify-between items-center p-2 border-b">
-        <span className="text-muted-foreground/50 font-medium">CHAT</span>
+      <div className="flex justify-between items-center p-2 border-b text-foreground/70">
+        <span className="font-medium">CHAT</span>
         <div className="flex items-center h-full">
-          <span className="text-muted-foreground/50 font-medium">
-            {activeFileName}
-          </span>
+          <span className="font-medium">{activeFileName}</span>
           <div className="mx-2 h-full w-px bg-muted-foreground/20"></div>
           <button
             onClick={onClose}
-            className="text-muted-foreground/50 hover:text-muted-foreground focus:outline-none"
+            className="hover:text-muted-foreground focus:outline-none"
             aria-label="Close AI Chat"
           >
             <X size={18} />
