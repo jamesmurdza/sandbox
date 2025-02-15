@@ -73,6 +73,7 @@ export const sandbox = pgTable("sandbox", {
   likeCount: integer("likeCount").default(0),
   viewCount: integer("viewCount").default(0),
   containerId: text("containerId"),
+  repositoryId: text("repositoryId"),
 })
 
 export type Sandbox = typeof sandbox.$inferSelect
@@ -108,8 +109,6 @@ export const userRelations = relations(user, ({ many }: any) => ({
   sandbox: many(sandbox),
   usersToSandboxes: many(usersToSandboxes),
   likes: many(sandboxLikes),
-  repos: many(userRepos),
-
 }))
 
 export const sandboxRelations = relations(sandbox, ({ one, many }: any) => ({
@@ -136,27 +135,6 @@ export const sandboxLikesRelations = relations(
     }),
   })
 )
-export const userRepos = pgTable("users_to_repos", {
-  id: text("id")
-    .$defaultFn(() => createId())
-    .primaryKey()
-    .unique(),
-  userId: text("userId")
-    .notNull()
-    .references(() => user.id),
-	repoId: text("repoId").notNull(), // GitHub's repository ID
-  repoName: text("repoName").notNull(), // GitHub's repository name
-  createdAt: timestamp("createdAt").default(sql`CURRENT_TIMESTAMP`),
-
-})
-
-// Add relations for the new table
-export const userReposRelations = relations(userRepos, ({ one }) => ({
-  user: one(user, {
-    fields: [userRepos.userId],
-    references: [user.id],
-  }),
-}))
 
 export const usersToSandboxesRelations = relations(
   usersToSandboxes,

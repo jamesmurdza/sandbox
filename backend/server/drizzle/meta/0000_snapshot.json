@@ -1,5 +1,5 @@
 {
-  "id": "cdfa832b-9ad7-4d6b-a71e-53b69257cc0b",
+  "id": "9f100afc-c471-4778-a1f8-fca6157dee96",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -272,72 +272,6 @@
           "nullsNotDistinct": false,
           "columns": [
             "username"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.users_to_repos": {
-      "name": "users_to_repos",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "user_id": {
-          "name": "user_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "repo_id": {
-          "name": "repo_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "repo_name": {
-          "name": "repo_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "createdAt": {
-          "name": "createdAt",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "CURRENT_TIMESTAMP"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "users_to_repos_user_id_user_id_fk": {
-          "name": "users_to_repos_user_id_user_id_fk",
-          "tableFrom": "users_to_repos",
-          "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "users_to_repos_id_unique": {
-          "name": "users_to_repos_id_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "id"
           ]
         }
       },

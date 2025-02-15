@@ -10,7 +10,6 @@ import {
   sandboxLikes,
   user,
   usersToSandboxes,
-  userRepos,
 } from "./schema"
 
 // Add dotenv configuration
@@ -75,16 +74,21 @@ export default {
           id: z.string(),
           name: z.string().optional(),
           visibility: z.enum(["public", "private"]).optional(),
-          containerId: z.string(),
+          containerId: z.string().nullable().optional(),
+          repositoryId: z.string().nullable().optional(),
         })
 
-        const { id, name, visibility, containerId } = postSchema.parse(
-          request.body
-        )
+        const { id, name, visibility, containerId, repositoryId } =
+          postSchema.parse(request.body)
         const sb = (
           await db
             .update(sandbox)
-            .set({ name, visibility, containerId })
+            .set({
+              name,
+              visibility,
+              containerId,
+              repositoryId,
+            })
             .where(eq(sandbox.id, id))
             .returning()
         )[0]
@@ -96,11 +100,11 @@ export default {
           name: z.string(),
           userId: z.string(),
           visibility: z.enum(["public", "private"]),
+          repositoryId: z.string().nullable().optional(),
         })
 
-        const { type, name, userId, visibility } = initSchema.parse(
-          request.body
-        )
+        const { type, name, userId, visibility, repositoryId } =
+          initSchema.parse(request.body)
 
         const userSandboxes = await db
           .select()
@@ -116,7 +120,14 @@ export default {
         const sb = (
           await db
             .insert(sandbox)
-            .values({ type, name, userId, visibility, createdAt: new Date() })
+            .values({
+              type,
+              name,
+              userId,
+              visibility,
+              createdAt: new Date(),
+              repositoryId,
+            })
             .returning()
         )[0]
 
@@ -195,7 +206,6 @@ export default {
           return new Response("User already has access.", { status: 400 })
         }
 
-
         await db
           .insert(usersToSandboxes)
           .values({ userId: user.id, sandboxId, sharedOn: new Date() })
@@ -220,90 +230,7 @@ export default {
 
         return success
       } else return methodNotAllowed
-    }else if (path === "/api/repos") { 
-      if (method === "GET") { 
-          if (searchParams.has("userId")) { 
-              const userId = searchParams.get("userId") as string; 
-              const repos = await db.query.userRepos.findMany({ 
-                  where: (repos, { eq }) => eq(repos.userId, userId), 
-                  orderBy: (repos, { desc }) => [desc(repos.createdAt)], 
-              }); 
-              return json(repos ?? []); 
-          } 
-  
-          if (searchParams.has("userId") && searchParams.has("repoName")) { 
-              const userId = searchParams.get("userId") as string; 
-              const repoName = searchParams.get("repoName") as string; 
-              const repo = await db.query.userRepos.findFirst({ 
-                  where: (repos, { eq, and }) => 
-                      and(eq(repos.userId, userId), eq(repos.repoName, repoName)), 
-              }); 
-              return json({ exists: !!repo, repo }); 
-          } 
-          
-          return json({ error: "Missing parameters" }, { status: 400 });
-      } 
-      else if (method === "POST") { 
-          const repoSchema = z.object({ 
-              userId: z.string(), 
-              repoId: z.string(), 
-              repoName: z.string().min(3, "repoName must be at least 3 characters"), 
-          }); 
-  
-          try { 
-            const { userId, repoId, repoName } = repoSchema.parse(request.body);
-      
-            const existingRepo = await db.query.userRepos.findFirst({
-              where: (repos, { eq, and }) =>
-                and(eq(repos.userId, userId), eq(repos.repoName, repoName)),
-            });
-      
-            if (existingRepo) {
-              return json({ error: "Repository already exists" }, { status: 409 });
-            }
-      
-            const newRepo = (
-              await db
-                .insert(userRepos)
-                .values({
-                  userId,
-                  repoId,
-                  repoName,
-                  createdAt: new Date(),
-                })
-                .returning()
-            )[0];
-      
-            return json(newRepo);
-          } catch (error) { 
-              return json({ error: error instanceof Error ? error.message : 'An unexpected error occurred' }, { status: 500 });
-          } 
-      } 
-      else if (method === "DELETE") { 
-          if (searchParams.has("userId") && searchParams.has("repoName")) { 
-              const userId = searchParams.get("userId") as string; 
-              const repoName = searchParams.get("repoName") as string; 
-  
-              const deleted = await db 
-                  .delete(userRepos) 
-                  .where( 
-                      and(eq(userRepos.userId, userId), eq(userRepos.repoName, repoName)) 
-                  ); 
-  
-              if (deleted.rowCount === 0) { 
-                  return json({ error: "Repository not found" }, { status: 404 }); 
-              } 
-  
-              return json({ message: "Repository deleted successfully" }); 
-          } 
-          
-          return json({ error: "Missing userId or repoName" }, { status: 400 }); 
-      } 
-      else {
-        return methodNotAllowed
-      }
-  }
-  else if (path === "/api/sandbox/like") {
+    } else if (path === "/api/sandbox/like") {
       if (method === "POST") {
         const likeSchema = z.object({
           sandboxId: z.string(),
@@ -437,7 +364,6 @@ export default {
                   liked: sb.likes.some((like: any) => like.userId === userId),
                 })
               ),
-
             }
             return json(transformedUser)
           }

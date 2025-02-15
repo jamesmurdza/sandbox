@@ -78,55 +78,60 @@ export class GithubManager {
   }
 
   // Helper Methods
-  async repoExists(repoName: string): Promise<{ exists: boolean, repoId?: string }> {
+  async repoExistsByName(
+    repoName: string
+  ): Promise<{ exists: boolean; repoId?: string }> {
     const repos = await this.octokit.request("GET /user/repos")
-    
+
     // Log all repositories for debugging
     console.log("Checking for repo name:", repoName)
     console.log("All user repositories:")
-    repos.data.forEach((repo: { name: string, id: number }) => {
+    repos.data.forEach((repo: { name: string; id: number }) => {
       console.log(`- ${repo.name} (ID: ${repo.id})`)
     })
-  
+
     // Find the matching repository
-    const existingRepo = repos.data.find((repo: { 
-      name: string, 
-      id: number 
-    }) => repo.name.toLowerCase() === repoName.toLowerCase()) // Case-insensitive comparison
-  
-    console.log("Found repository:", existingRepo ? {
-      name: existingRepo.name,
-      id: existingRepo.id
-    } : 'Not found')
-  
+    const existingRepo = repos.data.find(
+      (repo: { name: string; }) =>
+        repo.name.toLowerCase() === repoName.toLowerCase()
+    ) // Case-insensitive comparison
+
     const result = {
       exists: !!existingRepo,
-      repoId: existingRepo?.id?.toString()
+      repoId: existingRepo?.id?.toString(),
     }
-    
+
     console.log("Returning result:", result)
-    
+
     return result
   }
 
-  async createRepo(repoName: string): Promise<{ html_url: string, id: string }> {
+  async createRepo(
+    repoName: string
+  ): Promise<{ html_url: string; id: string }> {
     const { data } = await this.octokit.request("POST /user/repos", {
       name: repoName,
       auto_init: true,
       private: false,
     })
-    return { 
-      html_url: data.html_url, 
-      id: data.id.toString()
+    return {
+      html_url: data.html_url,
+      id: data.id.toString(),
     }
   }
 
   async createCommit(
-    repoName: string,
+    repoID: string,
     files: Array<{ id: string; data: string }>,
     message: string
   ) {
     const username = this.getUsername()
+    // First get repo name from ID
+    const repoInfo = await this.repoExistsByID(repoID)
+    if (!repoInfo.exists) {
+      throw new Error("Repository not found")
+    }
+    const repoName = repoInfo.repoName
 
     // Get the current commit SHA
     const { data: ref } = await this.octokit.request(
@@ -191,5 +196,35 @@ export class GithubManager {
       ref: "heads/main",
       sha: newCommit.sha,
     })
+    return { repoName }
+
+  }
+
+  async repoExistsByID(
+    repoId: string
+  ): Promise<{ exists: boolean; repoId: string; repoName: string }> {
+    const repos = await this.octokit.request("GET /user/repos")
+
+    console.log("Checking for repo ID:", repoId)
+    console.log("All user repositories:")
+    repos.data.forEach((repo: { name: string; id: number }) => {
+      console.log(`- ${repo.name} (ID: ${repo.id})`)
+    })
+
+    // Find the matching repository by ID
+    const existingRepo = repos.data.find(
+      (repo: {  id: number }) => repo.id.toString() === repoId
+    )
+
+
+    const result = {
+      exists: !!existingRepo,
+      repoId: existingRepo?.id?.toString() || "",
+      repoName: existingRepo?.name || "",
+    }
+
+    console.log("Returning result:", result)
+
+    return result
   }
 }

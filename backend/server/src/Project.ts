@@ -343,7 +343,7 @@ export class Project {
 
       return { zipBlob: zipBase64 }
     }
-    const handleCreateRepo: SocketHandler = async (data) => {
+    const handleCreateRepo: SocketHandler = async () => {
       if (!this.githubManager?.octokit) {
         return {
           success: false,
@@ -351,81 +351,66 @@ export class Project {
         }
       }
 
-      const { repoName } = data
+      const dbResponse = await fetch(
+        `${process.env.SERVER_URL}/api/sandbox?id=${this.projectId}`,
+        {
+          method: "GET",
+        }
+      )
 
+      const sandbox = await dbResponse.json()
+      let repoName = sandbox.name
       try {
-        // Check if repo exists in GitHub
-        const githubRepoCheck = await this.githubManager.repoExists(repoName)
+        const repoExists = await handleCheckSandboxRepo({})
+        console.log("Repo exists check result:", repoExists)
 
-        // Check if repo exists in DB
-        const dbResponse = await fetch(
-          `${process.env.SERVER_URL}/api/repos?userId=${connection.userId}&repoId=${githubRepoCheck.repoId}&repoName=${repoName}`,
-          {
-            headers: {
-              "Content-Type": "application/json",
-            },
-          }
-        )
-
-        const dbRepo = await dbResponse.json()
-        const existsInDB = dbRepo && dbRepo.length > 0
-
-        // Case 1: Exists in GitHub but not in DB
-        if (githubRepoCheck.exists && !existsInDB) {
-          return {
-            success: false,
-            repoExists: true,
-            existsInDB: false,
-            existsInGitHub: true,
-            error: "Repository exists in GitHub please change another sandbox name",
-          }
+        if (!repoExists.existsInDB && repoExists.existsInGitHub) {
+          let newRepoName = `${repoName}-gitwit`
+          repoName = newRepoName
+          console.log(`Original repo name taken, using: ${repoName}`)
         }
-        // Case 2: Exists in GitHub but not in DB
-        if (!githubRepoCheck.exists && existsInDB) {
-         
-          const s = await handleDeleteSandboxFromDB({
-            repoId: githubRepoCheck.repoId,
-          })
-          console.log(s)
-          return {
-            success: false,
-            repoExists: false,
-            existsInDB: true,
-            existsInGitHub: false,
-            error: "Repository exists in database but not in GitHub",
-          }
+
+        if (repoExists.existsInDB && !repoExists.existsInGitHub) {
+          await handleDeleteRepodIdFromDB({})
         }
-        // Case 3: Doesn't exist in either GitHub or DB - Create new
-        // Create new repo in GitHub
+        if (repoExists.existsInDB && repoExists.existsInGitHub) {
+          throw new Error("Repository already exists")
+        }
+        // Create new repo in GitHub with potentially modified name
         const { html_url, id } = await this.githubManager.createRepo(repoName)
-        console.log("Repo created:", id,repoName)
+        console.log("Repo created:", id, repoName)
 
-        // Store in DB
-       await fetch(`${process.env.SERVER_URL}/api/repos`, {
+        // Update sandbox with repository ID
+        await fetch(`${process.env.SERVER_URL}/api/sandbox`, {
           method: "POST",
-         
-        headers: {
+          headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            userId: connection.userId,
-            repoId: id,
-            repoName: repoName, 
+            id: this.projectId.toString(),
+            repositoryId: id.toString(),
           }),
         })
 
+        // Call handleCreateCommit with the new repo ID
+        await handleCreateCommit({
+          repoId: id.toString(),
+          message: "add files from GitWit",
+        })
 
         return {
           success: true,
           repoUrl: html_url,
-          message:
-            "Repository created successfully",
+          message: "Repository created and files committed successfully",
         }
       } catch (error) {
-        console.error("Failed to create repository:", error)
+        console.log(
+          "Failed to create repository or commit files:",
+          error instanceof Error ? error.message : error
+        )
         return {
           success: false,
-          error: "Failed to create repository",
+          error: "Failed to create repository or commit files",
         }
       }
     }
@@ -439,17 +424,18 @@ export class Project {
         }
       }
 
-      const { repoName, message } = data
+      const { repoId, message } = data
 
       try {
         // First check if repo still exists
-        const repoCheck = await this.githubManager.repoExists(repoName)
+        const repoCheck = await this.githubManager.repoExistsByID(repoId)
         if (!repoCheck.exists) {
-          await handleDeleteSandboxFromDB({ repoId: repoCheck.repoId })
+          await handleDeleteRepodIdFromDB({})
           return {
             success: false,
-            error: "Repository no longer exists in GitHub",
+            error: "Repository no longer exists in GitHub or DB",
             existsInGitHub: false,
+            existsInDB: false,
           }
         }
 
@@ -488,65 +474,102 @@ export class Project {
         }
 
         const commitMessage = message || "Initial commit from GitWit"
-        await this.githubManager.createCommit(repoName, files, commitMessage)
+        const repo = await this.githubManager.createCommit(
+          repoId,
+          files,
+          commitMessage
+        )
 
         return {
           success: true,
-          repoUrl: `https://github.com/${username}/${repoName}`,
+          repoUrl: `https://github.com/${username}/${repo.repoName}`,
         }
       } catch (error) {
         console.error("Failed to create commit:", error)
         return { success: false, error: "Failed to create commit" }
       }
     }
-    const handleCheckSandboxRepo: SocketHandler = async (data) => {
-      const { repoName } = data
-
-      console.log(`Checking repo status for: ${repoName}`)
-
-      // Check if repo exists in GitHub
-      const githubRepoCheck = await this.githubManager.repoExists(repoName)
-
-
-      // Check if repo exists in DB
+    const handleCheckSandboxRepo: SocketHandler = async () => {
+      // First check if we have this sandbox in DB
       const dbResponse = await fetch(
-        `${process.env.SERVER_URL}/api/repos?userId=${connection.userId}&repoId=${githubRepoCheck.repoId}&repoName=${repoName}`,
+        `${process.env.SERVER_URL}/api/sandbox?id=${this.projectId}`,
         {
           method: "GET",
         }
       )
 
-      const dbRepo = await dbResponse.json()
-      console.log("DB Repo Exists:", dbRepo.length > 0)
+      const sandbox = await dbResponse.json()
+      const repoName = sandbox.name
 
-      const existsInDB = dbRepo.length > 0
+      // Case 1: Sandbox has repositoryId - check if it exists in GitHub
+      if (sandbox && sandbox.repositoryId) {
+        console.log("Found repo in DB, checking GitHub by ID...")
 
-      if (existsInDB && githubRepoCheck.exists) {
-        console.log("Both DB and GitHub Repo exist ✅")
-        return { existsInBoth: true }
+        const githubRepoCheck = await this.githubManager.repoExistsByID(
+          sandbox.repositoryId
+        )
+
+        if (githubRepoCheck.exists) {
+
+          return {
+            existsInDB: true,
+            existsInGitHub: true,
+            repoId: githubRepoCheck.repoId,
+          }
+        } else {
+
+          return {
+            existsInDB: true,
+            existsInGitHub: false,
+          }
+        }
       }
-      return { existsInBoth: false }
+
+      // If we get here, no repository is linked to this sandbox
+      // Check if the repo exists in GitHub by name
+      console.log("No repository linked to sandbox, checking GitHub by name...")
+      const githubRepoCheck = await this.githubManager.repoExistsByName(
+        repoName
+      )
+
+      if (githubRepoCheck.exists) {
+        // Case 2: Exists in GitHub but not in DB
+        console.log("⚠️ Case 2: Repo exists only in GitHub")
+        return {
+          existsInDB: false,
+          existsInGitHub: true,
+        }
+      }
+
+      // Case 3: Doesn't exist in either place
+      console.log("❌ Case 3: Repo doesn't exist in either DB or GitHub")
+      return {
+        existsInDB: false,
+        existsInGitHub: false,
+      }
     }
 
-    const handleDeleteSandboxFromDB: SocketHandler = async (data) => {
-      const { repoId } = data
-      console.log(`Deleting repo from DB: ${repoId}`)
+    const handleDeleteRepodIdFromDB: SocketHandler = async () => {
       try {
-        await fetch(
-          `${process.env.SERVER_URL}/api/repos?userId=${connection.userId}&&repoId=${repoId}&&repoName=${repoId}`,
-          {
-            method: "DELETE",
-            headers: {
-              "Content-Type": "application/json",
-            },
-          }
-        )
-        console.log("Repo deleted from DB successfully")
+        await fetch(`${process.env.SERVER_URL}/api/sandbox`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            id: this.projectId.toString(),
+            repositoryId: null,
+          }),
+        })
+        console.log("Repository removed from sandbox successfully")
 
         return { success: true }
       } catch (error) {
-        console.error("Failed to delete repository from DB:", error)
-        return { success: false, error: "Failed to delete repository from DB" }
+        console.error("Failed to remove repository from sandbox:", error)
+        return {
+          success: false,
+          error: "Failed to remove repository from sandbox",
+        }
       }
     }
     const handleGitHubUserName: SocketHandler = async (data) => {
@@ -586,7 +609,7 @@ export class Project {
       closeTerminal: handleCloseTerminal,
       getGitHubUserName: handleGitHubUserName,
       checkSandboxRepo: handleCheckSandboxRepo,
-      deleteSandboxFromDB: handleDeleteSandboxFromDB,
+      deleteRepodIdFromDB: handleDeleteRepodIdFromDB,
       authenticateGithub: handleAuthenticateGithub,
       createCommit: handleCreateCommit,
       createRepo: handleCreateRepo,
