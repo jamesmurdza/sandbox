@@ -8,7 +8,7 @@
     "start": "node dist/src/index.js",
     "dev": "nodemon src/index.ts",
     "generate": "npx drizzle-kit generate",
-    "migrate": "npx drizzle-kit migrate"
+    "migrate": "tsx src/migrate.ts"
   },
   "author": "",
   "license": "ISC",
