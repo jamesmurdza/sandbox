@@ -1,8 +1,8 @@
 import {
-    Sandbox as Container,
-    FilesystemEvent,
-    FilesystemEventType,
-    WatchHandle,
+  Sandbox as Container,
+  FilesystemEvent,
+  FilesystemEventType,
+  WatchHandle,
 } from "e2b"
 import path from "path"
 import { MAX_BODY_SIZE } from "./ratelimit"
@@ -172,7 +172,10 @@ export class FileManager {
   }
 
   // Move a file to a different folder
-  async moveFile(fileId: string, folderId: string): Promise<(TFolder | TFile)[]> {
+  async moveFile(
+    fileId: string,
+    folderId: string
+  ): Promise<(TFolder | TFile)[]> {
     // Normalize the folder ID for root directory
     const normalizedFolderId = folderId.includes("projects/") ? "/" : folderId
     
