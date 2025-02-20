@@ -240,7 +240,7 @@ export class FileManager {
 
   // Delete a folder
   async deleteFolder(folderId: string): Promise<(TFolder | TFile)[]> {
-    this.container.files.remove(path.posix.join(this.dirName, folderId))
+    await this.container.files.remove(path.posix.join(this.dirName, folderId))
     return await this.getFileTree()
   }
 
