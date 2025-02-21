@@ -60,7 +60,7 @@ export default function Sidebar({
     if (el) {
       return dropTargetForElements({
         element: el,
-        getData: () => ({ id: `projects/${sandboxData.id}` }),
+        getData: () => ({ id: "/" }),
         canDrop: ({ source }) => {
           const file = files.find((child) => child.id === source.data.id)
           return !file

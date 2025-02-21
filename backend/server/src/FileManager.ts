@@ -172,21 +172,10 @@ export class FileManager {
   }
 
   // Move a file to a different folder
-  async moveFile(
-    fileId: string,
-    folderId: string
-  ): Promise<(TFolder | TFile)[]> {
-    // Normalize the folder ID for root directory
-    const normalizedFolderId = folderId.includes("projects/") ? "/" : folderId
-    
-    // Create the new file path
-    const newFileId = normalizedFolderId === "/" 
-      ? path.posix.basename(fileId)  // For root, just use filename
-      : path.posix.join(normalizedFolderId, path.posix.basename(fileId))
-
+  async moveFile(fileId: string, folderId: string): Promise<(TFolder | TFile)[]> {
+    const newFileId = path.posix.join(folderId, path.posix.basename(fileId))
     await this.moveFileInContainer(fileId, newFileId)
     await this.fixPermissions()
-
     return await this.getFileTree()
   }
 
