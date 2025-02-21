@@ -172,7 +172,10 @@ export class FileManager {
   }
 
   // Move a file to a different folder
-  async moveFile(fileId: string, folderId: string): Promise<(TFolder | TFile)[]> {
+  async moveFile(
+    fileId: string, 
+    folderId: string
+  ): Promise<(TFolder | TFile)[]> {
     const newFileId = path.posix.join(folderId, path.posix.basename(fileId))
     await this.moveFileInContainer(fileId, newFileId)
     await this.fixPermissions()
