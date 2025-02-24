@@ -23,6 +23,9 @@ export default function AIChat({
   mergeDecorationsCollection,
   setMergeDecorationsCollection,
   projectName,
+  useOpenRouter,
+  openRouterModel,
+  openRouterApiKey,
 }: AIChatProps) {
   // Initialize socket and messages
   const { socket } = useSocket()
@@ -155,7 +158,10 @@ export default function AIChat({
       false,
       templateType,
       files,
-      projectName
+      projectName,
+      useOpenRouter,
+      openRouterModel,
+      openRouterApiKey
     )
   }
 

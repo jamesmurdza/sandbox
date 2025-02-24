@@ -1393,6 +1393,9 @@ export default function CodeEditor({
                   mergeDecorationsCollection={mergeDecorationsCollection}
                   setMergeDecorationsCollection={setMergeDecorationsCollection}
                   selectFile={selectFile}
+                  useOpenRouter={userData.openRouterEnabled}
+                  openRouterModel={userData.openRouterModel}
+                  openRouterApiKey={userData.openRouterApiKey}
                 />
               </ResizablePanel>
             </>

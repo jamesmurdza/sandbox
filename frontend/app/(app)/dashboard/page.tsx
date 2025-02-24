@@ -28,9 +28,14 @@ export default async function DashboardPage() {
     authorAvatarUrl: string
   }[]
 
+  const openRouterSettingsRes = await fetch(
+    `${process.env.NEXT_PUBLIC_SERVER_URL}/api/openrouter/settings?id=${user.id}`
+  )
+  const openRouterSettings = await openRouterSettingsRes.json()
+
   return (
     <div className="w-screen h-screen flex flex-col overflow-hidden overscroll-none">
-      <Navbar userData={userData} />
+      <Navbar userData={userData} openRouterSettings={openRouterSettings} />
       <Dashboard sandboxes={userData.sandbox} shared={shared} />
     </div>
   )

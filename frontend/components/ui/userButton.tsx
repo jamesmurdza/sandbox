@@ -59,6 +59,22 @@ export default function UserButton({ userData }: { userData: User }) {
     router.push(`/@${userData.username}`)
   }
 
+  const [openRouterEnabled, setOpenRouterEnabled] = useState(false)
+  const [openRouterModel, setOpenRouterModel] = useState("")
+  const [openRouterApiKey, setOpenRouterApiKey] = useState("")
+
+  const handleOpenRouterToggle = () => {
+    setOpenRouterEnabled(!openRouterEnabled)
+  }
+
+  const handleOpenRouterModelChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setOpenRouterModel(e.target.value)
+  }
+
+  const handleOpenRouterApiKeyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setOpenRouterApiKey(e.target.value)
+  }
+
   return (
     <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
       <DropdownMenuTrigger>
@@ -138,10 +154,38 @@ export default function UserButton({ userData }: { userData: User }) {
         </div>
         <DropdownMenuSeparator />
 
-        {/* <DropdownMenuItem className="cursor-pointer">
-          <Pencil className="mr-2 size-4" />
-          <span>Edit Profile</span>
-        </DropdownMenuItem> */}
+        <DropdownMenuItem className="cursor-pointer">
+          <input
+            type="checkbox"
+            checked={openRouterEnabled}
+            onChange={handleOpenRouterToggle}
+          />
+          <span className="ml-2">Enable OpenRouter</span>
+        </DropdownMenuItem>
+        {openRouterEnabled && (
+          <>
+            <DropdownMenuItem className="cursor-pointer">
+              <input
+                type="text"
+                placeholder="OpenRouter Model"
+                value={openRouterModel}
+                onChange={handleOpenRouterModelChange}
+                className="w-full p-1 border rounded"
+              />
+            </DropdownMenuItem>
+            <DropdownMenuItem className="cursor-pointer">
+              <input
+                type="text"
+                placeholder="OpenRouter API Key"
+                value={openRouterApiKey}
+                onChange={handleOpenRouterApiKeyChange}
+                className="w-full p-1 border rounded"
+              />
+            </DropdownMenuItem>
+          </>
+        )}
+        <DropdownMenuSeparator />
+
         <DropdownMenuItem
           onClick={() => signOut(() => router.push("/"))}
           className="!text-destructive cursor-pointer"
