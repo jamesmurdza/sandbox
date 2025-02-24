@@ -23,9 +23,6 @@ export default function AIChat({
   mergeDecorationsCollection,
   setMergeDecorationsCollection,
   projectName,
-  useOpenRouter,
-  openRouterModel,
-  openRouterApiKey,
 }: AIChatProps) {
   // Initialize socket and messages
   const { socket } = useSocket()
@@ -158,10 +155,7 @@ export default function AIChat({
       false,
       templateType,
       files,
-      projectName,
-      useOpenRouter,
-      openRouterModel,
-      openRouterApiKey
+      projectName
     )
   }
 
@@ -195,6 +189,28 @@ export default function AIChat({
       })
     )
   }, [activeFileContent, activeFileName])
+
+  // State for OpenRouter settings
+  const [openRouterEnabled, setOpenRouterEnabled] = useState(false)
+  const [openRouterApiKey, setOpenRouterApiKey] = useState("")
+  const [openRouterModel, setOpenRouterModel] = useState("")
+
+  // Fetch OpenRouter settings from user profile
+  useEffect(() => {
+    const fetchOpenRouterSettings = async () => {
+      try {
+        const response = await fetch("/api/user/openrouter-settings")
+        const data = await response.json()
+        setOpenRouterEnabled(data.openRouterEnabled)
+        setOpenRouterApiKey(data.openRouterApiKey)
+        setOpenRouterModel(data.openRouterModel)
+      } catch (error) {
+        console.error("Error fetching OpenRouter settings:", error)
+      }
+    }
+
+    fetchOpenRouterSettings()
+  }, [])
 
   return (
     <div className="flex flex-col h-screen w-full">
