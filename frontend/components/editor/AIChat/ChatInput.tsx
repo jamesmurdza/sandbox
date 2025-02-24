@@ -1,6 +1,6 @@
 import { TFile, TFolder } from "@/lib/types"
 import { Image as ImageIcon, Paperclip, Send, StopCircle } from "lucide-react"
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "../../ui/button"
 import { looksLikeCode } from "./lib/chatUtils"
 import { ALLOWED_FILE_TYPES, ChatInputProps } from "./types"
@@ -20,6 +20,28 @@ export default function ChatInput({
   onRemoveTab,
   textareaRef,
 }: ChatInputProps) {
+  // State for OpenRouter settings
+  const [openRouterEnabled, setOpenRouterEnabled] = useState(false)
+  const [openRouterApiKey, setOpenRouterApiKey] = useState("")
+  const [openRouterModel, setOpenRouterModel] = useState("")
+
+  // Fetch OpenRouter settings from user profile
+  useEffect(() => {
+    const fetchOpenRouterSettings = async () => {
+      try {
+        const response = await fetch("/api/user/openrouter-settings")
+        const data = await response.json()
+        setOpenRouterEnabled(data.openRouterEnabled)
+        setOpenRouterApiKey(data.openRouterApiKey)
+        setOpenRouterModel(data.openRouterModel)
+      } catch (error) {
+        console.error("Error fetching OpenRouter settings:", error)
+      }
+    }
+
+    fetchOpenRouterSettings()
+  }, [])
+
   // Auto-resize textarea as content changes
   useEffect(() => {
     if (textareaRef.current) {

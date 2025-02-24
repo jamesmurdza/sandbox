@@ -59,6 +59,20 @@ export default function UserButton({ userData }: { userData: User }) {
     router.push(`/@${userData.username}`)
   }
 
+  const [openRouterEnabled, setOpenRouterEnabled] = useState(userData.openRouterEnabled || false)
+  const [openRouterApiKey, setOpenRouterApiKey] = useState(userData.openRouterApiKey || "")
+  const [openRouterModel, setOpenRouterModel] = useState(userData.openRouterModel || "")
+
+  const handleSaveSettings = async () => {
+    // Save the OpenRouter settings to the user profile
+    // This is a placeholder, replace with actual save logic
+    console.log("Saving OpenRouter settings:", {
+      openRouterEnabled,
+      openRouterApiKey,
+      openRouterModel,
+    })
+  }
+
   return (
     <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
       <DropdownMenuTrigger>
@@ -138,10 +152,49 @@ export default function UserButton({ userData }: { userData: User }) {
         </div>
         <DropdownMenuSeparator />
 
-        {/* <DropdownMenuItem className="cursor-pointer">
-          <Pencil className="mr-2 size-4" />
-          <span>Edit Profile</span>
-        </DropdownMenuItem> */}
+        <div className="px-2 py-1.5">
+          <div className="flex items-center justify-between text-sm text-muted-foreground mb-2">
+            <span>Enable OpenRouter</span>
+            <input
+              type="checkbox"
+              checked={openRouterEnabled}
+              onChange={(e) => setOpenRouterEnabled(e.target.checked)}
+            />
+          </div>
+          {openRouterEnabled && (
+            <>
+              <div className="mb-2">
+                <label className="text-sm text-muted-foreground">API Key</label>
+                <input
+                  type="text"
+                  value={openRouterApiKey}
+                  onChange={(e) => setOpenRouterApiKey(e.target.value)}
+                  className="w-full mt-1 p-1 border rounded"
+                />
+              </div>
+              <div className="mb-2">
+                <label className="text-sm text-muted-foreground">Model</label>
+                <input
+                  type="text"
+                  value={openRouterModel}
+                  onChange={(e) => setOpenRouterModel(e.target.value)}
+                  className="w-full mt-1 p-1 border rounded"
+                />
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full"
+                onClick={handleSaveSettings}
+              >
+                Save Settings
+              </Button>
+            </>
+          )}
+        </div>
+
+        <DropdownMenuSeparator />
+
         <DropdownMenuItem
           onClick={() => signOut(() => router.push("/"))}
           className="!text-destructive cursor-pointer"
