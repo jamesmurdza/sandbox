@@ -59,20 +59,18 @@ export default function UserButton({ userData }: { userData: User }) {
     router.push(`/@${userData.username}`)
   }
 
-  const [openRouterEnabled, setOpenRouterEnabled] = useState(false)
-  const [openRouterModel, setOpenRouterModel] = useState("")
-  const [openRouterApiKey, setOpenRouterApiKey] = useState("")
+  const [openRouterEnabled, setOpenRouterEnabled] = useState(userData.openRouterEnabled || false)
+  const [openRouterApiKey, setOpenRouterApiKey] = useState(userData.openRouterApiKey || "")
+  const [openRouterModel, setOpenRouterModel] = useState(userData.openRouterModel || "")
 
-  const handleOpenRouterToggle = () => {
-    setOpenRouterEnabled(!openRouterEnabled)
-  }
-
-  const handleOpenRouterModelChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setOpenRouterModel(e.target.value)
-  }
-
-  const handleOpenRouterApiKeyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setOpenRouterApiKey(e.target.value)
+  const handleSaveSettings = async () => {
+    // Save the OpenRouter settings to the user profile
+    // This is a placeholder, replace with actual save logic
+    console.log("Saving OpenRouter settings:", {
+      openRouterEnabled,
+      openRouterApiKey,
+      openRouterModel,
+    })
   }
 
   return (
@@ -154,36 +152,47 @@ export default function UserButton({ userData }: { userData: User }) {
         </div>
         <DropdownMenuSeparator />
 
-        <DropdownMenuItem className="cursor-pointer">
-          <input
-            type="checkbox"
-            checked={openRouterEnabled}
-            onChange={handleOpenRouterToggle}
-          />
-          <span className="ml-2">Enable OpenRouter</span>
-        </DropdownMenuItem>
-        {openRouterEnabled && (
-          <>
-            <DropdownMenuItem className="cursor-pointer">
-              <input
-                type="text"
-                placeholder="OpenRouter Model"
-                value={openRouterModel}
-                onChange={handleOpenRouterModelChange}
-                className="w-full p-1 border rounded"
-              />
-            </DropdownMenuItem>
-            <DropdownMenuItem className="cursor-pointer">
-              <input
-                type="text"
-                placeholder="OpenRouter API Key"
-                value={openRouterApiKey}
-                onChange={handleOpenRouterApiKeyChange}
-                className="w-full p-1 border rounded"
-              />
-            </DropdownMenuItem>
-          </>
-        )}
+        <div className="px-2 py-1.5">
+          <div className="flex items-center justify-between text-sm text-muted-foreground mb-2">
+            <span>Enable OpenRouter</span>
+            <input
+              type="checkbox"
+              checked={openRouterEnabled}
+              onChange={(e) => setOpenRouterEnabled(e.target.checked)}
+            />
+          </div>
+          {openRouterEnabled && (
+            <>
+              <div className="mb-2">
+                <label className="text-sm text-muted-foreground">API Key</label>
+                <input
+                  type="text"
+                  value={openRouterApiKey}
+                  onChange={(e) => setOpenRouterApiKey(e.target.value)}
+                  className="w-full mt-1 p-1 border rounded"
+                />
+              </div>
+              <div className="mb-2">
+                <label className="text-sm text-muted-foreground">Model</label>
+                <input
+                  type="text"
+                  value={openRouterModel}
+                  onChange={(e) => setOpenRouterModel(e.target.value)}
+                  className="w-full mt-1 p-1 border rounded"
+                />
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full"
+                onClick={handleSaveSettings}
+              >
+                Save Settings
+              </Button>
+            </>
+          )}
+        </div>
+
         <DropdownMenuSeparator />
 
         <DropdownMenuItem

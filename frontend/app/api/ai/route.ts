@@ -7,14 +7,10 @@ import { TIERS } from "@/lib/tiers"
 import { TFile, TFolder } from "@/lib/types"
 import { Anthropic } from "@anthropic-ai/sdk"
 import { currentUser } from "@clerk/nextjs"
-import { OpenRouter } from "openrouter"
+import { createOpenRouter } from '@openrouter/ai-sdk-provider'
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
-})
-
-const openRouter = new OpenRouter({
-  apiKey: process.env.OPENROUTER_API_KEY!,
 })
 
 // Format file structure for context
@@ -108,9 +104,6 @@ export async function POST(request: Request) {
       templateType,
       files,
       projectName,
-      useOpenRouter,
-      openRouterModel,
-      openRouterApiKey,
     } = await request.json()
 
     // Get template configuration
@@ -181,28 +174,31 @@ ${activeFileContent ? `Active File Content:\n${activeFileContent}\n` : ""}`
     }
 
     // Create stream response
-    const stream = useOpenRouter
-      ? await openRouter.messages.create({
-          model: openRouterModel,
-          apiKey: openRouterApiKey,
-          max_tokens: tierSettings.maxTokens,
-          system: systemMessage,
-          messages: messages.map((msg: { role: string; content: string }) => ({
-            role: msg.role === "human" ? "user" : "assistant",
-            content: msg.content,
-          })),
-          stream: true,
-        })
-      : await anthropic.messages.create({
-          model: tierSettings.model,
-          max_tokens: tierSettings.maxTokens,
-          system: systemMessage,
-          messages: messages.map((msg: { role: string; content: string }) => ({
-            role: msg.role === "human" ? "user" : "assistant",
-            content: msg.content,
-          })),
-          stream: true,
-        })
+    let stream;
+    if (userData.openRouterEnabled) {
+      const openRouter = createOpenRouter({
+        apiKey: userData.openRouterApiKey,
+        model: userData.openRouterModel,
+      });
+      stream = await openRouter.messages.create({
+        messages: messages.map((msg: { role: string; content: string }) => ({
+          role: msg.role === "human" ? "user" : "assistant",
+          content: msg.content,
+        })),
+        stream: true,
+      });
+    } else {
+      stream = await anthropic.messages.create({
+        model: tierSettings.model,
+        max_tokens: tierSettings.maxTokens,
+        system: systemMessage,
+        messages: messages.map((msg: { role: string; content: string }) => ({
+          role: msg.role === "human" ? "user" : "assistant",
+          content: msg.content,
+        })),
+        stream: true,
+      });
+    }
 
     // Increment user's generation count
     await fetch(
