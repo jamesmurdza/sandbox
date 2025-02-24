@@ -1062,6 +1062,28 @@ export default function CodeEditor({
     setIsAIChatOpen((prev) => !prev)
   }
 
+  // State for OpenRouter settings
+  const [openRouterEnabled, setOpenRouterEnabled] = useState(false)
+  const [openRouterApiKey, setOpenRouterApiKey] = useState("")
+  const [openRouterModel, setOpenRouterModel] = useState("")
+
+  // Fetch OpenRouter settings from user profile
+  useEffect(() => {
+    const fetchOpenRouterSettings = async () => {
+      try {
+        const response = await fetch("/api/user/openrouter-settings")
+        const data = await response.json()
+        setOpenRouterEnabled(data.openRouterEnabled)
+        setOpenRouterApiKey(data.openRouterApiKey)
+        setOpenRouterModel(data.openRouterModel)
+      } catch (error) {
+        console.error("Error fetching OpenRouter settings:", error)
+      }
+    }
+
+    fetchOpenRouterSettings()
+  }, [])
+
   // On disabled access for shared users, show un-interactable loading placeholder + info modal
   if (disableAccess.isDisabled)
     return (

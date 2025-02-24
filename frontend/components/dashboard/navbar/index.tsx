@@ -5,7 +5,17 @@ import Link from "next/link"
 import UserButton from "../../ui/userButton"
 import DashboardNavbarSearch from "./search"
 
-export default function DashboardNavbar({ userData }: { userData: User }) {
+export default function DashboardNavbar({
+  userData,
+  openRouterSettings,
+}: {
+  userData: User
+  openRouterSettings: {
+    enabled: boolean
+    model: string
+    apiKey: string
+  }
+}) {
   return (
     <div className=" py-2 px-4 w-full flex items-center justify-between border-b border-border">
       <div className="flex items-center space-x-2">
@@ -25,7 +35,7 @@ export default function DashboardNavbar({ userData }: { userData: User }) {
       <div className="flex items-center space-x-4">
         <DashboardNavbarSearch />
         <ThemeSwitcher />
-        <UserButton userData={userData} />
+        <UserButton userData={userData} openRouterSettings={openRouterSettings} />
       </div>
     </div>
   )
