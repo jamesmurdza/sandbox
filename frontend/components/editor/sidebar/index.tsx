@@ -1,34 +1,114 @@
 "use client"
-
-import { useSocket } from "@/context/SocketContext"
-import { Sandbox, TFile, TFolder, TTab } from "@/lib/types"
-import { FilePlus, FolderPlus, MessageSquareMore, Sparkles } from "lucide-react"
-import { useEffect, useMemo, useRef, useState } from "react"
-import SidebarFile from "./file"
-import SidebarFolder from "./folder"
-import New from "./new"
-
-import { Button } from "@/components/ui/button"
+import { File, Github } from "@/components/ui/Icons"
+import Avatar from "@/components/ui/avatar"
+import { Button, buttonVariants } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuPortal,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+import {
+  useCreateRepo,
+  useGithubLogin,
+  useGithubLogout,
+  useGithubUser,
+} from "@/hooks/use-github"
+import { Sandbox, TFile, TFolder, TTab } from "@/lib/types"
 import { cn, sortFileExplorer } from "@/lib/utils"
 import {
   dropTargetForElements,
   monitorForElements,
 } from "@atlaskit/pragmatic-drag-and-drop/element/adapter"
+import { Slot } from "@radix-ui/react-slot"
+import { VariantProps } from "class-variance-authority"
+import { AnimatePresence, motion } from "framer-motion"
+import {
+  Ellipsis,
+  FilePlus,
+  FolderPlus,
+  Loader2,
+  MessageSquareMore,
+  PackagePlus,
+  RefreshCw,
+  Sparkles,
+} from "lucide-react"
+import { revalidatePath } from "next/cache"
+import * as React from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { Socket } from "socket.io-client"
+import { toast } from "sonner"
+import SidebarFile from "./file"
+import SidebarFolder from "./folder"
+import New from "./new"
 
-export default function Sidebar({
-  sandboxData,
-  files,
-  selectFile,
-  handleRename,
-  handleDeleteFile,
-  handleDeleteFolder,
-  setFiles,
-  deletingFolderId,
-  toggleAIChat,
-  isAIChatOpen,
-}: {
+const sidebarItem = [
+  {
+    id: "file",
+    name: "File Explorer",
+    icon: File,
+  },
+  {
+    id: "github",
+    name: "Sync to GitHub",
+    icon: Github,
+  },
+]
+// #region Sidebar
+interface SidebarProps extends FileManagerProps {}
+export default function Sidebar(props: SidebarProps) {
+  const [activeItem, setActiveItem] = useState<string | null>(sidebarItem[0].id)
+  const hideSidebar = activeItem === null
+  return (
+    <TooltipProvider>
+      <div className="flex h-full">
+        <div className="w-12 flex flex-col items-center gap-3 pt-2 border-r border-secondary">
+          {sidebarItem.map(({ id, name, icon: Icon }, index) => (
+            <SidebarButton
+              key={index}
+              isActive={activeItem === id}
+              onClick={() => setActiveItem(activeItem === id ? null : id)}
+              variant="ghost"
+              size="smIcon"
+              tooltip={name}
+            >
+              <Icon className="size-5" />
+            </SidebarButton>
+          ))}
+        </div>
+        <motion.div
+          className={cn(
+            "h-full w-56 transition-all duration-300 delay-75",
+            hideSidebar ? "w-0" : "w-56"
+          )}
+        >
+          <AnimatePresence initial={false} mode="wait">
+            {activeItem === "file" && <FileExplorer {...props} />}
+            {activeItem === "github" && (
+              <GitHubSync repoId={props.sandboxData?.repositoryId} />
+            )}
+          </AnimatePresence>
+        </motion.div>
+      </div>
+    </TooltipProvider>
+  )
+}
+// #endregion
+
+// #region File Explorer
+interface FileManagerProps {
   sandboxData: Sandbox
   files: (TFile | TFolder)[]
   selectFile: (tab: TTab) => void
@@ -40,20 +120,31 @@ export default function Sidebar({
   ) => boolean
   handleDeleteFile: (file: TFile) => void
   handleDeleteFolder: (folder: TFolder) => void
+  socket: Socket
   setFiles: (files: (TFile | TFolder)[]) => void
   deletingFolderId: string
   toggleAIChat: () => void
   isAIChatOpen: boolean
-}) {
-  const ref = useRef(null) // drop target
-
+}
+function FileExplorer({
+  sandboxData,
+  files,
+  selectFile,
+  handleRename,
+  handleDeleteFile,
+  handleDeleteFolder,
+  socket,
+  setFiles,
+  deletingFolderId,
+  toggleAIChat,
+  isAIChatOpen,
+}: FileManagerProps) {
   const [creatingNew, setCreatingNew] = useState<"file" | "folder" | null>(null)
-  const { socket } = useSocket()
-
   const [movingId, setMovingId] = useState("")
   const sortedFiles = useMemo(() => {
     return sortFileExplorer(files)
   }, [files])
+  const ref = useRef(null) // drop target
   useEffect(() => {
     const el = ref.current
 
@@ -73,6 +164,9 @@ export default function Sidebar({
     return monitorForElements({
       onDrop({ source, location }) {
         const destination = location.current.dropTargets[0]
+        if (!destination) {
+          return
+        }
 
         const fileId = source.data.id as string
         const folderId = destination.data.id as string
@@ -85,7 +179,7 @@ export default function Sidebar({
         console.log("move file", fileId, "to folder", folderId)
 
         setMovingId(fileId)
-        socket?.emit(
+        socket.emit(
           "moveFile",
           {
             fileId,
@@ -98,13 +192,17 @@ export default function Sidebar({
         )
       },
     })
-  }, [socket])
-
+  }, [])
   return (
-    <div className="h-full w-56 select-none flex flex-col text-sm">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="h-full select-none flex flex-col text-sm"
+    >
       <ScrollArea className="flex-grow overflow-auto px-2 pt-0 pb-4 relative">
         <div className="flex w-full items-center justify-between h-8 pb-1 isolate z-10 sticky pt-2 top-0 bg-background">
-          <div className="text-muted-foreground">Explorer</div>
+          <h2 className="font-medium">Explorer</h2>
           <div className="flex space-x-1">
             <button
               disabled={!!creatingNew}
@@ -122,17 +220,17 @@ export default function Sidebar({
             </button>
             {/* Todo: Implement file searching */}
             {/* <button className="h-6 w-6 text-muted-foreground ml-0.5 flex items-center justify-center translate-x-1 bg-transparent hover:bg-muted-foreground/25 cursor-pointer rounded-sm transition-all focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
-            <Search className="w-4 h-4" />
-          </button> */}
+              <Search className="w-4 h-4" />
+            </button> */}
           </div>
         </div>
         <div ref={ref} className="rounded-sm w-full mt-1 flex flex-col">
           {/* <div
-          ref={ref}
-          className={`${
-            isDraggedOver ? "bg-secondary/50" : ""
-          } rounded-sm w-full mt-1 flex flex-col`}
-        > */}
+            ref={ref}
+            className={`${
+              isDraggedOver ? "bg-secondary/50" : ""
+            } rounded-sm w-full mt-1 flex flex-col`}
+          > */}
           {sortedFiles.length === 0 ? (
             <div className="w-full flex flex-col justify-center">
               {new Array(6).fill(0).map((_, i) => (
@@ -165,7 +263,7 @@ export default function Sidebar({
                   />
                 )
               )}
-              {creatingNew !== null && socket ? (
+              {creatingNew !== null ? (
                 <New
                   socket={socket}
                   type={creatingNew}
@@ -220,6 +318,217 @@ export default function Sidebar({
           </div>
         </Button>
       </div>
-    </div>
+    </motion.div>
   )
 }
+// #endregion File Explorer
+
+// #region Github Sync
+function GitHubSync({ repoId }: { repoId?: string }) {
+  const {
+    mutate: handleGithubLogin,
+    isPending: isLoggingIn,
+    data,
+  } = useGithubLogin({
+    onSuccess: () => {
+      refetch()
+    },
+  })
+  const { data: githubUser, refetch } = useGithubUser({
+    variables: {
+      code: data?.code,
+    },
+  })
+  const hasRepo = Boolean(repoId)
+  const { mutate: handleGithubLogout, isPending: isLoggingOut } =
+    useGithubLogout()
+  const { mutate: handleCreateRepo, isPending: isCreatingRepo } = useCreateRepo(
+    {
+      onSuccess() {
+        toast.success("Repository created successfully")
+        return revalidatePath("/code/[id]", "page")
+      },
+    }
+  )
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="h-full select-none flex flex-col text-sm w-56"
+    >
+      <ScrollArea className="flex-grow overflow-auto px-2 pt-0 pb-4 relative">
+        <div className="flex flex-col gap-3 w-full pt-2">
+          <div className="flex items-center justify-between w-full">
+            <h2 className="font-medium">Sync to GitHub</h2>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="smIcon" className="size-6">
+                  <Ellipsis size={16} />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56">
+                {githubUser ? (
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger>
+                      <Avatar
+                        className="size-6"
+                        name={githubUser.name}
+                        avatarUrl={githubUser.avatar_url}
+                      />
+                      <div className="grid flex-1 text-left text-sm leading-tight ml-2">
+                        <span className="truncate font-semibold text-xs">
+                          {githubUser.name}
+                        </span>
+                        <span className="truncate text-[0.6rem]">
+                          @{githubUser.login}
+                        </span>
+                      </div>
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuPortal>
+                      <DropdownMenuSubContent>
+                        <DropdownMenuItem
+                          onSelect={(e) => {
+                            e.preventDefault()
+                            handleGithubLogout()
+                          }}
+                        >
+                          {isLoggingOut && (
+                            <Loader2 className="animate-spin mr-2 h-4 w-4" />
+                          )}
+                          Logout
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <a href={githubUser.html_url} target="_blank">
+                            View profile
+                          </a>
+                        </DropdownMenuItem>
+                      </DropdownMenuSubContent>
+                    </DropdownMenuPortal>
+                  </DropdownMenuSub>
+                ) : (
+                  <DropdownMenuItem onClick={() => handleGithubLogin()}>
+                    Login
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+          <p>
+            your project with GitHub™️ to keep your code safe, secure, and
+            easily accessible from anywhere.
+          </p>
+          {githubUser ? (
+            hasRepo ? (
+              <Button
+                variant="secondary"
+                size="sm"
+                className="mt-4 w-full font-normal"
+              >
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Sync code
+              </Button>
+            ) : (
+              <Button
+                variant="secondary"
+                size="sm"
+                className="mt-4 w-full font-normal"
+                onClick={() => handleCreateRepo()}
+                disabled={isCreatingRepo}
+              >
+                {isCreatingRepo ? (
+                  <Loader2 className="animate-spin mr-2 h-4 w-4" />
+                ) : (
+                  <PackagePlus className="w-4 h-4 mr-2" />
+                )}
+                Create Repo
+              </Button>
+            )
+          ) : (
+            <Button
+              variant="secondary"
+              size="sm"
+              className="mt-4 w-full font-normal"
+              onClick={() => handleGithubLogin()}
+              disabled={isLoggingIn}
+            >
+              {isLoggingIn ? (
+                <Loader2 className="animate-spin mr-2 h-4 w-4" />
+              ) : (
+                <Github className="w-4 h-4 mr-2" />
+              )}
+              Connect to GitHub
+            </Button>
+          )}
+        </div>
+      </ScrollArea>
+    </motion.div>
+  )
+}
+// #endregion Github Sync
+
+// #region SidebarButton
+const SidebarButton = React.forwardRef<
+  HTMLButtonElement,
+  React.ComponentProps<"button"> & {
+    asChild?: boolean
+    isActive?: boolean
+    tooltip?: string | React.ComponentProps<typeof TooltipContent>
+  } & VariantProps<typeof buttonVariants>
+>(
+  (
+    {
+      asChild = false,
+      isActive = false,
+      variant = "ghost",
+      size = "smIcon",
+      tooltip,
+      className,
+      ...props
+    },
+    ref
+  ) => {
+    const Comp = asChild ? Slot : "button"
+    // const { isMobile, state } = useSidebar()
+
+    const button = (
+      <Comp
+        ref={ref}
+        data-active={isActive}
+        className={cn(
+          buttonVariants({ variant: isActive ? "secondary" : variant, size }),
+          className
+        )}
+        {...props}
+      />
+    )
+
+    if (!tooltip) {
+      return button
+    }
+
+    if (typeof tooltip === "string") {
+      tooltip = {
+        children: tooltip,
+      }
+    }
+
+    return (
+      <div className="relative">
+        {isActive && (
+          <motion.div
+            layoutId="sidebar-indicator"
+            className="absolute -left-2 top-0 right-0 w-[2px] h-full bg-primary rounded-full"
+          />
+        )}
+        <Tooltip>
+          <TooltipTrigger asChild>{button}</TooltipTrigger>
+          <TooltipContent side="right" align="center" {...tooltip} />
+        </Tooltip>
+      </div>
+    )
+  }
+)
+SidebarButton.displayName = "SidebarButton"
+// #endregion SidebarButton
