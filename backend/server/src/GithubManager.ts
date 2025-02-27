@@ -16,10 +16,12 @@ export class GithubManager {
   async authenticate(code: string, userId: string) {
     try {
       console.log("Attempting to authenticate with GitHub...")
-      const accessToken = await this.getAccessToken(code)
-      if (accessToken) {
-        // Update user's GitHub token in database
-        await fetch(`${process.env.SERVER_URL}/api/user`, {
+      let accessToken = ""
+      if (code){
+        accessToken = await this.getAccessToken(code)
+        if (accessToken) {
+          // Update user's GitHub token in database
+          await fetch(`${process.env.SERVER_URL}/api/user`, {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
@@ -30,16 +32,17 @@ export class GithubManager {
           }),
         })
       }
+    }
+      const user= await fetch(`${process.env.SERVER_URL}/api/user?id=${userId}`)
+      const userData = await user.json()
+      accessToken = userData.githubToken as string;
       this.accessToken = accessToken
       console.log("Received GitHub OAuth code:", accessToken)
 
       this.octokit = new Octokit({ auth: accessToken })
       const { data } = await this.octokit.request("GET /user")
       this.username = data.login
-      return {
-        username: this.username,
-        accessToken: this.accessToken,
-      }
+      return data
     } catch (error) {
       console.error("GitHub authentication failed:", error)
       return null

@@ -158,3 +158,125 @@ export function parseSocialLink(url: string): UserLink {
     }
   }
 }
+
+
+
+type PopupOptions = {
+  onUrlChange?: (newUrl: string) => void
+  onClose?: () => void
+  width?: number
+  height?: number
+}
+
+export const createPopupTracker = () => {
+  let popup: Window | null = null
+  let observer: MutationObserver | null = null
+
+  const setupUrlChangeDetection = (onUrlChange?: (newUrl: string) => void) => {
+    if (!popup) return
+
+    try {
+      observer = new MutationObserver(() => {
+        onUrlChange?.(popup?.location.href || "")
+      })
+
+      observer.observe(popup.document, {
+        subtree: true,
+        childList: true,
+        attributes: true,
+      })
+
+      popup.addEventListener("beforeunload", () => {
+        setTimeout(() => {
+          onUrlChange?.(popup?.location.href || "")
+        }, 0)
+      })
+    } catch (error) {
+      if (error instanceof DOMException) {
+        console.warn("Cannot access popup URL due to same-origin policy")
+      } else {
+        console.error("Error setting up URL tracking:", error)
+      }
+    }
+  }
+
+  const setupCloseDetection = (onClose?: () => void) => {
+    if (!popup || !onClose) return
+
+    // Method 1: Listen for the unload event on the popup
+    popup.addEventListener("unload", () => {
+      // Small delay to ensure we're not triggering during page navigation
+      setTimeout(() => {
+        if (!popup || popup.closed) {
+          onClose()
+          cleanup()
+        }
+      }, 50)
+    })
+
+    // Method 2: Listen for blur on the parent window
+    window.addEventListener("blur", function checkPopup() {
+      // If parent window loses focus and popup is closed, it was closed by user
+      if (!popup || popup.closed) {
+        window.removeEventListener("blur", checkPopup)
+        onClose()
+        cleanup()
+      }
+    })
+  }
+
+  const cleanup = () => {
+    observer?.disconnect()
+    observer = null
+    popup = null
+  }
+
+  const openPopup = (url: string, options: PopupOptions = {}) => {
+    const { width = 800, height = 600, onUrlChange, onClose } = options
+
+    const left = (window.screen.width - width) / 2
+    const top = (window.screen.height - height) / 2
+
+    popup = window.open(
+      url,
+      "PopupWindow",
+      `width=${width},height=${height},left=${left},top=${top},status=no,menubar=no,toolbar=no,location=no`
+    )
+
+    if (popup) {
+      // Handle popup blockers
+      if (popup.closed || typeof popup.closed === "undefined") {
+        return false
+      }
+
+      popup.addEventListener(
+        "load",
+        () => {
+          setupUrlChangeDetection(onUrlChange)
+        },
+        { once: true }
+      )
+
+      setupCloseDetection(onClose)
+
+      return true
+    }
+
+    return false
+  }
+
+  const closePopup = () => {
+    if (popup && !popup.closed) {
+      popup.close()
+    }
+    cleanup()
+  }
+
+  const isOpen = () => popup !== null && !popup.closed
+
+  return {
+    openPopup,
+    closePopup,
+    isOpen,
+  }
+}

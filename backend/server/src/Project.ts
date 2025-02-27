@@ -572,6 +572,19 @@ export class Project {
         }
       }
     }
+    const handleGitHubUser: SocketHandler = async (data) => {
+      const { code } = data
+      console.log("Getting GithubUser: ",code)
+      const auth = await this.githubManager.authenticate(
+        code,
+        connection.userId
+      )
+      if (auth) {
+        console.log("GithubUser: ",auth)
+        return auth
+      }
+      return { error: "Authentication failed" }
+    }
     const handleGitHubUserName: SocketHandler = async (data) => {
       const { code } = data
       const auth = await this.githubManager.authenticate(
@@ -608,6 +621,7 @@ export class Project {
       terminalData: handleTerminalData,
       closeTerminal: handleCloseTerminal,
       getGitHubUserName: handleGitHubUserName,
+      getGitHubUser: handleGitHubUser,
       checkSandboxRepo: handleCheckSandboxRepo,
       deleteRepodIdFromDB: handleDeleteRepodIdFromDB,
       authenticateGithub: handleAuthenticateGithub,
