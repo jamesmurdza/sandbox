@@ -11,7 +11,8 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.1",
     "@atlaskit/pragmatic-drag-and-drop": "^1.1.7",
-    "@clerk/nextjs": "^4.29.12",
+    "@aws-sdk/client-bedrock-runtime": "^3.758.0",
+    "@clerk/nextjs": "^4.31.6",
     "@clerk/themes": "^1.7.12",
     "@codemirror/lang-javascript": "^6.2.2",
     "@hookform/resolvers": "^3.9.1",
@@ -79,7 +80,7 @@
   },
   "devDependencies": {
     "@types/estree": "^1.0.6",
-    "@types/node": "^20",
+    "@types/node": "^20.17.19",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18",
     "@types/react-syntax-highlighter": "^15.5.13",
