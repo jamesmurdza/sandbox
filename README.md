@@ -92,6 +92,7 @@ Update `/frontend/.env`:
 ```
 NEXT_PUBLIC_SERVER_URL='http://localhost:4000'
 ANTHROPIC_API_KEY='🔑'
+AWS_ARN='arn:aws:bedrock:...'
 
 OPENAI_API_KEY='🔑'
 ```
@@ -279,3 +280,36 @@ It should be in the form `category(scope or module): message` in your commit mes
 - [Socket.io](https://socket.io/)
 - [Drizzle ORM](https://orm.drizzle.team/)
 - [E2B](https://e2b.dev/)
+
+### Setting Up Your AWS Bedrock Keys
+
+To use the `anthropic.claude-3-7-sonnet-20250219-v1:0` model via Amazon Bedrock, you need to create and configure your AWS credentials. Follow these steps:
+
+1. **Create an IAM User with Programmatic Access**
+   - Log in to your AWS Management Console. 
+   - Navigate to IAM (Identity and Access Management) by searching for it in the search bar.
+   - In the left-hand menu, click Users and then select Add Users.
+   - Provide a username (e.g., `bedrock-user`) and select Programmatic access as the access type.
+   - Click Next: Permissions and attach an existing policy or create a custom policy with permissions for Amazon Bedrock. For example:
+     ```json
+     {
+       "Version": "2012-10-17", 
+       "Statement": [
+         {
+           "Effect": "Allow",
+           "Action": [
+             "bedrock:*",
+             "kms:GenerateDataKey",
+             "kms:Decrypt"  
+           ],
+           "Resource": "*"
+         }
+       ]
+     }
+     ```
+   - Complete the process and download the .csv file containing your Access Key ID and Secret Access Key.
+
+2. **Get the Inference Profile ARN**
+   - In the AWS Management Console, go to Inference and Assessment > Provisioned Throughput.
+   - Find your existing inference profile and copy the ARN (Amazon Resource Name). 
+   - You will need to use this ARN in the API request to Bedrock.
