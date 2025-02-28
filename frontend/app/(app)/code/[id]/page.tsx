@@ -11,12 +11,7 @@ export const revalidate = 0
 
 const getUserData = async (id: string) => {
   const userRes = await fetch(
-    `${process.env.NEXT_PUBLIC_DATABASE_WORKER_URL}/api/user?id=${id}`,
-    {
-      headers: {
-        Authorization: `${process.env.NEXT_PUBLIC_WORKERS_KEY}`,
-      },
-    }
+    `${process.env.NEXT_PUBLIC_SERVER_URL}/api/user?id=${id}`
   )
   const userData: User = await userRes.json()
   return userData
@@ -24,12 +19,7 @@ const getUserData = async (id: string) => {
 
 const getSandboxData = async (id: string) => {
   const sandboxRes = await fetch(
-    `${process.env.NEXT_PUBLIC_DATABASE_WORKER_URL}/api/sandbox?id=${id}`,
-    {
-      headers: {
-        Authorization: `${process.env.NEXT_PUBLIC_WORKERS_KEY}`,
-      },
-    }
+    `${process.env.NEXT_PUBLIC_SERVER_URL}/api/sandbox?id=${id}`
   )
   const sandboxData: Sandbox = await sandboxRes.json()
   return sandboxData
@@ -43,12 +33,7 @@ const getSharedUsers = async (usersToSandboxes: UsersToSandboxes[]) => {
   const shared = await Promise.all(
     usersToSandboxes.map(async (user) => {
       const userRes = await fetch(
-        `${process.env.NEXT_PUBLIC_DATABASE_WORKER_URL}/api/user?id=${user.userId}`,
-        {
-          headers: {
-            Authorization: `${process.env.NEXT_PUBLIC_WORKERS_KEY}`,
-          },
-        }
+        `${process.env.NEXT_PUBLIC_SERVER_URL}/api/user?id=${user.userId}`
       )
       const userData: User = await userRes.json()
       return {
@@ -91,23 +76,17 @@ export default async function CodePage({ params }: { params: { id: string } }) {
   }
 
   return (
-    <>
-      <div className="overflow-hidden overscroll-none w-screen flex flex-col h-screen bg-background">
-        {/* <Room id={sandboxId}> */}
-          <TerminalProvider>
-            <Navbar
-              userData={userData}
-              sandboxData={sandboxData}
-              shared={
-                shared as { id: string; name: string; avatarUrl: string }[]
-              }
-            />
-            <div className="w-screen flex grow">
-              <CodeEditor userData={userData} sandboxData={sandboxData} />
-            </div>
-          </TerminalProvider>
-        {/* </Room> */}
+    <TerminalProvider>
+      {/* <Room id={sandboxId}> */}
+      <div className="overflow-hidden overscroll-none w-screen h-screen grid [grid-template-rows:3.5rem_auto] bg-background">
+        <Navbar
+          userData={userData}
+          sandboxData={sandboxData}
+          shared={shared as { id: string; name: string; avatarUrl: string }[]}
+        />
+        <CodeEditor userData={userData} sandboxData={sandboxData} />
       </div>
-    </>
+      {/* </Room> */}
+    </TerminalProvider>
   )
 }

@@ -1,14 +1,15 @@
 "use client"
 
+import { useSocket } from "@/context/SocketContext"
 import { Sandbox, TFile, TFolder, TTab } from "@/lib/types"
 import { FilePlus, FolderPlus, MessageSquareMore, Sparkles } from "lucide-react"
 import { useEffect, useMemo, useRef, useState } from "react"
-import { Socket } from "socket.io-client"
 import SidebarFile from "./file"
 import SidebarFolder from "./folder"
 import New from "./new"
 
 import { Button } from "@/components/ui/button"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn, sortFileExplorer } from "@/lib/utils"
 import {
@@ -23,7 +24,6 @@ export default function Sidebar({
   handleRename,
   handleDeleteFile,
   handleDeleteFolder,
-  socket,
   setFiles,
   deletingFolderId,
   toggleAIChat,
@@ -40,7 +40,6 @@ export default function Sidebar({
   ) => boolean
   handleDeleteFile: (file: TFile) => void
   handleDeleteFolder: (folder: TFolder) => void
-  socket: Socket
   setFiles: (files: (TFile | TFolder)[]) => void
   deletingFolderId: string
   toggleAIChat: () => void
@@ -49,6 +48,8 @@ export default function Sidebar({
   const ref = useRef(null) // drop target
 
   const [creatingNew, setCreatingNew] = useState<"file" | "folder" | null>(null)
+  const { socket } = useSocket()
+
   const [movingId, setMovingId] = useState("")
   const sortedFiles = useMemo(() => {
     return sortFileExplorer(files)
@@ -59,7 +60,7 @@ export default function Sidebar({
     if (el) {
       return dropTargetForElements({
         element: el,
-        getData: () => ({ id: `projects/${sandboxData.id}` }),
+        getData: () => ({ id: "/" }),
         canDrop: ({ source }) => {
           const file = files.find((child) => child.id === source.data.id)
           return !file
@@ -72,9 +73,6 @@ export default function Sidebar({
     return monitorForElements({
       onDrop({ source, location }) {
         const destination = location.current.dropTargets[0]
-        if (!destination) {
-          return
-        }
 
         const fileId = source.data.id as string
         const folderId = destination.data.id as string
@@ -87,7 +85,7 @@ export default function Sidebar({
         console.log("move file", fileId, "to folder", folderId)
 
         setMovingId(fileId)
-        socket.emit(
+        socket?.emit(
           "moveFile",
           {
             fileId,
@@ -100,12 +98,12 @@ export default function Sidebar({
         )
       },
     })
-  }, [])
+  }, [socket])
 
   return (
     <div className="h-full w-56 select-none flex flex-col text-sm">
-      <div className="flex-grow overflow-auto p-2 pb-[84px]">
-        <div className="flex w-full items-center justify-between h-8 mb-1">
+      <ScrollArea className="flex-grow overflow-auto px-2 pt-0 pb-4 relative">
+        <div className="flex w-full items-center justify-between h-8 pb-1 isolate z-10 sticky pt-2 top-0 bg-background">
           <div className="text-muted-foreground">Explorer</div>
           <div className="flex space-x-1">
             <button
@@ -167,7 +165,7 @@ export default function Sidebar({
                   />
                 )
               )}
-              {creatingNew !== null ? (
+              {creatingNew !== null && socket ? (
                 <New
                   socket={socket}
                   type={creatingNew}
@@ -179,8 +177,8 @@ export default function Sidebar({
             </>
           )}
         </div>
-      </div>
-      <div className="fixed bottom-0 w-48 flex flex-col p-2 bg-background">
+      </ScrollArea>
+      <div className="flex flex-col p-2 bg-background">
         <Button
           variant="ghost"
           className="w-full justify-start text-sm text-muted-foreground font-normal h-8 px-2 mb-2"

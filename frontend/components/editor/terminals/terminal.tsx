@@ -7,7 +7,7 @@ import "./xterm.css"
 import { debounce } from "@/lib/utils"
 import { Loader2 } from "lucide-react"
 import { useTheme } from "next-themes"
-import { ElementRef, useEffect, useRef, useCallback } from "react"
+import { ElementRef, useEffect, useRef } from "react"
 import { Socket } from "socket.io-client"
 export default function EditorTerminal({
   socket,
@@ -161,7 +161,7 @@ export default function EditorTerminal({
       <div
         ref={terminalContainerRef}
         style={{ display: visible ? "block" : "none" }}
-        className="w-full h-full text-left"
+        className="w-full h-full text-left [&>div]:h-full"
         tabIndex={0}
       >
         {term === null ? (

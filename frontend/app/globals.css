@@ -69,6 +69,8 @@
 @layer base {
   * {
     @apply border-border;
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted-foreground)) transparent;
   }
   body {
     @apply bg-background text-foreground;
@@ -102,24 +104,24 @@
 .light .gradient-button-bg {
   background: radial-gradient(
     circle at top,
-    #f5f5f5 0%, /* Very light gray */
-    #e0e0e0 50%  /* Soft gray */
+    #f5f5f5 0%,
+    /* Very light gray */ #e0e0e0 50% /* Soft gray */
   );
 }
 
 .light .gradient-button {
   background: radial-gradient(
     circle at bottom,
-    hsl(0, 0%, 85%) -10%, /* Slightly darker gray */
-    hsl(0, 0%, 95%) 50%   /* Very soft light gray */
+    hsl(0, 0%, 85%) -10%,
+    /* Slightly darker gray */ hsl(0, 0%, 95%) 50% /* Very soft light gray */
   );
 }
 
 .light .gradient-button-bg > div:hover {
   background: radial-gradient(
     circle at bottom,
-    hsl(0, 0%, 80%) -10%, /* Slightly darker gray for hover */
-    hsl(0, 0%, 90%) 80%   /* Softer gray */
+    hsl(0, 0%, 80%) -10%,
+    /* Slightly darker gray for hover */ hsl(0, 0%, 90%) 80% /* Softer gray */
   );
 }
 
@@ -177,12 +179,48 @@
   display: none;
 }
 
-.added-line-decoration {
-  background-color: rgba(0, 255, 0, 0.1);
-}
-
 .removed-line-decoration {
   background-color: rgba(255, 0, 0, 0.1);
+  text-decoration: line-through;
+  opacity: 0.7;
+  position: relative;
+}
+
+.removed-line-decoration::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  border-right: 2px solid rgba(255, 0, 0, 0.3);
+}
+
+.added-line-decoration {
+  background-color: rgba(0, 255, 0, 0.1);
+  position: relative;
+}
+
+.added-line-decoration::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  border-right: 2px solid rgba(0, 255, 0, 0.3);
+}
+
+.diff-block-separator {
+  height: 1px;
+  background: rgba(127, 127, 127, 0.3);
+  margin: 4px 0;
+}
+
+.removed-line-glyph {
+  background-color: #dc3545;
+  width: 4px !important;
+  margin-left: 3px;
 }
 
 .added-line-glyph {
@@ -191,8 +229,50 @@
   margin-left: 3px;
 }
 
-.removed-line-glyph {
-  background-color: #dc3545;
-  width: 4px !important;
-  margin-left: 3px;
+.removed-line-number {
+  color: #dc3545 !important;
+  text-decoration: line-through;
+}
+
+.added-line-number {
+  color: #28a745 !important;
+}
+
+.styled-scrollbar {
+  --scrollbar-bg: hsl(var(--background));
+  --scrollbar-thumb: hsl(var(--muted-foreground));
+  --scrollbar-thumb-hover: hsl(var(--foreground));
+}
+
+.styled-scrollbar::-webkit-scrollbar {
+  width: 12px;
+}
+
+.styled-scrollbar::-webkit-scrollbar-track {
+  background: var(--scrollbar-bg);
+  border-radius: 0.5rem;
+}
+
+.styled-scrollbar::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb);
+  border-radius: 0.5rem;
+  border: 3px solid var(--scrollbar-bg);
+}
+
+.styled-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: var(--scrollbar-thumb-hover);
+}
+
+/* For Firefox */
+.styled-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-bg);
+}
+
+@media (prefers-color-scheme: dark) {
+  .styled-scrollbar {
+    --scrollbar-bg: hsl(var(--background));
+    --scrollbar-thumb: hsl(var(--muted-foreground));
+    --scrollbar-thumb-hover: hsl(var(--foreground));
+  }
 }

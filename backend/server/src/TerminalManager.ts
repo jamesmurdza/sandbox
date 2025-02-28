@@ -1,12 +1,12 @@
-import { Sandbox } from "e2b"
+import { Sandbox as Container } from "e2b"
 import { Terminal } from "./Terminal"
 
 export class TerminalManager {
-  private sandbox: Sandbox
+  private container: Container
   private terminals: Record<string, Terminal> = {}
 
-  constructor(sandbox: Sandbox) {
-    this.sandbox = sandbox
+  constructor(container: Container) {
+    this.container = container
   }
 
   async createTerminal(
@@ -17,7 +17,7 @@ export class TerminalManager {
       return
     }
 
-    this.terminals[id] = new Terminal(this.sandbox)
+    this.terminals[id] = new Terminal(this.container)
     await this.terminals[id].init({
       onData,
       cols: 80,

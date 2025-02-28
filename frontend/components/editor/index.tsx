@@ -1,11 +1,20 @@
 "use client"
 
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { useClerk } from "@clerk/nextjs"
 import Editor, { BeforeMount, OnMount } from "@monaco-editor/react"
 import { AnimatePresence, motion } from "framer-motion"
+import { X } from "lucide-react"
 import * as monaco from "monaco-editor"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
+import { Button } from "../ui/button"
 
 // import { TypedLiveblocksProvider, useRoom, useSelf } from "@/liveblocks.config"
 // import LiveblocksProvider from "@liveblocks/yjs"
@@ -41,7 +50,6 @@ import {
 import { useTheme } from "next-themes"
 import React from "react"
 import { ImperativePanelHandle } from "react-resizable-panels"
-import { Button } from "../ui/button"
 import Tab from "../ui/tab"
 import AIChat from "./AIChat"
 import GenerateInput from "./generate"
@@ -74,10 +82,21 @@ export default function CodeEditor({
     }
   }, [socket, userData.id, sandboxData.id, setUserAndSandboxId])
 
+  // This dialog is used to alert the user that the project has timed out
+  const [timeoutDialog, setTimeoutDialog] = useState(false)
+
   // This heartbeat is critical to preventing the E2B sandbox from timing out
   useEffect(() => {
     // 10000 ms = 10 seconds
-    const interval = setInterval(() => socket?.emit("heartbeat"), 10000)
+    const interval = setInterval(
+      () =>
+        socket?.emit("heartbeat", {}, (success: boolean) => {
+          if (!success) {
+            setTimeoutDialog(true)
+          }
+        }),
+      10000
+    )
     return () => clearInterval(interval)
   }, [socket])
 
@@ -386,47 +405,124 @@ export default function CodeEditor({
   const handleApplyCode = useCallback(
     (mergedCode: string, originalCode: string) => {
       if (!editorRef) return
-
       const model = editorRef.getModel()
-      if (!model) return // Store original content
+      if (!model) return
       ;(model as any).originalContent = originalCode
 
-      // Calculate the full range of the document
-      const fullRange = model.getFullModelRange()
-
-      // Create decorations before applying the edit
       const originalLines = originalCode.split("\n")
       const mergedLines = mergedCode.split("\n")
       const decorations: monaco.editor.IModelDeltaDecoration[] = []
+      const combinedLines: string[] = []
 
-      for (
-        let i = 0;
-        i < Math.max(originalLines.length, mergedLines.length);
+      let i = 0
+      let inDiffBlock = false
+      let diffBlockStart = 0
+      let originalBlock: string[] = []
+      let mergedBlock: string[] = []
+
+      while (i < Math.max(originalLines.length, mergedLines.length)) {
+        if (originalLines[i] !== mergedLines[i]) {
+          if (!inDiffBlock) {
+            inDiffBlock = true
+            diffBlockStart = combinedLines.length
+            originalBlock = []
+            mergedBlock = []
+          }
+
+          if (i < originalLines.length) originalBlock.push(originalLines[i])
+          if (i < mergedLines.length) mergedBlock.push(mergedLines[i])
+        } else {
+          if (inDiffBlock) {
+            // Add the entire original block with deletion decoration
+            originalBlock.forEach((line) => {
+              combinedLines.push(line)
+              decorations.push({
+                range: new monaco.Range(
+                  combinedLines.length,
+                  1,
+                  combinedLines.length,
+                  1
+                ),
+                options: {
+                  isWholeLine: true,
+                  className: "removed-line-decoration",
+                  glyphMarginClassName: "removed-line-glyph",
+                  linesDecorationsClassName: "removed-line-number",
+                  minimap: { color: "rgb(255, 0, 0, 0.2)", position: 2 },
+                },
+              })
+            })
+
+            // Add the entire merged block with addition decoration
+            mergedBlock.forEach((line) => {
+              combinedLines.push(line)
+              decorations.push({
+                range: new monaco.Range(
+                  combinedLines.length,
+                  1,
+                  combinedLines.length,
+                  1
+                ),
+                options: {
+                  isWholeLine: true,
+                  className: "added-line-decoration",
+                  glyphMarginClassName: "added-line-glyph",
+                  linesDecorationsClassName: "added-line-number",
+                  minimap: { color: "rgb(0, 255, 0, 0.2)", position: 2 },
+                },
+              })
+            })
+
+            inDiffBlock = false
+          }
+
+          combinedLines.push(originalLines[i])
+        }
         i++
-      ) {
-        // Only highlight new lines (green highlights)
-        if (i >= originalLines.length || originalLines[i] !== mergedLines[i]) {
+      }
+
+      // Handle any remaining diff block at the end
+      if (inDiffBlock) {
+        originalBlock.forEach((line) => {
+          combinedLines.push(line)
           decorations.push({
-            range: new monaco.Range(i + 1, 1, i + 1, 1),
+            range: new monaco.Range(
+              combinedLines.length,
+              1,
+              combinedLines.length,
+              1
+            ),
+            options: {
+              isWholeLine: true,
+              className: "removed-line-decoration",
+              glyphMarginClassName: "removed-line-glyph",
+              linesDecorationsClassName: "removed-line-number",
+              minimap: { color: "rgb(255, 0, 0, 0.2)", position: 2 },
+            },
+          })
+        })
+
+        mergedBlock.forEach((line) => {
+          combinedLines.push(line)
+          decorations.push({
+            range: new monaco.Range(
+              combinedLines.length,
+              1,
+              combinedLines.length,
+              1
+            ),
             options: {
               isWholeLine: true,
               className: "added-line-decoration",
               glyphMarginClassName: "added-line-glyph",
+              linesDecorationsClassName: "added-line-number",
+              minimap: { color: "rgb(0, 255, 0, 0.2)", position: 2 },
             },
           })
-        }
+        })
       }
 
-      // Execute the edit operation
-      editorRef.executeEdits("apply-code", [
-        {
-          range: fullRange,
-          text: mergedCode,
-          forceMoveMarkers: true,
-        },
-      ])
-
-      // Apply decorations after the edit
+      model.setValue(combinedLines.join("\n"))
       const newDecorations = editorRef.createDecorationsCollection(decorations)
       setMergeDecorationsCollection(newDecorations)
     },
@@ -980,9 +1076,9 @@ export default function CodeEditor({
     )
 
   return (
-    <>
-      {/* Copilot DOM elements */}
+    <div className="flex max-h-full overflow-hidden">
       <PreviewProvider>
+        {/* Copilot DOM elements */}
         <div ref={generateRef} />
         <div ref={suggestionRef} className="absolute">
           <AnimatePresence>
@@ -1095,7 +1191,6 @@ export default function CodeEditor({
           handleRename={handleRename}
           handleDeleteFile={handleDeleteFile}
           handleDeleteFolder={handleDeleteFolder}
-          socket={socket!}
           setFiles={setFiles}
           deletingFolderId={deletingFolderId}
           toggleAIChat={toggleAIChat}
@@ -1304,7 +1399,26 @@ export default function CodeEditor({
           )}
         </ResizablePanelGroup>
       </PreviewProvider>
-    </>
+      <Dialog open={timeoutDialog} onOpenChange={setTimeoutDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <X className="h-5 w-5 text-destructive" />
+              Session Timeout
+            </DialogTitle>
+            <DialogDescription className="pt-2">
+              Your project session has timed out. Please refresh the page to
+              continue working.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end">
+            <Button variant="default" onClick={() => window.location.reload()}>
+              Refresh Page
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
   )
 }
 

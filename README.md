@@ -8,10 +8,6 @@ For the latest updates, join our Discord server: [discord.gitwit.dev](https://di
 
 ## Running Locally
 
-Notes:
-
-- Double-check that whatever you change "SUPERDUPERSECRET" to, it's the same in all config files.
-
 ### 0. Requirements
 
 The application uses NodeJS for the backend, NextJS for the frontend, and Cloudflare workers for additional backend tasks.
@@ -19,9 +15,7 @@ The application uses NodeJS for the backend, NextJS for the frontend, and Cloudf
 Needed accounts to set up:
 
 - [Clerk](https://clerk.com/): Used for user authentication.
-- [Liveblocks](https://liveblocks.io/): Used for collaborative editing.
 - [E2B](https://e2b.dev/): Used for the terminals and live preview.
-- [Cloudflare](https://www.cloudflare.com/): Used for relational data storage (D2) and file storage (R2).
 - [Anthropic](https://anthropic.com/) and [OpenAI](https://openai.com/): API keys for code generation.
 
 A quick overview of the tech before we start: The deployment uses a **NextJS** app for the frontend and an **ExpressJS** server on the backend. Presumably that's because NextJS integrates well with Clerk middleware but not with Socket.io.
@@ -39,8 +33,6 @@ Run `npm install` in:
 
 ```
 /frontend
-/backend/database
-/backend/storage
 /backend/server
 ```
 
@@ -56,84 +48,34 @@ NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY='🔑'
 CLERK_SECRET_KEY='🔑'
 ```
 
-### 3. Deploying the storage bucket
-
-Go to Cloudflare.
-Create and name an R2 storage bucket in the control panel.
-Copy the account ID of one domain.
-
-Update `/backend/storage/src/wrangler.toml`:
-
-```
-account_id = '🔑'
-bucket_name = '🔑'
-key = 'SUPERDUPERSECRET'
-```
-
-In the `/backend/storage/src` directory:
-
-```
-npx wrangler deploy
-```
-
 ### 4. Deploying the database
 
 Create a database:
 
 ```
-npx wrangler d1 create sandbox-database
+psql postgres -c "CREATE DATABASE sandbox;"
 ```
 
-Use the output for the next setp.
-
-Update `/backend/database/src/wrangler.toml`:
+Update `backend/server/.env` with the database connection string.
 
 ```
-database_name = '🔑'
-database_id = '🔑'
-KEY = 'SUPERDUPERSECRET'
-STORAGE_WORKER_URL = 'https://storage.🍎.workers.dev'
+DATABASE_URL=postgresql://localhost:5432/sandbox
 ```
 
-In the `/backend/database/src` directory:
-
-```
-npx wrangler deploy
-```
+Follow this [guide](https://docs.google.com/document/d/1w5dA5daic_sIYB5Seni1KvnFx51pPV2so6lLdN2xa7Q/edit?usp=sharing) for more info.
 
 ### 5. Applying the database schema
 
-Delete the `/backend/database/drizzle/meta` directory.
+Delete the `/backend/server/drizzle/meta` directory.
 
-In the `/backend/database/` directory:
+In the `/backend/server/` directory:
 
 ```
 npm run generate
-npx wrangler d1 execute sandbox-database --remote --file=./drizzle/0000_🍏_🍐.sql
+npm run migrate
 ```
 
-### 6. Configuring the server
-
-Update `/backend/server/.env`:
-
-```
-DATABASE_WORKER_URL='https://database.🍎.workers.dev'
-STORAGE_WORKER_URL='https://storage.🍎.workers.dev'
-WORKERS_KEY='SUPERDUPERSECRET'
-```
-
-### 7. Adding Liveblocks
-
-Setup the Liveblocks account.
-
-Update `/frontend/.env`:
-
-```
-NEXT_PUBLIC_LIVEBLOCKS_PUBLIC_KEY='🔑'
-LIVEBLOCKS_SECRET_KEY='🔑'
-```
-
-### 8. Adding E2B
+### 6. Adding E2B
 
 Setup the E2B account.
 
@@ -143,19 +85,18 @@ Update `/backend/server/.env`:
 E2B_API_KEY='🔑'
 ```
 
-### 9. Configuring the frontend
+### 7. Configuring the frontend
 
 Update `/frontend/.env`:
 
 ```
-NEXT_PUBLIC_DATABASE_WORKER_URL='https://database.🍎.workers.dev'
-NEXT_PUBLIC_STORAGE_WORKER_URL='https://storage.🍎.workers.dev'
-NEXT_PUBLIC_WORKERS_KEY='SUPERDUPERSECRET'
+NEXT_PUBLIC_SERVER_URL='http://localhost:4000'
 ANTHROPIC_API_KEY='🔑'
+
 OPENAI_API_KEY='🔑'
 ```
 
-### 10. Running the IDE
+### 8. Running the IDE
 
 Run `npm run dev` simultaneously in:
 

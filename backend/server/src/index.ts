@@ -4,10 +4,11 @@ import express, { Express } from "express"
 import fs from "fs"
 import { createServer } from "http"
 import { Server, Socket } from "socket.io"
+import api from "./api"
 
 import { ConnectionManager } from "./ConnectionManager"
 import { DokkuClient } from "./DokkuClient"
-import { Sandbox } from "./Sandbox"
+import { Project } from "./Project"
 import { SecureGitClient } from "./SecureGitClient"
 import { socketAuth } from "./socketAuth" // Import the new socketAuth middleware
 import { TFile, TFolder } from "./types"
@@ -32,7 +33,7 @@ process.on("unhandledRejection", (reason, promise) => {
 
 // Initialize containers and managers
 const connections = new ConnectionManager()
-const sandboxes: Record<string, Sandbox> = {}
+const projects: Record<string, Project> = {}
 
 // Load environment variables
 dotenv.config()
@@ -85,49 +86,50 @@ io.on("connection", async (socket) => {
     // This data comes is added by our authentication middleware
     const data = socket.data as {
       userId: string
-      sandboxId: string
+      projectId: string
       isOwner: boolean
+      containerId: string
       type: string
     }
 
     // Register the connection
-    connections.addConnectionForSandbox(socket, data.sandboxId, data.isOwner)
+    connections.addConnectionForProject(socket, data.projectId, data.isOwner)
 
-    // Disable access unless the sandbox owner is connected
-    if (!data.isOwner && !connections.ownerIsConnected(data.sandboxId)) {
-      socket.emit("disableAccess", "The sandbox owner is not connected.")
+    // Disable access unless the project owner is connected
+    if (!data.isOwner && !connections.ownerIsConnected(data.projectId)) {
+      socket.emit("disableAccess", "The project owner is not connected.")
       return
     }
 
     try {
-      // Create or retrieve the sandbox manager for the given sandbox ID
-      const sandbox =
-        sandboxes[data.sandboxId] ??
-        new Sandbox(data.sandboxId, data.type, {
+      // Create or retrieve the project manager for the given project ID
+      const project =
+        projects[data.projectId] ??
+        new Project(data.projectId, data.type, data.containerId, {
           dokkuClient,
           gitClient,
         })
-      sandboxes[data.sandboxId] = sandbox
+      projects[data.projectId] = project
 
       // This callback recieves an update when the file list changes, and notifies all relevant connections.
       const sendFileNotifications = (files: (TFolder | TFile)[]) => {
         connections
-          .connectionsForSandbox(data.sandboxId)
+          .connectionsForProject(data.projectId)
           .forEach((socket: Socket) => {
             socket.emit("loaded", files)
           })
       }
 
-      // Initialize the sandbox container
+      // Initialize the project container
       // The file manager and terminal managers will be set up if they have been closed
-      await sandbox.initialize(sendFileNotifications)
-      socket.emit("loaded", sandbox.fileManager?.files)
+      await project.initialize(sendFileNotifications)
+      socket.emit("loaded", await project.fileManager?.getFileTree())
 
-      // Register event handlers for the sandbox
+      // Register event handlers for the project
       // For each event handler, listen on the socket for that event
       // Pass connection-specific information to the handlers
       Object.entries(
-        sandbox.handlers({
+        project.handlers({
           userId: data.userId,
           isOwner: data.isOwner,
           socket,
@@ -152,19 +154,19 @@ io.on("connection", async (socket) => {
       socket.on("disconnect", async () => {
         try {
           // Deregister the connection
-          connections.removeConnectionForSandbox(
+          connections.removeConnectionForProject(
             socket,
-            data.sandboxId,
+            data.projectId,
             data.isOwner
           )
 
           // If the owner has disconnected from all sockets, close open terminals and file watchers.o
-          // The sandbox itself will timeout after the heartbeat stops.
-          if (data.isOwner && !connections.ownerIsConnected(data.sandboxId)) {
-            await sandbox.disconnect()
+          // The project itself will timeout after the heartbeat stops.
+          if (data.isOwner && !connections.ownerIsConnected(data.projectId)) {
+            await project.disconnect()
             socket.broadcast.emit(
               "disableAccess",
-              "The sandbox owner has disconnected."
+              "The project owner has disconnected."
             )
           }
         } catch (e: any) {
@@ -172,10 +174,26 @@ io.on("connection", async (socket) => {
         }
       })
     } catch (e: any) {
-      handleErrors(`Error initializing sandbox ${data.sandboxId}:`, e, socket)
+      handleErrors(`Error initializing project ${data.projectId}:`, e, socket)
     }
   } catch (e: any) {
     handleErrors("Error connecting:", e, socket)
+  }
+})
+app.use(express.json())
+
+// Use the API routes
+app.use(async (req: any, res) => {
+  try {
+    // The API router returns a Node.js response, but we need to send an Express.js response
+    const response = await api.fetch(req)
+    const reader = response.body?.getReader()
+    const value = await reader?.read()
+    const responseText = new TextDecoder().decode(value?.value)
+    res.status(response.status).send(responseText)
+  } catch (error) {
+    console.error("Error processing API request:", error)
+    res.status(500).send("Internal Server Error")
   }
 })
 

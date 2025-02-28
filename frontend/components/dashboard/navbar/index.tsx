@@ -1,7 +1,6 @@
-import Logo from "@/assets/logo.svg"
+import { Logo } from "@/components/logo"
 import { ThemeSwitcher } from "@/components/ui/theme-switcher"
 import { User } from "@/lib/types"
-import Image from "next/image"
 import Link from "next/link"
 import UserButton from "../../ui/userButton"
 import DashboardNavbarSearch from "./search"
@@ -14,7 +13,7 @@ export default function DashboardNavbar({ userData }: { userData: User }) {
           href="/"
           className="ring-offset-2 ring-offset-background focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none rounded-sm"
         >
-          <Image src={Logo} alt="Logo" width={36} height={36} />
+          <Logo />
         </Link>
         <h1 className="text-xl">
           <span className="font-semibold">Sandbox</span>{" "}
