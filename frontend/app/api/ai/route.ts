@@ -10,7 +10,7 @@ import { BedrockRuntimeClient, InvokeModelWithResponseStreamCommand } from "@aws
 import { currentUser } from "@clerk/nextjs"
 
 // Initialize clients based on available credentials
-const useBedrockClient = !!(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY)
+const useBedrockClient = !!(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY && process.env.AWS_REGION && process.env.AWS_ARN) 
 const bedrockClient = useBedrockClient ? new BedrockRuntimeClient({
   region: process.env.AWS_REGION || 'us-east-1',
   credentials: {
