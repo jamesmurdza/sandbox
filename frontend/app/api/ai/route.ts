@@ -146,7 +146,8 @@ ${JSON.stringify(templateConfig.scripts, null, 2)}
     // Create system message based on mode
     let systemMessage
     if (isEditMode) {
-      systemMessage = `You are an AI code editor working in a ${templateType} project. Your task is to modify the given code based on the user's instructions. Only output the modified code, without any explanations or markdown formatting. The code should be a direct replacement for the existing code. If there is no code to modify, refer to the active file content and only output the code that is relevant to the user's instructions.... ${templateContext}
+      systemMessage = `You are an AI code editor working in a ${templateType} project. Your task is to modify the given code based on the user's instructions. Only output the modified code, without any explanations or markdown formatting. The code should be a direct replacement for the existing code. If there is no code to modify, refer to the active file content and only output the code that is relevant to the user's instructions.... 
+${templateContext}
 
 File: ${fileName}
 Line: ${line}
