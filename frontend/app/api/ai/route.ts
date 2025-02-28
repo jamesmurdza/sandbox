@@ -74,11 +74,10 @@ export async function POST(request: Request) {
 
     // Check and potentially reset monthly usage
     const resetResponse = await fetch(
-      `${process.env.NEXT_PUBLIC_DATABASE_WORKER_URL}/api/user/check-reset`,
+      `${process.env.NEXT_PUBLIC_SERVER_URL}/api/user/check-reset`,
       {
         method: "POST",
         headers: {
-          Authorization: `${process.env.NEXT_PUBLIC_WORKERS_KEY}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ userId: user.id }),
@@ -91,10 +90,10 @@ export async function POST(request: Request) {
 
     // Get user data and check tier
     const dbUser = await fetch(
-      `${process.env.NEXT_PUBLIC_DATABASE_WORKER_URL}/api/user?id=${user.id}`,
+      `${process.env.NEXT_PUBLIC_SERVER_URL}/api/user?id=${user.id}`,
       {
         headers: {
-          Authorization: `${process.env.NEXT_PUBLIC_WORKERS_KEY}`,
+          "Content-Type": "application/json",
         },
       }
     )
@@ -147,9 +146,7 @@ ${JSON.stringify(templateConfig.scripts, null, 2)}
     // Create system message based on mode
     let systemMessage
     if (isEditMode) {
-      systemMessage = `You are an AI code editor working in a ${templateType} project. Your task is to modify the given code based on the user's instructions. Only output the modified code, without any explanations or markdown formatting. The code should be a direct replacement for the existing code. If there is no code to modify, refer to the active file content and only output the code that is relevant to the user's instructions.
-
-${templateContext}
+      systemMessage = `You are an AI code editor working in a ${templateType} project. Your task is to modify the given code based on the user's instructions. Only output the modified code, without any explanations or markdown formatting. The code should be a direct replacement for the existing code. If there is no code to modify, refer to the active file content and only output the code that is relevant to the user's instructions.... ${templateContext}
 
 File: ${fileName}
 Line: ${line}
@@ -193,7 +190,7 @@ ${activeFileContent ? `Active File Content:\n${activeFileContent}\n` : ""}`
     if (useBedrockClient && bedrockClient) {
       // Use Bedrock
       const input = {
-        modelId: tierSettings.model,
+        modelId: process.env.AWS_ARN, //CHANGED
         contentType: "application/json",
         accept: "application/json",
         body: JSON.stringify({
@@ -218,11 +215,10 @@ ${activeFileContent ? `Active File Content:\n${activeFileContent}\n` : ""}`
 
       // Increment user's generation count
       await fetch(
-        `${process.env.NEXT_PUBLIC_DATABASE_WORKER_URL}/api/user/increment-generations`,
+        `${process.env.NEXT_PUBLIC_SERVER_URL}/api/user/increment-generations`,
         {
           method: "POST",
           headers: {
-            Authorization: `${process.env.NEXT_PUBLIC_WORKERS_KEY}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({ userId: user.id }),
@@ -287,11 +283,10 @@ ${activeFileContent ? `Active File Content:\n${activeFileContent}\n` : ""}`
 
       // Increment user's generation count
       await fetch(
-        `${process.env.NEXT_PUBLIC_DATABASE_WORKER_URL}/api/user/increment-generations`,
+        `${process.env.NEXT_PUBLIC_SERVER_URL}/api/user/increment-generations`,
         {
           method: "POST",
           headers: {
-            Authorization: `${process.env.NEXT_PUBLIC_WORKERS_KEY}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({ userId: user.id }),
