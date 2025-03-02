@@ -16,7 +16,7 @@ Needed accounts to set up:
 
 - [Clerk](https://clerk.com/): Used for user authentication.
 - [E2B](https://e2b.dev/): Used for the terminals and live preview.
-- [Anthropic](https://anthropic.com/) and [OpenAI](https://openai.com/): API keys for code generation.
+- [Anthropic](https://anthropic.com/) or AWS Bedrock and [OpenAI](https://openai.com/): API keys for code generation.
 
 A quick overview of the tech before we start: The deployment uses a **NextJS** app for the frontend and an **ExpressJS** server on the backend. Presumably that's because NextJS integrates well with Clerk middleware but not with Socket.io.
 
