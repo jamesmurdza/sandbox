@@ -6,7 +6,7 @@ import { Components } from "react-markdown"
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
 import {
   vscDarkPlus,
-  vscLightPlus,
+  oneLight,
 } from "react-syntax-highlighter/dist/esm/styles/prism"
 import { Button } from "../../../ui/button"
 import ApplyButton from "../ApplyButton"
@@ -140,7 +140,7 @@ export const createMarkdownComponents = (
           </div>
         </div>
         <SyntaxHighlighter
-          style={theme === "light" ? vscLightPlus : vscDarkPlus}
+          style={theme === "light" ? oneLight : vscDarkPlus}
           language={match[1]}
           PreTag="div"
           customStyle={{
