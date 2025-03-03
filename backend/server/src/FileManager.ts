@@ -173,7 +173,7 @@ export class FileManager {
 
   // Move a file to a different folder
   async moveFile(
-    fileId: string, 
+    fileId: string,
     folderId: string
   ): Promise<(TFolder | TFile)[]> {
     const newFileId = path.posix.join(folderId, path.posix.basename(fileId))
@@ -207,8 +207,29 @@ export class FileManager {
   }
 
   public async getFilesForDownload(): Promise<string> {
-    // TODO: Use E2B to create the zip file
-    return ""
+    try {
+      // Create an output path in /tmp
+      const tempTarPath = "/tmp/project.tar.gz"
+
+      // Create an archive of the project directory
+      await this.container.commands.run(
+        `cd ${this.dirName} && tar --exclude="node_modules" -czvf ${tempTarPath} .`
+      )
+
+      // Read the archive contents in base64 format
+      const base64Result = await this.container.commands.run(
+        `cat ${tempTarPath} | base64 -w 0`
+      )
+
+      // Delete the archive
+      await this.container.commands.run(`rm ${tempTarPath}`)
+
+      // Return the base64 encoded tar.gz content
+      return base64Result.stdout.trim()
+    } catch (error) {
+      console.error("Error creating tar.gz file for download:", error)
+      throw new Error("Failed to create downloadable tar.gz file")
+    }
   }
 
   // Create a new folder

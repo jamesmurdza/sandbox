@@ -334,10 +334,10 @@ export class Project {
     const handleDownloadFiles: SocketHandler = async () => {
       if (!this.fileManager) throw Error("No file manager")
 
-      // Get the Base64 encoded ZIP string
-      const zipBase64 = await this.fileManager.getFilesForDownload()
+      // Get the Base64 encoded tar.gz string
+      const tarBase64 = await this.fileManager.getFilesForDownload()
 
-      return { zipBlob: zipBase64 }
+      return { tarBlob: tarBase64 }
     }
 
     return {
