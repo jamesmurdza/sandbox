@@ -505,16 +505,19 @@ export class Project {
       if (sandbox && sandbox.repositoryId) {
         console.log("Found repo in DB, checking GitHub by ID...")
 
-        const githubRepoCheck = await this.githubManager.repoExistsByID(
+        const {repoName,repoId,exists:repoExists} = await this.githubManager.repoExistsByID(
           sandbox.repositoryId
         )
 
-        if (githubRepoCheck.exists) {
+        if (repoExists) {
 
           return {
             existsInDB: true,
             existsInGitHub: true,
-            repoId: githubRepoCheck.repoId,
+            repo: {
+              id: repoId,
+              name: repoName,
+            },
           }
         } else {
 
@@ -600,6 +603,9 @@ export class Project {
       const authUrl = `https://github.com/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}&scope=repo`
       return { authUrl }
     }
+    const handleGithubUserLogout=async()=>{
+      return this.githubManager.logoutGithubUser(connection.userId)
+    }
     return {
       heartbeat: handleHeartbeat,
       getFile: handleGetFile,
@@ -627,6 +633,7 @@ export class Project {
       authenticateGithub: handleAuthenticateGithub,
       createCommit: handleCreateCommit,
       createRepo: handleCreateRepo,
+      logoutGithubUser: handleGithubUserLogout
     }
   }
 }

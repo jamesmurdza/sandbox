@@ -21,6 +21,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import {
+  useCheckSandboxRepo,
   useCreateRepo,
   useGithubLogin,
   useGithubLogout,
@@ -33,6 +34,7 @@ import {
   monitorForElements,
 } from "@atlaskit/pragmatic-drag-and-drop/element/adapter"
 import { Slot } from "@radix-ui/react-slot"
+import { useQueryClient } from "@tanstack/react-query"
 import { VariantProps } from "class-variance-authority"
 import { AnimatePresence, motion } from "framer-motion"
 import {
@@ -45,7 +47,6 @@ import {
   RefreshCw,
   Sparkles,
 } from "lucide-react"
-import { revalidatePath } from "next/cache"
 import * as React from "react"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Socket } from "socket.io-client"
@@ -325,6 +326,7 @@ function FileExplorer({
 
 // #region Github Sync
 function GitHubSync({ repoId }: { repoId?: string }) {
+  const queryClient = useQueryClient()
   const {
     mutate: handleGithubLogin,
     isPending: isLoggingIn,
@@ -339,14 +341,18 @@ function GitHubSync({ repoId }: { repoId?: string }) {
       code: data?.code,
     },
   })
-  const hasRepo = Boolean(repoId)
+  const { data: RepoStatus } = useCheckSandboxRepo()
+  console.log("RepoStatus", RepoStatus)
+  const hasRepo = RepoStatus
+    ? RepoStatus.existsInDB && RepoStatus.existsInGitHub
+    : false
   const { mutate: handleGithubLogout, isPending: isLoggingOut } =
     useGithubLogout()
   const { mutate: handleCreateRepo, isPending: isCreatingRepo } = useCreateRepo(
     {
       onSuccess() {
         toast.success("Repository created successfully")
-        return revalidatePath("/code/[id]", "page")
+        return queryClient.invalidateQueries(useCheckSandboxRepo.getOptions({}))
       },
     }
   )
@@ -434,7 +440,9 @@ function GitHubSync({ repoId }: { repoId?: string }) {
                 variant="secondary"
                 size="sm"
                 className="mt-4 w-full font-normal"
-                onClick={() => handleCreateRepo()}
+                onClick={() => {
+                  handleCreateRepo()
+                }}
                 disabled={isCreatingRepo}
               >
                 {isCreatingRepo ? (

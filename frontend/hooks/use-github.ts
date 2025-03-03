@@ -29,7 +29,6 @@ export const useGithubUser = createQuery({
         "getGitHubUser",
         { code: variable.code },
         (data: any) => {
-          console.log("data",data)
           if (data?.error) {
             reject(new Error(data.error))
             return
@@ -41,6 +40,7 @@ export const useGithubUser = createQuery({
   },
   use: [socketMiddleware],
 })
+
 
 const REDIRECT_URI = "/loading"
 
@@ -118,8 +118,9 @@ export const useCreateRepo = ({
         socket.emit(
           "createRepo",
           {},
-          (response: CreateRepoResponse|{error:string}) => {
+          (response: CreateRepoResponse|{error:string;}) => {
             if ("error" in response) {
+              toast.error(response.error)
               reject(new Error("No auth URL received"))
               return
             }
@@ -130,6 +131,41 @@ export const useCreateRepo = ({
     },
   })
 }
+
+interface CheckSandboxRepoResponse{ 
+  existsInDB:boolean;
+  existsInGitHub:boolean;
+  repo?:{
+    id:string;
+    name:string;
+  }
+}
+export const useCheckSandboxRepo  = createQuery({
+  queryKey: ["CheckSandboxRepo"],
+  fetcher: (_variable: { }, context) => {
+    return new Promise<CheckSandboxRepoResponse>((resolve, reject) => {
+      const ctx = context as typeof context & { socket: Socket }
+        if (!ctx.socket?.connected) {
+          reject(new Error("Socket not connected"))
+          return
+        }
+
+        ctx.socket.emit(
+          "checkSandboxRepo",
+          {},
+          (response: CheckSandboxRepoResponse|{error:string;}) => {
+            if ("error" in response) {
+              toast.error(response.error)
+              reject(new Error("No auth URL received"))
+              return
+            }
+            resolve(response)
+          }
+        )
+      })
+  },
+  use: [socketMiddleware],
+})
 
 export const useGithubLogout = () => {
   const { socket } = useSocket()

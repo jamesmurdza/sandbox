@@ -230,4 +230,20 @@ export class GithubManager {
 
     return result
   }
+
+  async logoutGithubUser(userId:string) {
+    // Update user's GitHub token in database
+    await fetch(`${process.env.SERVER_URL}/api/user`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        id: userId,
+        githubToken: "",
+      }),
+    })
+    return { success: true }
+
+  }
 }
