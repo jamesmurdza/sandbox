@@ -10,15 +10,11 @@ export default function DownloadButton({ name }: { name: string }) {
     socket?.emit(
       "downloadFiles",
       { timestamp: Date.now() },
-      async (response: { tarBlob: string }) => {
-        const { tarBlob } = response
-
-        // Decode Base64 back to binary data
-        const binary = atob(tarBlob)
-        const bytes = new Uint8Array(binary.length)
-        for (let i = 0; i < binary.length; i++) {
-          bytes[i] = binary.charCodeAt(i)
-        }
+      async ({ tarBlob }: { tarBlob: string }) => {
+        // Decode Base64 to a blob
+        const bytes = Uint8Array.from(atob(tarBlob), (char) =>
+          char.charCodeAt(0)
+        )
         const blob = new Blob([bytes], { type: "application/gzip" })
 
         // Create URL and download
