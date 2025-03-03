@@ -254,10 +254,8 @@ export class Project {
       if (!this.gitClient) throw Error("No git client")
       if (!this.fileManager) throw Error("No file manager")
       // TODO: Get files from E2B and deploy them
-      /*await this.gitClient.pushFiles(
-        await this.fileManager?.loadFileContent(),
-        this.projectId
-      )*/
+      const tarBase64 = await this.fileManager.getFilesForDownload()
+      await this.gitClient.pushFiles(tarBase64, this.projectId)
       return { success: true }
     }
 
