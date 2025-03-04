@@ -184,18 +184,14 @@ export class FileManager {
 
   // Move a file within the container
   private async moveFileInContainer(oldPath: string, newPath: string) {
-    try {
-      const fileContents = await this.container.files.read(
-        path.posix.join(this.dirName, oldPath)
-      )
-      await this.container.files.write(
-        path.posix.join(this.dirName, newPath),
-        fileContents
-      )
-      await this.container.files.remove(path.posix.join(this.dirName, oldPath))
-    } catch (e) {
-      console.error(`Error moving file from ${oldPath} to ${newPath}:`, e)
-    }
+    const fileContents = await this.container.files.read(
+      path.posix.join(this.dirName, oldPath)
+    )
+    await this.container.files.write(
+      path.posix.join(this.dirName, newPath),
+      fileContents
+    )
+    await this.container.files.remove(path.posix.join(this.dirName, oldPath))
   }
 
   // Create a new file
@@ -207,29 +203,24 @@ export class FileManager {
   }
 
   public async getFilesForDownload(): Promise<string> {
-    try {
-      // Create an output path in /tmp
-      const tempTarPath = "/tmp/project.tar.gz"
+    // Create an output path in /tmp
+    const tempTarPath = "/tmp/project.tar.gz"
 
-      // Create an archive of the project directory
-      await this.container.commands.run(
-        `cd ${this.dirName} && tar --exclude="node_modules" --exclude="venv" -czvf ${tempTarPath} .`
-      )
+    // Create an archive of the project directory
+    await this.container.commands.run(
+      `cd ${this.dirName} && tar --exclude="node_modules" --exclude="venv" -czvf ${tempTarPath} .`
+    )
 
-      // Read the archive contents in base64 format
-      const base64Result = await this.container.commands.run(
-        `cat ${tempTarPath} | base64 -w 0`
-      )
+    // Read the archive contents in base64 format
+    const base64Result = await this.container.commands.run(
+      `cat ${tempTarPath} | base64 -w 0`
+    )
 
-      // Delete the archive
-      await this.container.commands.run(`rm ${tempTarPath}`)
+    // Delete the archive
+    await this.container.commands.run(`rm ${tempTarPath}`)
 
-      // Return the base64 encoded tar.gz content
-      return base64Result.stdout.trim()
-    } catch (error) {
-      console.error("Error creating tar.gz file for download:", error)
-      throw new Error("Failed to create downloadable tar.gz file")
-    }
+    // Return the base64 encoded tar.gz content
+    return base64Result.stdout.trim()
   }
 
   // Create a new folder
