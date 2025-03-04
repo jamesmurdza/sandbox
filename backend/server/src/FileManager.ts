@@ -208,7 +208,10 @@ export class FileManager {
 
     // Create an archive of the project directory
     await this.container.commands.run(
-      `cd ${this.dirName} && tar --exclude="node_modules" --exclude="venv" -czvf ${tempTarPath} .`
+      `cd ${this.dirName} && tar --exclude="node_modules" --exclude="venv" -czvf ${tempTarPath} .`,
+      {
+        timeoutMs: 5000,
+      }
     )
 
     // Read the archive contents in base64 format
