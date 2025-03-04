@@ -7,6 +7,7 @@ import {
 import path from "path"
 import { MAX_BODY_SIZE } from "./ratelimit"
 import { TFile, TFolder } from "./types"
+import JSZip from 'jszip';
 
 // FileManager class to handle file operations in a container
 export class FileManager {
@@ -208,9 +209,33 @@ export class FileManager {
     return true
   }
 
-  public async getFilesForDownload(): Promise<string> {
-    // TODO: Use E2B to create the zip file
-    return ""
+  async getFilesForDownload(): Promise<string> {
+    const zip = new JSZip();
+    const fileTree = await this.getFileTree();
+    
+    // Recursive function to add files to zip
+    const addToZip = async (node: TFile | TFolder, currentPath: string = '') => {
+      if (node.type === 'file') {
+        const content = await this.getFile(node.id);
+        if (content) {
+          zip.file(currentPath + node.name, content);
+        }
+      } else if (node.type === 'folder') {
+        const folderPath = currentPath + node.name + '/';
+        for (const child of (node as TFolder).children) {
+          await addToZip(child, folderPath);
+        }
+      }
+    };
+    
+    // Process all root nodes
+    for (const node of fileTree) {
+      await addToZip(node);
+    }
+    
+    // Generate zip as base64
+    const content = await zip.generateAsync({ type: 'base64' });
+    return content;
   }
 
   // Create a new folder
