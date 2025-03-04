@@ -1344,7 +1344,7 @@ export default function CodeEditor({
                       />
                     </div>
                     {!isPreviewCollapsed && (
-                      <div className="w-full grow rounded-md overflow-hidden bg-foreground mt-2">
+                      <div className="w-full grow rounded-md overflow-hidden bg-background mt-2">
                         <iframe
                           width={"100%"}
                           height={"100%"}
