@@ -13,6 +13,7 @@ export const metadata: Metadata = {
   title: "Sandbox",
   description:
     "an open-source cloud-based code editing environment with custom AI code generation, live preview, real-time collaboration, and AI chat",
+  metadataBase: new URL("https://sandbox.gitwit.dev/"),
   openGraph: {
     type: "website",
     url: "https://sandbox.gitwit.dev",
