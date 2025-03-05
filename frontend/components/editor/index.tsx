@@ -873,8 +873,6 @@ export default function CodeEditor({
 
   // Helper functions for tabs:
 
-  // Select file and load content
-
   // Initialize debounced function once
   const fileCache = useRef(new Map())
 
@@ -888,34 +886,49 @@ export default function CodeEditor({
 
     setGenerate((prev) => ({ ...prev, show: false }))
 
+    // Normalize the file path and name for comparison
+    const normalizedId = tab.id.replace(/^\/+/, "") // Remove leading slashes
+    const fileName = tab.name.split("/").pop() || ""
+
     // Check if the tab already exists in the list of open tabs
-    const existingTab = tabs.find((t) => t.id === tab.id)
+    const existingTab = tabs.find((t) => {
+      const normalizedTabId = t.id.replace(/^\/+/, "")
+      const tabFileName = t.name.split("/").pop() || ""
+      return normalizedTabId === normalizedId || tabFileName === fileName
+    })
 
     if (existingTab) {
       // If the tab exists, just make it active
       setActiveFileId(existingTab.id)
-      if (fileContents[existingTab.id]) {
+      // Only set content if it exists in fileContents
+      if (fileContents[existingTab.id] !== undefined) {
         setActiveFileContent(fileContents[existingTab.id])
       }
     } else {
       // If the tab doesn't exist, add it to the list and make it active
       setTabs((prev) => [...prev, tab])
 
-      // Fetch content if not cached
-      if (!fileContents[tab.id]) {
-        debouncedGetFile(tab.id, (response: string) => {
-          setFileContents((prev) => ({ ...prev, [tab.id]: response }))
-          setActiveFileContent(response)
-        })
+      // For new files, set empty content
+      if (tab.id.includes("(new file)")) {
+        setFileContents((prev) => ({ ...prev, [tab.id]: "" }))
+        setActiveFileContent("")
       } else {
-        setActiveFileContent(fileContents[tab.id])
+        // Fetch content if not cached
+        if (!fileContents[tab.id]) {
+          debouncedGetFile(tab.id, (response: string) => {
+            setFileContents((prev) => ({ ...prev, [tab.id]: response }))
+            setActiveFileContent(response)
+          })
+        } else {
+          setActiveFileContent(fileContents[tab.id])
+        }
       }
     }
 
     // Set the editor language based on the file type
     setEditorLanguage(processFileType(tab.name))
     // Set the active file ID
-    setActiveFileId(tab.id)
+    setActiveFileId(existingTab ? existingTab.id : tab.id)
   }
 
   // Added this effect to update fileContents when the editor content changes
@@ -1393,6 +1406,7 @@ export default function CodeEditor({
                   mergeDecorationsCollection={mergeDecorationsCollection}
                   setMergeDecorationsCollection={setMergeDecorationsCollection}
                   selectFile={selectFile}
+                  tabs={tabs}
                 />
               </ResizablePanel>
             </>

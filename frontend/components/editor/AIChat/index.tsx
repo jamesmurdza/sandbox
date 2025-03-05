@@ -23,6 +23,7 @@ export default function AIChat({
   mergeDecorationsCollection,
   setMergeDecorationsCollection,
   projectName,
+  tabs
 }: AIChatProps) {
   // Initialize socket and messages
   const { socket } = useSocket()
@@ -225,6 +226,7 @@ export default function AIChat({
             mergeDecorationsCollection={mergeDecorationsCollection}
             setMergeDecorationsCollection={setMergeDecorationsCollection}
             selectFile={selectFile}
+            tabs={tabs}
           />
         ))}
         {isLoading && <LoadingDots />}
