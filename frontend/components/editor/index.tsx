@@ -1177,6 +1177,7 @@ export default function CodeEditor({
                     show: !prev.show,
                   }
                 })
+                editorRef?.focus()
               }}
             />
           ) : null}
