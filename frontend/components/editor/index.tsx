@@ -171,6 +171,7 @@ export default function CodeEditor({
 
   const isOwner = sandboxData.userId === userData.id
   const clerk = useClerk()
+  const hasUnsavedFiles = tabs.some((tab) => !tab.saved)
 
   // // Liveblocks hooks
   // const room = useRoom()
@@ -526,6 +527,19 @@ export default function CodeEditor({
     },
     [editorRef]
   )
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedFiles) {
+        e.preventDefault()
+        e.returnValue =
+          "You have unsaved changes. Are you sure you want to leave?"
+        return e.returnValue
+      }
+    }
+    window.addEventListener("beforeunload", handleBeforeUnload)
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload)
+  }, [hasUnsavedFiles])
 
   // Generate widget effect
   useEffect(() => {
