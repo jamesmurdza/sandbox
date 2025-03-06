@@ -351,55 +351,53 @@ export default function CodeEditor({
       keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyG],
       precondition:
         "editorTextFocus && !suggestWidgetVisible && !renameInputVisible && !inSnippetMode && !quickFixWidgetVisible",
-      run: () => {
-        setGenerate((prev) => {
-          return {
-            ...prev,
-            show: !prev.show,
-            pref: [monaco.editor.ContentWidgetPositionPreference.BELOW],
-          }
-        })
-      },
+      run: handleAiEdit,
     })
   }
-  const handleAiEdit = React.useCallback(() => {
-    if (!editorRef) return
-    const selection = editorRef.getSelection()
-    if (!selection) return
-    const pos = selection.getPosition()
-    const start = selection.getStartPosition()
-    const end = selection.getEndPosition()
-    let pref: monaco.editor.ContentWidgetPositionPreference
-    let id = ""
-    const isMultiline = start.lineNumber !== end.lineNumber
-    if (isMultiline) {
-      if (pos.lineNumber <= start.lineNumber) {
-        pref = monaco.editor.ContentWidgetPositionPreference.ABOVE
+  const handleAiEdit = React.useCallback(
+    (editor?: monaco.editor.ICodeEditor) => {
+      console.log("editorRef", editorRef)
+      const e = editor ?? editorRef
+      if (!e) return
+      const selection = e.getSelection()
+      console.log("selection", selection)
+      if (!selection) return
+      const pos = selection.getPosition()
+      const start = selection.getStartPosition()
+      const end = selection.getEndPosition()
+      let pref: monaco.editor.ContentWidgetPositionPreference
+      let id = ""
+      const isMultiline = start.lineNumber !== end.lineNumber
+      if (isMultiline) {
+        if (pos.lineNumber <= start.lineNumber) {
+          pref = monaco.editor.ContentWidgetPositionPreference.ABOVE
+        } else {
+          pref = monaco.editor.ContentWidgetPositionPreference.BELOW
+        }
       } else {
-        pref = monaco.editor.ContentWidgetPositionPreference.BELOW
+        pref = monaco.editor.ContentWidgetPositionPreference.ABOVE
       }
-    } else {
-      pref = monaco.editor.ContentWidgetPositionPreference.ABOVE
-    }
-    editorRef.changeViewZones(function (changeAccessor) {
-      if (!generateRef.current) return
-      if (pref === monaco.editor.ContentWidgetPositionPreference.ABOVE) {
-        id = changeAccessor.addZone({
-          afterLineNumber: start.lineNumber - 1,
-          heightInLines: 2,
-          domNode: generateRef.current,
-        })
-      }
-    })
-    setGenerate((prev) => {
-      return {
-        ...prev,
-        show: true,
-        pref: [pref],
-        id,
-      }
-    })
-  }, [editorRef])
+      e.changeViewZones(function (changeAccessor) {
+        if (!generateRef.current) return
+        if (pref === monaco.editor.ContentWidgetPositionPreference.ABOVE) {
+          id = changeAccessor.addZone({
+            afterLineNumber: start.lineNumber - 1,
+            heightInLines: 2,
+            domNode: generateRef.current,
+          })
+        }
+      })
+      setGenerate((prev) => {
+        return {
+          ...prev,
+          show: true,
+          pref: [pref],
+          id,
+        }
+      })
+    },
+    [editorRef]
+  )
 
   // handle apply code
   const handleApplyCode = useCallback(
@@ -1089,7 +1087,7 @@ export default function CodeEditor({
                 exit={{ opacity: 0 }}
                 transition={{ ease: "easeOut", duration: 0.2 }}
               >
-                <Button size="xs" type="submit" onClick={handleAiEdit}>
+                <Button size="xs" type="submit" onClick={() => handleAiEdit()}>
                   <Sparkles className="h-3 w-3 mr-1" />
                   Edit Code
                 </Button>
