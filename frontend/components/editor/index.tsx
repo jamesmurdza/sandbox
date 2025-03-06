@@ -1275,6 +1275,7 @@ export default function CodeEditor({
                           }
                         }}
                         options={{
+                          theme: theme === "light" ? "vs" : "vs-dark",
                           tabSize: 2,
                           minimap: {
                             enabled: false,
@@ -1287,7 +1288,6 @@ export default function CodeEditor({
                           fixedOverflowWidgets: true,
                           fontFamily: "var(--font-geist-mono)",
                         }}
-                        theme={theme === "light" ? "vs" : "vs-dark"}
                         value={activeFileContent}
                       />
                     </>

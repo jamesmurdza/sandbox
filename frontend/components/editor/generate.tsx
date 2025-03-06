@@ -3,11 +3,11 @@
 import { User } from "@/lib/types"
 import { Editor } from "@monaco-editor/react"
 import { Check, Loader2, RotateCw, Sparkles, X } from "lucide-react"
+import { useTheme } from "next-themes"
 import { usePathname, useRouter } from "next/navigation"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import { Button } from "../ui/button"
-// import monaco from "monaco-editor"
 
 export default function GenerateInput({
   user,
@@ -32,6 +32,7 @@ export default function GenerateInput({
   onAccept: (code: string) => void
   onClose: () => void
 }) {
+  const { resolvedTheme: theme } = useTheme()
   const pathname = usePathname()
   const router = useRouter()
   const inputRef = useRef<HTMLInputElement>(null)
@@ -186,6 +187,7 @@ export default function GenerateInput({
               defaultLanguage={editor.language}
               value={code}
               options={{
+                theme: theme === "light" ? "vs" : "vs-dark",
                 minimap: {
                   enabled: false,
                 },
@@ -200,7 +202,6 @@ export default function GenerateInput({
                 lineDecorationsWidth: 0,
                 lineNumbersMinChars: 0,
               }}
-              theme="vs-dark"
             />
           </div>
           <div className="flex space-x-2 font-sans">
