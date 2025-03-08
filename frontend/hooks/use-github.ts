@@ -131,6 +131,80 @@ export const useCreateRepo = ({
     },
   })
 }
+interface CreateCommitResponse{
+  success:boolean;
+  repoUrl: string;
+}
+export const useCreateCommit = ({
+  onSuccess,
+}: {
+  onSuccess?: (data: CreateCommitResponse) => void
+}) => {
+  const { socket } = useSocket()
+
+  return useMutation({
+    onSuccess,
+    mutationFn: async (data:{repoId:string;message:string}) => {
+
+      return new Promise<CreateCommitResponse>((resolve, reject) => {
+        if (!socket?.connected) {
+          reject(new Error("Socket not connected"))
+          return
+        }
+
+        socket.emit(
+          "createCommit",
+          data,
+          (response: CreateCommitResponse|{error:string;}) => {
+            if ("error" in response) {
+              toast.error(response.error)
+              reject(new Error("No auth URL received"))
+              return
+            }
+            resolve(response)
+          }
+        )
+      })
+    },
+  })
+}
+interface DeleteRepoResponse{
+ success: true; 
+}
+export const useDeleteRepo = ({
+  onSuccess,
+}: {
+  onSuccess?: (data: DeleteRepoResponse) => void
+}) => {
+  const { socket } = useSocket()
+
+  return useMutation({
+    onSuccess,
+    mutationFn: async (data:{repoId:string}) => {
+
+      return new Promise<DeleteRepoResponse>((resolve, reject) => {
+        if (!socket?.connected) {
+          reject(new Error("Socket not connected"))
+          return
+        }
+
+        socket.emit(
+          "deleteRepodIdFromDB",
+          data,
+          (response: DeleteRepoResponse|{error:string;}) => {
+            if ("error" in response) {
+              toast.error(response.error)
+              reject(new Error("No auth URL received"))
+              return
+            }
+            resolve(response)
+          }
+        )
+      })
+    },
+  })
+}
+
 
 interface CheckSandboxRepoResponse{ 
   existsInDB:boolean;

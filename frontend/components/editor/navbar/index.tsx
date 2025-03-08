@@ -1,12 +1,10 @@
 "use client"
 
 //import Logo from "@/assets/logo.svg"
-import { Button } from "@/components/ui/button"
 import { ThemeSwitcher } from "@/components/ui/theme-switcher"
 import UserButton from "@/components/ui/userButton"
 import { Sandbox, User } from "@/lib/types"
-import { Pencil, Users } from "lucide-react"
-import Image from "next/image"
+import { Pencil } from "lucide-react"
 import Link from "next/link"
 import { useState } from "react"
 // import { Avatars } from "../live/avatars"
@@ -15,8 +13,6 @@ import DownloadButton from "./downloadButton"
 import EditSandboxModal from "./edit"
 import RunButtonModal from "./run"
 import ShareSandboxModal from "./share"
-import GitHubSyncButton from "./githubSyncButton"
-import CreateRepoButton from "./GitHubrepoButton"
 
 export default function Navbar({
   userData,
@@ -51,8 +47,7 @@ export default function Navbar({
           <Link
             href="/"
             className="ring-offset-2 transition-all ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md"
-          >
-          </Link>
+          ></Link>
           <div className="text-sm font-medium flex items-center">
             {sandboxData.name}
             {isOwner ? (
@@ -74,19 +69,17 @@ export default function Navbar({
           {/* <Avatars /> */}
 
           {isOwner ? (
-            
             <>
               <DeployButtonModal data={sandboxData} userData={userData} />
               {/* <Button variant="outline" onClick={() => setIsShareOpen(true)}>
                 <Users className="w-4 h-4 mr-2" />
                 Share
-              </Button> */}                <GitHubSyncButton  sandboxName={sandboxData.name} />
-              <CreateRepoButton sandboxName={sandboxData.name} />
+              </Button> */}
+              {/* <GitHubSyncButton  sandboxName={sandboxData.name} />
+              <CreateRepoButton sandboxName={sandboxData.name} /> */}
 
-              <DownloadButton name={sandboxData.name} /></>
-              
-              
-              
+              <DownloadButton name={sandboxData.name} />
+            </>
           ) : null}
           <ThemeSwitcher />
           <UserButton userData={userData} />
