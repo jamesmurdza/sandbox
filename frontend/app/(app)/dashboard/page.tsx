@@ -37,6 +37,42 @@ export default async function DashboardPage() {
     <div className="w-screen h-screen flex flex-col overflow-hidden overscroll-none">
       <Navbar userData={userData} openRouterSettings={openRouterSettings} />
       <Dashboard sandboxes={userData.sandbox} shared={shared} />
+      <div className="p-4">
+        <h2 className="text-xl font-semibold">OpenRouter Settings</h2>
+        <div className="mt-2">
+          <label className="block text-sm font-medium text-gray-700">
+            Enabled
+          </label>
+          <input
+            type="checkbox"
+            checked={openRouterSettings.enabled}
+            className="mt-1"
+            readOnly
+          />
+        </div>
+        <div className="mt-2">
+          <label className="block text-sm font-medium text-gray-700">
+            API Key
+          </label>
+          <input
+            type="text"
+            value={openRouterSettings.apiKey}
+            className="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
+            readOnly
+          />
+        </div>
+        <div className="mt-2">
+          <label className="block text-sm font-medium text-gray-700">
+            Model
+          </label>
+          <input
+            type="text"
+            value={openRouterSettings.model}
+            className="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
+            readOnly
+          />
+        </div>
+      </div>
     </div>
   )
 }

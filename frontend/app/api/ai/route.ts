@@ -176,6 +176,9 @@ ${activeFileContent ? `Active File Content:\n${activeFileContent}\n` : ""}`
     // Create stream response
     let stream;
     if (userData.openRouterEnabled) {
+      if (!userData.openRouterApiKey) {
+        return new Response("Missing OpenRouter API key", { status: 400 })
+      }
       const openRouter = createOpenRouter({
         apiKey: userData.openRouterApiKey,
         model: userData.openRouterModel,

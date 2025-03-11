@@ -567,6 +567,49 @@ export default {
       }
 
       return new Response("No reset needed", { status: 200 })
+    } else if (path === "/api/openrouter-settings") {
+      if (method === "POST" || method === "PUT") {
+        const openRouterSchema = z.object({
+          userId: z.string(),
+          enabled: z.boolean(),
+          apiKey: z.string(),
+          model: z.string(),
+        })
+
+        try {
+          const { userId, enabled, apiKey, model } = openRouterSchema.parse(request.body)
+
+          if (!process.env.OPENROUTER_API_KEY) {
+            return new Response("Missing OpenRouter API key", { status: 400 })
+          }
+
+          const existingUser = await db.query.user.findFirst({
+            where: (user, { eq }) => eq(user.id, userId),
+          })
+
+          if (!existingUser) {
+            return new Response("User not found", { status: 404 })
+          }
+
+          await db
+            .update(user)
+            .set({
+              openRouterEnabled: enabled,
+              openRouterApiKey: apiKey,
+              openRouterModel: model,
+            })
+            .where(eq(user.id, userId))
+
+          return success
+        } catch (error) {
+          if (error instanceof z.ZodError) {
+            return json({ error: error.errors }, { status: 400 })
+          }
+          return json({ error: "Internal server error" }, { status: 500 })
+        }
+      } else {
+        return methodNotAllowed
+      }
     } else return notFound
   },
 }

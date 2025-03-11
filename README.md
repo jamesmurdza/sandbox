@@ -94,6 +94,7 @@ NEXT_PUBLIC_SERVER_URL='http://localhost:4000'
 ANTHROPIC_API_KEY='🔑'
 
 OPENAI_API_KEY='🔑'
+OPENROUTER_API_KEY='🔑'
 ```
 
 ### 8. Running the IDE

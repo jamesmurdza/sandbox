@@ -64,13 +64,28 @@ export default function UserButton({ userData }: { userData: User }) {
   const [openRouterModel, setOpenRouterModel] = useState(userData.openRouterModel || "")
 
   const handleSaveSettings = async () => {
-    // Save the OpenRouter settings to the user profile
-    // This is a placeholder, replace with actual save logic
-    console.log("Saving OpenRouter settings:", {
-      openRouterEnabled,
-      openRouterApiKey,
-      openRouterModel,
-    })
+    try {
+      const response = await fetch("/api/openrouter-settings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId: userData.id,
+          enabled: openRouterEnabled,
+          apiKey: openRouterApiKey,
+          model: openRouterModel,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to save OpenRouter settings")
+      }
+
+      console.log("OpenRouter settings saved successfully")
+    } catch (error) {
+      console.error("Error saving OpenRouter settings:", error)
+    }
   }
 
   return (

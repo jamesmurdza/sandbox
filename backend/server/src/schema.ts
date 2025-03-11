@@ -54,6 +54,9 @@ export const user = pgTable("user", {
   ),
   tierExpiresAt: timestamp("tierExpiresAt"),
   lastResetDate: timestamp("lastResetDate"),
+  openRouterEnabled: integer("openRouterEnabled").default(0),
+  openRouterApiKey: text("openRouterApiKey"),
+  openRouterModel: text("openRouterModel"),
 })
 
 export type User = typeof user.$inferSelect
