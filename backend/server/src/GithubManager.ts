@@ -10,12 +10,10 @@ export class GithubManager {
   constructor() {
     this.octokit = null
     this.username = null
-    this.accessToken = null
   }
 
   async authenticate(code: string, userId: string) {
     try {
-      console.log("Attempting to authenticate with GitHub...")
       let accessToken = ""
       if (code){
         accessToken = await this.getAccessToken(code)
@@ -36,9 +34,11 @@ export class GithubManager {
       const user= await fetch(`${process.env.SERVER_URL}/api/user?id=${userId}`)
       const userData = await user.json()
       accessToken = userData.githubToken as string;
-      this.accessToken = accessToken
-      console.log("Received GitHub OAuth code:", accessToken)
-
+       // Check if GitHub token exists, if not, just return
+      if (!accessToken) {
+        console.log("No GitHub token found for user. Skipping authentication.")
+        return null
+      }
       this.octokit = new Octokit({ auth: accessToken })
       const { data } = await this.octokit.request("GET /user")
       this.username = data.login
@@ -86,13 +86,6 @@ export class GithubManager {
   ): Promise<{ exists: boolean; repoId?: string }> {
     const repos = await this.octokit.request("GET /user/repos")
 
-    // Log all repositories for debugging
-    console.log("Checking for repo name:", repoName)
-    console.log("All user repositories:")
-    repos.data.forEach((repo: { name: string; id: number }) => {
-      console.log(`- ${repo.name} (ID: ${repo.id})`)
-    })
-
     // Find the matching repository
     const existingRepo = repos.data.find(
       (repo: { name: string; }) =>
@@ -104,7 +97,6 @@ export class GithubManager {
       repoId: existingRepo?.id?.toString(),
     }
 
-    console.log("Returning result:", result)
 
     return result
   }
@@ -208,12 +200,6 @@ export class GithubManager {
   ): Promise<{ exists: boolean; repoId: string; repoName: string }> {
     const repos = await this.octokit.request("GET /user/repos")
 
-    console.log("Checking for repo ID:", repoId)
-    console.log("All user repositories:")
-    repos.data.forEach((repo: { name: string; id: number }) => {
-      console.log(`- ${repo.name} (ID: ${repo.id})`)
-    })
-
     // Find the matching repository by ID
     const existingRepo = repos.data.find(
       (repo: {  id: number }) => repo.id.toString() === repoId
@@ -226,7 +212,6 @@ export class GithubManager {
       repoName: existingRepo?.name || "",
     }
 
-    console.log("Returning result:", result)
 
     return result
   }

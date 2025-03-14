@@ -33,6 +33,13 @@ export const useGithubUser = createQuery({
             reject(new Error(data.error))
             return
           }
+          
+          // Explicitly handle null response
+          if (data === null) {
+            resolve(null);
+            return;
+          }
+          
           resolve(data)
         }
       )
