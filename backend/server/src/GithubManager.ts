@@ -15,26 +15,28 @@ export class GithubManager {
   async authenticate(code: string, userId: string) {
     try {
       let accessToken = ""
-      if (code){
+      if (code) {
         accessToken = await this.getAccessToken(code)
         if (accessToken) {
           // Update user's GitHub token in database
           await fetch(`${process.env.SERVER_URL}/api/user`, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            id: userId,
-            githubToken: accessToken,
-          }),
-        })
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              id: userId,
+              githubToken: accessToken,
+            }),
+          })
+        }
       }
-    }
-      const user= await fetch(`${process.env.SERVER_URL}/api/user?id=${userId}`)
+      const user = await fetch(
+        `${process.env.SERVER_URL}/api/user?id=${userId}`
+      )
       const userData = await user.json()
-      accessToken = userData.githubToken as string;
-       // Check if GitHub token exists, if not, just return
+      accessToken = userData.githubToken as string
+      // Check if GitHub token exists, if not, just return
       if (!accessToken) {
         console.log("No GitHub token found for user. Skipping authentication.")
         return null
@@ -84,21 +86,21 @@ export class GithubManager {
   async repoExistsByName(
     repoName: string
   ): Promise<{ exists: boolean; repoId?: string }> {
-    const repos = await this.octokit.request("GET /user/repos")
+    try {
+      const repoData = await this.octokit.request("GET /repos/{owner}/{repo}", {
+        owner: this.username,
+        repo: repoName,
+      })
+      const result = {
+        exists: !!repoData,
+        repoId: repoData?.data.id?.toString(),
+      }
 
-    // Find the matching repository
-    const existingRepo = repos.data.find(
-      (repo: { name: string; }) =>
-        repo.name.toLowerCase() === repoName.toLowerCase()
-    ) // Case-insensitive comparison
-
-    const result = {
-      exists: !!existingRepo,
-      repoId: existingRepo?.id?.toString(),
+      return result
+    } catch (error) {
+      console.log("Error getting repo data:", error)
+      return { exists: false }
     }
-
-
-    return result
   }
 
   async createRepo(
@@ -192,31 +194,34 @@ export class GithubManager {
       sha: newCommit.sha,
     })
     return { repoName }
-
   }
 
   async repoExistsByID(
     repoId: string
-  ): Promise<{ exists: boolean; repoId: string; repoName: string }> {
-    const repos = await this.octokit.request("GET /user/repos")
-
-    // Find the matching repository by ID
-    const existingRepo = repos.data.find(
-      (repo: {  id: number }) => repo.id.toString() === repoId
-    )
-
-
-    const result = {
-      exists: !!existingRepo,
-      repoId: existingRepo?.id?.toString() || "",
-      repoName: existingRepo?.name || "",
+  ): Promise<
+    { exists: boolean; repoId: string; repoName: string } | { exists: false }
+  > {
+    try {
+      const { data: githubRepo } = await this.octokit.request(
+        "GET /repositories/:id",
+        {
+          id: repoId,
+        }
+      )
+      return {
+        exists: !!githubRepo,
+        repoId: githubRepo?.id?.toString() || "",
+        repoName: githubRepo?.name || "",
+      }
+    } catch (error) {
+      console.error("Error getting repository:", error)
+      return {
+        exists: false,
+      }
     }
-
-
-    return result
   }
 
-  async logoutGithubUser(userId:string) {
+  async logoutGithubUser(userId: string) {
     // Update user's GitHub token in database
     await fetch(`${process.env.SERVER_URL}/api/user`, {
       method: "PUT",
@@ -229,6 +234,5 @@ export class GithubManager {
       }),
     })
     return { success: true }
-
   }
 }
