@@ -17,6 +17,8 @@ const socketMiddleware: Middleware<QueryHook<any, any>> = (useQueryNext) => {
     return useQueryNext({
       ...options,
       fetcher,
+      queryKey: [...options.queryKey, socket?.connected],
+      enabled: Boolean(socket?.connected),
     })
   }
 }
@@ -25,29 +27,29 @@ export const useGithubUser = createQuery({
   fetcher: (variable: { code?: string }, context) => {
     return new Promise<GithubUser>((resolve, reject) => {
       const ctx = context as typeof context & { socket: Socket }
-      ctx.socket?.emit(
-        "getGitHubUser",
-        { code: variable.code },
-        (data: any) => {
-          if (data?.error) {
-            reject(new Error(data.error))
-            return
-          }
-          
-          // Explicitly handle null response
-          if (data === null) {
-            resolve(null);
-            return;
-          }
-          
-          resolve(data)
+      if (!ctx.socket?.connected) {
+        reject(new Error("Socket not connected"))
+        return
+      }
+
+      ctx.socket.emit("getGitHubUser", { code: variable.code }, (data: any) => {
+        if (data?.error) {
+          reject(new Error(data.error))
+          return
         }
-      )
+
+        // Explicitly handle null response
+        if (data === null) {
+          resolve(null)
+          return
+        }
+
+        resolve(data)
+      })
     })
   },
   use: [socketMiddleware],
 })
-
 
 const REDIRECT_URI = "/loading"
 
@@ -104,7 +106,11 @@ export const useGithubLogin = ({
   })
 }
 
-interface CreateRepoResponse{ success:boolean;repoUrl:string;message:string }
+interface CreateRepoResponse {
+  success: boolean
+  repoUrl: string
+  message: string
+}
 export const useCreateRepo = ({
   onSuccess,
 }: {
@@ -115,7 +121,6 @@ export const useCreateRepo = ({
   return useMutation({
     onSuccess,
     mutationFn: async () => {
-
       return new Promise<CreateRepoResponse>((resolve, reject) => {
         if (!socket?.connected) {
           reject(new Error("Socket not connected"))
@@ -125,7 +130,7 @@ export const useCreateRepo = ({
         socket.emit(
           "createRepo",
           {},
-          (response: CreateRepoResponse|{error:string;}) => {
+          (response: CreateRepoResponse | { error: string }) => {
             if ("error" in response) {
               toast.error(response.error)
               reject(new Error("No auth URL received"))
@@ -138,9 +143,9 @@ export const useCreateRepo = ({
     },
   })
 }
-interface CreateCommitResponse{
-  success:boolean;
-  repoUrl: string;
+interface CreateCommitResponse {
+  success: boolean
+  repoUrl: string
 }
 export const useCreateCommit = ({
   onSuccess,
@@ -151,8 +156,7 @@ export const useCreateCommit = ({
 
   return useMutation({
     onSuccess,
-    mutationFn: async (data:{repoId:string;message:string}) => {
-
+    mutationFn: async (data: { repoId: string; message: string;repoName:string; }) => {
       return new Promise<CreateCommitResponse>((resolve, reject) => {
         if (!socket?.connected) {
           reject(new Error("Socket not connected"))
@@ -162,7 +166,7 @@ export const useCreateCommit = ({
         socket.emit(
           "createCommit",
           data,
-          (response: CreateCommitResponse|{error:string;}) => {
+          (response: CreateCommitResponse | { error: string }) => {
             if ("error" in response) {
               toast.error(response.error)
               reject(new Error("No auth URL received"))
@@ -175,8 +179,8 @@ export const useCreateCommit = ({
     },
   })
 }
-interface DeleteRepoResponse{
- success: true; 
+interface DeleteRepoResponse {
+  success: true
 }
 export const useDeleteRepo = ({
   onSuccess,
@@ -187,8 +191,7 @@ export const useDeleteRepo = ({
 
   return useMutation({
     onSuccess,
-    mutationFn: async (data:{repoId:string}) => {
-
+    mutationFn: async (data: { repoId: string }) => {
       return new Promise<DeleteRepoResponse>((resolve, reject) => {
         if (!socket?.connected) {
           reject(new Error("Socket not connected"))
@@ -198,7 +201,7 @@ export const useDeleteRepo = ({
         socket.emit(
           "deleteRepodIdFromDB",
           data,
-          (response: DeleteRepoResponse|{error:string;}) => {
+          (response: DeleteRepoResponse | { error: string }) => {
             if ("error" in response) {
               toast.error(response.error)
               reject(new Error("No auth URL received"))
@@ -212,38 +215,64 @@ export const useDeleteRepo = ({
   })
 }
 
-
-interface CheckSandboxRepoResponse{ 
-  existsInDB:boolean;
-  existsInGitHub:boolean;
-  repo?:{
-    id:string;
-    name:string;
+interface CheckSandboxRepoResponse {
+  existsInDB: boolean
+  existsInGitHub: boolean
+  repo?: {
+    id: string
+    name: string
   }
 }
-export const useCheckSandboxRepo  = createQuery({
-  queryKey: ["CheckSandboxRepo"],
-  fetcher: (_variable: { }, context) => {
-    return new Promise<CheckSandboxRepoResponse>((resolve, reject) => {
-      const ctx = context as typeof context & { socket: Socket }
-        if (!ctx.socket?.connected) {
-          reject(new Error("Socket not connected"))
-          return
-        }
 
-        ctx.socket.emit(
-          "checkSandboxRepo",
-          {},
-          (response: CheckSandboxRepoResponse|{error:string;}) => {
-            if ("error" in response) {
-              toast.error(response.error)
-              reject(new Error("No auth URL received"))
-              return
-            }
-            resolve(response)
+export const useCheckSandboxRepo = createQuery({
+  queryKey: ["CheckSandboxRepo"],
+  fetcher: async (_variable: {}, context) => {
+    const {socket} = context as typeof context & { socket?: Socket }
+    console.log("Query function executed, socket state:", {
+      connected: socket?.connected,
+      id: socket?.id,
+    })
+
+    return new Promise<CheckSandboxRepoResponse>((resolve, reject) => {
+      console.log("Setting up promise for socket emit")
+
+      if (!socket) {
+        console.error("Socket is null or undefined")
+        reject(new Error("Socket not available"))
+        return
+      }
+
+      if (!socket.connected) {
+        console.error("Socket exists but not connected")
+        reject(new Error("Socket not connected"))
+        return
+      }
+
+      console.log("About to emit checkSandboxRepo event")
+
+      // Create a timeout that we can clear if successful
+      const timeoutId = setTimeout(() => {
+        console.error("No response received after 5 seconds")
+        reject(new Error("Socket timeout"))
+      }, 5000)
+
+      socket.emit(
+        "checkSandboxRepo",
+        {},
+        (response: CheckSandboxRepoResponse | { error: string }) => {
+          // Clear the timeout since we got a response
+          clearTimeout(timeoutId)
+
+          console.log("Received response from checkSandboxRepo:", response)
+          if ("error" in response) {
+            toast.error(response.error)
+            reject(new Error("No auth URL received"))
+            return
           }
-        )
-      })
+          resolve(response)
+        }
+      )
+    })
   },
   use: [socketMiddleware],
 })

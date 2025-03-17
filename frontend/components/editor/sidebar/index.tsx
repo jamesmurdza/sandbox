@@ -21,6 +21,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { useSocket } from "@/context/SocketContext"
 import {
   useCheckSandboxRepo,
   useCreateCommit,
@@ -333,6 +334,7 @@ function FileExplorer({
 
 // #region Github Sync
 function GitHubSync({ repoId }: { repoId?: string }) {
+  const { socket } = useSocket()
   const queryClient = useQueryClient()
   const [commitMessage, setCommitMessage] = React.useState("")
   const {
@@ -349,8 +351,8 @@ function GitHubSync({ repoId }: { repoId?: string }) {
       code: data?.code,
     },
   })
-  const { data: RepoStatus } = useCheckSandboxRepo()
-  console.log("RepoStatus", RepoStatus,githubUser)
+  const { data: repoStatus, refetch: refetchCheckSandboxRepo } =
+    useCheckSandboxRepo()
   const { mutate: syncToGithub, isPending: isSyncingToGithub } =
     useCreateCommit({
       onSuccess() {
@@ -362,13 +364,11 @@ function GitHubSync({ repoId }: { repoId?: string }) {
     onSuccess() {
       setCommitMessage("")
       toast.success("Repository deleted successfully")
-      return queryClient.invalidateQueries(
-        useCheckSandboxRepo.getFetchOptions({})
-      )
+      refetchCheckSandboxRepo()
     },
   })
-  const hasRepo = RepoStatus
-    ? RepoStatus.existsInDB && RepoStatus.existsInGitHub
+  const hasRepo = repoStatus
+    ? repoStatus.existsInDB && repoStatus.existsInGitHub
     : false
   const { mutate: handleGithubLogout, isPending: isLoggingOut } =
     useGithubLogout()
@@ -376,7 +376,8 @@ function GitHubSync({ repoId }: { repoId?: string }) {
     {
       onSuccess() {
         toast.success("Repository created successfully")
-        return queryClient.invalidateQueries(useCheckSandboxRepo.getOptions({}))
+
+        refetchCheckSandboxRepo()
       },
     }
   )
@@ -468,10 +469,10 @@ function GitHubSync({ repoId }: { repoId?: string }) {
                 </DropdownMenu>
                 <div>
                   <a
-                    href={`${githubUser.html_url}/${RepoStatus?.repo?.name}`}
+                    href={`${githubUser.html_url}/${repoStatus?.repo?.name}`}
                     className="text-xs font-medium hover:underline"
                   >
-                    {RepoStatus?.repo?.name}
+                    {repoStatus?.repo?.name}
                   </a>
                   <div className="flex items-center gap-1 text-muted-foreground">
                     <GitBranch className="size-2.5" />
@@ -492,7 +493,7 @@ function GitHubSync({ repoId }: { repoId?: string }) {
                         e.preventDefault()
                         // handleGithubLogout()
                         deleteRepo({
-                          repoId: RepoStatus?.repo?.id ?? "",
+                          repoId: repoStatus?.repo?.id ?? "",
                         })
                       }}
                     >
@@ -518,7 +519,8 @@ function GitHubSync({ repoId }: { repoId?: string }) {
                 className="w-full font-normal"
                 onClick={() =>
                   syncToGithub({
-                    repoId: RepoStatus?.repo?.id!,
+                    repoId: repoStatus?.repo?.id!,
+                    repoName: repoStatus?.repo?.name!,
                     message: commitMessage,
                   })
                 }
