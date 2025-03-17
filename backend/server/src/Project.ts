@@ -592,7 +592,7 @@ export class Project {
       }
 
       // Case 3: Doesn't exist in either place
-      console.log("4--- repoExists ")
+      console.log("4--- repo not exists ")
       return {
         existsInDB: false,
         existsInGitHub: false,
