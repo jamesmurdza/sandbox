@@ -410,7 +410,12 @@ function GitHubSync() {
             </p>
             <div className="flex items-center justify-between bg-muted/50 px-2 py-1 rounded-sm">
               <div className="flex items-center gap-2">
-                <GithubUserButton {...githubUser} />
+                <GithubUserButton
+                  onLogout={() => {
+                    refetchGithubUser()
+                  }}
+                  {...githubUser}
+                />
                 <div>
                   <a
                     href={`${githubUser.html_url}/${repoStatus?.repo?.name}`}
@@ -487,7 +492,13 @@ function GitHubSync() {
               You can create one to sync your code with GitHub.
             </p>
             <div className="flex gap-1 mt-4">
-              <GithubUserButton {...githubUser} rounded="sm" />
+              <GithubUserButton
+                onLogout={() => {
+                  refetchGithubUser()
+                }}
+                {...githubUser}
+                rounded="sm"
+              />
               <Button
                 variant="secondary"
                 size="xs"
@@ -605,13 +616,20 @@ SidebarButton.displayName = "SidebarButton"
 // #endregion SidebarButton
 interface GithubUserButtonProps extends GithubUser {
   rounded?: "full" | "sm"
+  onLogout: () => void
 }
-function GithubUserButton({ rounded, ...githubUser }: GithubUserButtonProps) {
+function GithubUserButton({
+  rounded,
+  onLogout,
+  ...githubUser
+}: GithubUserButtonProps) {
   const {
     mutate: handleGithubLogout,
     isPending: isLoggingOut,
     data,
-  } = useGithubLogout()
+  } = useGithubLogout({
+    onSuccess: onLogout,
+  })
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>

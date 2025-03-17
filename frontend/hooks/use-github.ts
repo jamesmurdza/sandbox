@@ -283,16 +283,18 @@ export const useCheckSandboxRepo = createQuery({
   use: [socketMiddleware],
 })
 
-export const useGithubLogout = () => {
+export const useGithubLogout = ({
+  onSuccess
+}:{
+  onSuccess: ()=>void;
+}) => {
   const { socket } = useSocket()
-  const queryClient = useQueryClient()
-
+const queryClient = useQueryClient()
   return useMutation({
     onSuccess: () => {
-      queryClient.removeQueries({
-        queryKey: useGithubUser.getKey(),
-      })
-      toast.success("Logged out of GitHub")
+onSuccess();
+      return queryClient.setQueryData(useGithubUser.getKey(),null)
+
     },
     mutationFn: async () => {
       return new Promise<{ success: boolean }>((resolve, reject) => {
