@@ -5,7 +5,13 @@ import { createQuery, Middleware, QueryHook } from "react-query-kit"
 import { Socket } from "socket.io-client"
 import { toast } from "sonner"
 
-type GithubUser = any
+export type GithubUser = {
+  name: string;
+  avatar_url: string;
+  login: string;
+  html_url: string;
+  // ...the rest
+}
 const socketMiddleware: Middleware<QueryHook<any, any>> = (useQueryNext) => {
   return (options) => {
     const { socket } = useSocket()
@@ -40,7 +46,7 @@ export const useGithubUser = createQuery({
 
         // Explicitly handle null response
         if (data === null) {
-          resolve(null)
+          reject(null)
           return
         }
 

@@ -21,7 +21,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { useSocket } from "@/context/SocketContext"
 import {
   useCheckSandboxRepo,
   useCreateCommit,
@@ -30,6 +29,7 @@ import {
   useGithubLogin,
   useGithubLogout,
   useGithubUser,
+  type GithubUser,
 } from "@/hooks/use-github"
 import { Sandbox, TFile, TFolder, TTab } from "@/lib/types"
 import { cn, sortFileExplorer } from "@/lib/utils"
@@ -38,7 +38,6 @@ import {
   monitorForElements,
 } from "@atlaskit/pragmatic-drag-and-drop/element/adapter"
 import { Slot } from "@radix-ui/react-slot"
-import { useQueryClient } from "@tanstack/react-query"
 import { VariantProps } from "class-variance-authority"
 import { AnimatePresence, motion } from "framer-motion"
 import {
@@ -105,9 +104,7 @@ export default function Sidebar(props: SidebarProps) {
         >
           <AnimatePresence initial={false} mode="wait">
             {activeItem === "file" && <FileExplorer {...props} />}
-            {activeItem === "github" && (
-              <GitHubSync repoId={props.sandboxData?.repositoryId} />
-            )}
+            {activeItem === "github" && <GitHubSync />}
           </AnimatePresence>
         </motion.div>
       </div>
@@ -333,9 +330,7 @@ function FileExplorer({
 // #endregion File Explorer
 
 // #region Github Sync
-function GitHubSync({ repoId }: { repoId?: string }) {
-  const { socket } = useSocket()
-  const queryClient = useQueryClient()
+function GitHubSync() {
   const [commitMessage, setCommitMessage] = React.useState("")
   const {
     mutate: handleGithubLogin,
@@ -343,10 +338,10 @@ function GitHubSync({ repoId }: { repoId?: string }) {
     data,
   } = useGithubLogin({
     onSuccess: () => {
-      refetch()
+      refetchGithubUser()
     },
   })
-  const { data: githubUser, refetch } = useGithubUser({
+  const { data: githubUser, refetch: refetchGithubUser } = useGithubUser({
     variables: {
       code: data?.code,
     },
@@ -370,8 +365,6 @@ function GitHubSync({ repoId }: { repoId?: string }) {
   const hasRepo = repoStatus
     ? repoStatus.existsInDB && repoStatus.existsInGitHub
     : false
-  const { mutate: handleGithubLogout, isPending: isLoggingOut } =
-    useGithubLogout()
   const { mutate: handleCreateRepo, isPending: isCreatingRepo } = useCreateRepo(
     {
       onSuccess() {
@@ -417,56 +410,7 @@ function GitHubSync({ repoId }: { repoId?: string }) {
             </p>
             <div className="flex items-center justify-between bg-muted/50 px-2 py-1 rounded-sm">
               <div className="flex items-center gap-2">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="smIcon" className="size-6">
-                      <Avatar
-                        className="size-6"
-                        name={githubUser.name}
-                        avatarUrl={githubUser.avatar_url}
-                      />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-56">
-                    <DropdownMenuSub>
-                      <DropdownMenuSubTrigger>
-                        <Avatar
-                          className="size-6"
-                          name={githubUser.name}
-                          avatarUrl={githubUser.avatar_url}
-                        />
-                        <div className="grid flex-1 text-left text-sm leading-tight ml-2">
-                          <span className="truncate font-semibold text-xs">
-                            {githubUser.name}
-                          </span>
-                          <span className="truncate text-[0.6rem]">
-                            @{githubUser.login}
-                          </span>
-                        </div>
-                      </DropdownMenuSubTrigger>
-                      <DropdownMenuPortal>
-                        <DropdownMenuSubContent>
-                          <DropdownMenuItem
-                            onSelect={(e) => {
-                              e.preventDefault()
-                              handleGithubLogout()
-                            }}
-                          >
-                            {isLoggingOut && (
-                              <Loader2 className="animate-spin mr-2 h-4 w-4" />
-                            )}
-                            Logout
-                          </DropdownMenuItem>
-                          <DropdownMenuItem asChild>
-                            <a href={githubUser.html_url} target="_blank">
-                              View profile
-                            </a>
-                          </DropdownMenuItem>
-                        </DropdownMenuSubContent>
-                      </DropdownMenuPortal>
-                    </DropdownMenuSub>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <GithubUserButton {...githubUser} />
                 <div>
                   <a
                     href={`${githubUser.html_url}/${repoStatus?.repo?.name}`}
@@ -542,22 +486,25 @@ function GitHubSync({ repoId }: { repoId?: string }) {
               your don't have a Github repository linked to this sandbox yet.
               You can create one to sync your code with GitHub.
             </p>
-            <Button
-              variant="secondary"
-              size="xs"
-              className="mt-4 w-full font-normal"
-              onClick={() => {
-                handleCreateRepo()
-              }}
-              disabled={isCreatingRepo}
-            >
-              {isCreatingRepo ? (
-                <Loader2 className="animate-spin mr-2 size-3" />
-              ) : (
-                <PackagePlus className="size-3 mr-2" />
-              )}
-              Create Repo
-            </Button>
+            <div className="flex gap-1 mt-4">
+              <GithubUserButton {...githubUser} rounded="sm" />
+              <Button
+                variant="secondary"
+                size="xs"
+                className="w-full font-normal"
+                onClick={() => {
+                  handleCreateRepo()
+                }}
+                disabled={isCreatingRepo}
+              >
+                {isCreatingRepo ? (
+                  <Loader2 className="animate-spin mr-2 size-3" />
+                ) : (
+                  <PackagePlus className="size-3 mr-2" />
+                )}
+                Create Repo
+              </Button>
+            </div>
           </>
         )
       }
@@ -656,58 +603,65 @@ const SidebarButton = React.forwardRef<
 )
 SidebarButton.displayName = "SidebarButton"
 // #endregion SidebarButton
-
-{
-  /* <DropdownMenu>
-  <DropdownMenuTrigger asChild>
-    <Button variant="ghost" size="smIcon" className="size-6">
-      <Ellipsis size={16} />
-    </Button>
-  </DropdownMenuTrigger>
-  <DropdownMenuContent className="w-56">
-    {githubUser ? (
-      <DropdownMenuSub>
-        <DropdownMenuSubTrigger>
+interface GithubUserButtonProps extends GithubUser {
+  rounded?: "full" | "sm"
+}
+function GithubUserButton({ rounded, ...githubUser }: GithubUserButtonProps) {
+  const {
+    mutate: handleGithubLogout,
+    isPending: isLoggingOut,
+    data,
+  } = useGithubLogout()
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="smIcon" className="size-6">
           <Avatar
-            className="size-6"
+            className={cn("size-6", rounded === "sm" && "rounded-sm")}
             name={githubUser.name}
             avatarUrl={githubUser.avatar_url}
           />
-          <div className="grid flex-1 text-left text-sm leading-tight ml-2">
-            <span className="truncate font-semibold text-xs">
-              {githubUser.name}
-            </span>
-            <span className="truncate text-[0.6rem]">
-              @{githubUser.login}
-            </span>
-          </div>
-        </DropdownMenuSubTrigger>
-        <DropdownMenuPortal>
-          <DropdownMenuSubContent>
-            <DropdownMenuItem
-              onSelect={(e) => {
-                e.preventDefault()
-                handleGithubLogout()
-              }}
-            >
-              {isLoggingOut && (
-                <Loader2 className="animate-spin mr-2 h-4 w-4" />
-              )}
-              Logout
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <a href={githubUser.html_url} target="_blank">
-                View profile
-              </a>
-            </DropdownMenuItem>
-          </DropdownMenuSubContent>
-        </DropdownMenuPortal>
-      </DropdownMenuSub>
-    ) : (
-      <DropdownMenuItem onClick={() => handleGithubLogin()}>
-        Login
-      </DropdownMenuItem>
-    )}
-  </DropdownMenuContent>
-</DropdownMenu> */
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent className="w-56" side="bottom" align="start">
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>
+            <Avatar
+              className="size-6"
+              name={githubUser.name}
+              avatarUrl={githubUser.avatar_url}
+            />
+            <div className="grid flex-1 text-left text-sm leading-tight ml-2">
+              <span className="truncate font-semibold text-xs">
+                {githubUser.name}
+              </span>
+              <span className="truncate text-[0.6rem]">
+                @{githubUser.login}
+              </span>
+            </div>
+          </DropdownMenuSubTrigger>
+          <DropdownMenuPortal>
+            <DropdownMenuSubContent>
+              <DropdownMenuItem
+                onSelect={(e) => {
+                  e.preventDefault()
+                  handleGithubLogout()
+                }}
+              >
+                {isLoggingOut && (
+                  <Loader2 className="animate-spin mr-2 h-4 w-4" />
+                )}
+                Logout
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <a href={githubUser.html_url} target="_blank">
+                  View profile
+                </a>
+              </DropdownMenuItem>
+            </DropdownMenuSubContent>
+          </DropdownMenuPortal>
+        </DropdownMenuSub>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
 }
