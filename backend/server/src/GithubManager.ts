@@ -85,7 +85,7 @@ export class GithubManager {
   // Helper Methods
   async repoExistsByName(
     repoName: string
-  ): Promise<{ exists: boolean; repoId?: string }> {
+  ): Promise<{ exists: boolean;}> {
     try {
       const repoData = await this.octokit.request("GET /repos/{owner}/{repo}", {
         owner: this.username,
@@ -93,7 +93,6 @@ export class GithubManager {
       })
       const result = {
         exists: !!repoData,
-        repoId: repoData?.data.id?.toString(),
       }
 
       return result
@@ -105,14 +104,13 @@ export class GithubManager {
 
   async createRepo(
     repoName: string
-  ): Promise<{ html_url: string; id: string }> {
+  ): Promise<{ id: string }> {
     const { data } = await this.octokit.request("POST /user/repos", {
       name: repoName,
       auto_init: true,
       private: false,
     })
     return {
-      html_url: data.html_url,
       id: data.id.toString(),
     }
   }
@@ -142,8 +140,21 @@ export class GithubManager {
     )
 
     // Create blobs for all files
-    const blobs = await Promise.all(
-      files.map(async (file) => {
+    // Process files in batches with retry logic
+    const blobs = []
+    const batchSize = 7 // Process 7 files at a time
+
+    for (let i = 0; i < files.length; i += batchSize) {
+      const batch = files.slice(i, i + batchSize)
+      console.log(
+        `Processing batch ${i / batchSize + 1} of ${Math.ceil(
+          files.length / batchSize
+        )}`
+      )
+
+      // Process each file in the batch sequentially
+      for (const file of batch) {
+        try {
         const { data } = await this.octokit.request(
           "POST /repos/{owner}/{repo}/git/blobs",
           {
@@ -153,15 +164,25 @@ export class GithubManager {
             encoding: "utf-8",
           }
         )
-
-        return {
+        blobs.push({
           path: file.id.replace(/^\/+/, "").replace(/^project\/+/, ""),
           mode: "100644",
           type: "blob",
           sha: data.sha,
+        })
+
+          console.log(`Successfully created blob for file: ${file.id}`)
+        } catch (error) {
+          console.error(`Failed to create blob for file: ${file.id}`, error)
+          throw error
         }
-      })
-    )
+    }
+
+      // Add a delay between batches to avoid overwhelming the connection
+      if (i + batchSize < files.length) {
+        await new Promise((resolve) => setTimeout(resolve, 1000))
+      }
+    }
 
     // Create a new tree
     const { data: tree } = await this.octokit.request(

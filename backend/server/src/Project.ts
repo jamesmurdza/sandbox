@@ -364,21 +364,27 @@ export class Project {
         repoName = await handleRepoScenariosAndUpdateName(repoExists, repoName)
 
         // 4. Create the repository
-        const { html_url, id } = await this.githubManager.createRepo(repoName)
+        const { id } = await this.githubManager.createRepo(repoName)
         // 5. Update sandbox with repository ID
         await updateSandboxWithRepoId(this.projectId, id.toString())
         console.log({ id })
         // 6. Create initial commit
         console.log("Creating initial commit to repo: ", id)
-        await handleCreateCommit({
-          repoId: id.toString(),
-          repoName: repoName,
-          message: "chore: add files from GitWit",
-        })
-
+        const files = await collectFilesForCommit()
+        if (files.length === 0) {
+          return { success: false, error: "No files to commit" }
+        }
+ 
+        const username = this.githubManager.getUsername()
+        const repo = await this.githubManager.createCommit(
+          id,
+          files,
+          "chore: initial commit from GitWit"
+        )
+        const repoUrl = `https://github.com/${username}/${repo.repoName}`
         return {
           success: true,
-          repoUrl: html_url,
+          repoUrl: repoUrl,
           message: "Repository created and files committed successfully",
         }
       } catch (error) {
@@ -420,8 +426,8 @@ export class Project {
 
       try {
         // 2. Verify repository still exists
-        const repoCheck = await this.githubManager.repoExistsByName(
-          data.repoName
+        const repoCheck = await this.githubManager.repoExistsByID(
+          data.repoId
         )
         console.log("RepoCheck: ", repoCheck)
         if (!repoCheck.exists) {
@@ -537,6 +543,12 @@ export class Project {
       return repoName
     }
     const handleCheckSandboxRepo: SocketHandler = async () => {
+      if (!this.githubManager?.octokit) {
+        return {
+          existsInDB: false,
+        existsInGitHub: false,
+        }
+      }
       console.log("Checking Sandbox Repo...")
       // First check if we have this sandbox in DB
       const dbResponse = await fetch(
@@ -592,7 +604,7 @@ export class Project {
       }
 
       // Case 3: Doesn't exist in either place
-      console.log("4--- repo not exists ")
+      console.log("4--- repo not exists in both ")
       return {
         existsInDB: false,
         existsInGitHub: false,
