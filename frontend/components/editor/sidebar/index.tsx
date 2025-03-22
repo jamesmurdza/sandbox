@@ -420,6 +420,7 @@ function GitHubSync() {
                   <a
                     href={`${githubUser.html_url}/${repoStatus?.repo?.name}`}
                     className="text-xs font-medium hover:underline"
+                    target="_blank"
                   >
                     {repoStatus?.repo?.name}
                   </a>
@@ -458,7 +459,7 @@ function GitHubSync() {
             <div className="flex flex-col gap-2 mt-2">
               <Textarea
                 placeholder="Add a commit message here..."
-                className="!text-xs"
+                className="!text-xs ring-inset"
                 value={commitMessage}
                 onChange={(e) => setCommitMessage(e.target.value)}
               />
