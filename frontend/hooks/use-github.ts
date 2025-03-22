@@ -6,10 +6,10 @@ import { Socket } from "socket.io-client"
 import { toast } from "sonner"
 
 export type GithubUser = {
-  name: string;
-  avatar_url: string;
-  login: string;
-  html_url: string;
+  name: string
+  avatar_url: string
+  login: string
+  html_url: string
   // ...the rest
 }
 const socketMiddleware: Middleware<QueryHook<any, any>> = (useQueryNext) => {
@@ -30,8 +30,9 @@ const socketMiddleware: Middleware<QueryHook<any, any>> = (useQueryNext) => {
 }
 export const useGithubUser = createQuery({
   queryKey: ["githubUser"],
+  retry: 0,
   fetcher: (variable: { code?: string }, context) => {
-    return new Promise<GithubUser>((resolve, reject) => {
+    return new Promise<GithubUser | null>((resolve, reject) => {
       const ctx = context as typeof context & { socket: Socket }
       if (!ctx.socket?.connected) {
         reject(new Error("Socket not connected"))
@@ -40,13 +41,13 @@ export const useGithubUser = createQuery({
 
       ctx.socket.emit("getGitHubUser", { code: variable.code }, (data: any) => {
         if (data?.error) {
-          reject(new Error(data.error))
+          resolve(null)
           return
         }
 
         // Explicitly handle null response
         if (data === null) {
-          reject(null)
+          resolve(null)
           return
         }
 
@@ -162,7 +163,11 @@ export const useCreateCommit = ({
 
   return useMutation({
     onSuccess,
-    mutationFn: async (data: { repoId: string; message: string;repoName:string; }) => {
+    mutationFn: async (data: {
+      repoId: string
+      message: string
+      repoName: string
+    }) => {
       return new Promise<CreateCommitResponse>((resolve, reject) => {
         if (!socket?.connected) {
           reject(new Error("Socket not connected"))
@@ -233,7 +238,7 @@ interface CheckSandboxRepoResponse {
 export const useCheckSandboxRepo = createQuery({
   queryKey: ["CheckSandboxRepo"],
   fetcher: async (_variable: {}, context) => {
-    const {socket} = context as typeof context & { socket?: Socket }
+    const { socket } = context as typeof context & { socket?: Socket }
     console.log("Query function executed, socket state:", {
       connected: socket?.connected,
       id: socket?.id,
@@ -283,18 +288,13 @@ export const useCheckSandboxRepo = createQuery({
   use: [socketMiddleware],
 })
 
-export const useGithubLogout = ({
-  onSuccess
-}:{
-  onSuccess: ()=>void;
-}) => {
+export const useGithubLogout = ({ onSuccess }: { onSuccess: () => void }) => {
   const { socket } = useSocket()
-const queryClient = useQueryClient()
+  const queryClient = useQueryClient()
   return useMutation({
     onSuccess: () => {
-onSuccess();
-      return queryClient.setQueryData(useGithubUser.getKey(),null)
-
+      onSuccess()
+      queryClient.setQueryData(["githubUser"], () => undefined)
     },
     mutationFn: async () => {
       return new Promise<{ success: boolean }>((resolve, reject) => {
