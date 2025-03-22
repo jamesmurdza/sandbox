@@ -335,7 +335,8 @@ function GitHubSync() {
   const {
     mutate: handleGithubLogin,
     isPending: isLoggingIn,
-    data,
+    data: githubLoginDetails,
+    reset: resetGithubLogin,
   } = useGithubLogin({
     onSuccess: () => {
       refetchGithubUser()
@@ -343,7 +344,7 @@ function GitHubSync() {
   })
   const { data: githubUser, refetch: refetchGithubUser } = useGithubUser({
     variables: {
-      code: data?.code,
+      code: githubLoginDetails?.code,
     },
   })
   const { data: repoStatus, refetch: refetchCheckSandboxRepo } =
@@ -530,7 +531,11 @@ function GitHubSync() {
     isSyncingToGithub,
     isDeletingRepo,
   ])
-
+  React.useEffect(() => {
+    if (githubUser) {
+      resetGithubLogin()
+    }
+  }, [githubUser])
   return (
     <motion.div
       initial={{ opacity: 0 }}
