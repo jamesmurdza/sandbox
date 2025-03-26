@@ -66,7 +66,7 @@ export default function EditSandboxModal({
     await updateSandbox({ id: data.id, ...values })
 
     toast.success("Sandbox updated successfully")
-
+    setOpen(false)
     setLoading(false)
   }
 

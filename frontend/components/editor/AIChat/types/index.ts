@@ -61,6 +61,7 @@ export interface AIChatProps {
   mergeDecorationsCollection?: monaco.editor.IEditorDecorationsCollection
   setMergeDecorationsCollection?: (collection: undefined) => void
   selectFile: (tab: TTab) => void
+  tabs: TTab[]
 }
 
 // Chat input props interface
@@ -117,6 +118,7 @@ export interface MessageProps {
   mergeDecorationsCollection?: monaco.editor.IEditorDecorationsCollection
   setMergeDecorationsCollection?: (collection: undefined) => void
   selectFile: (tab: TTab) => void
+  tabs: TTab[]
 }
 
 // Context tabs props interface

@@ -16,7 +16,8 @@ Needed accounts to set up:
 
 - [Clerk](https://clerk.com/): Used for user authentication.
 - [E2B](https://e2b.dev/): Used for the terminals and live preview.
-- [Anthropic](https://anthropic.com/) and [OpenAI](https://openai.com/): API keys for code generation.
+- [Anthropic](https://anthropic.com/) or AWS Bedrock: API keys for code generation.
+- [OpenAI](https://openai.com/): API keys for applying AI-generated code diffs.
 
 A quick overview of the tech before we start: The deployment uses a **NextJS** app for the frontend and an **ExpressJS** server on the backend. Presumably that's because NextJS integrates well with Clerk middleware but not with Socket.io.
 
@@ -91,8 +92,23 @@ Update `/frontend/.env`:
 
 ```
 NEXT_PUBLIC_SERVER_URL='http://localhost:4000'
-ANTHROPIC_API_KEY='🔑'
+```
 
+Then add EITHER Anthropic direct API key:
+```
+ANTHROPIC_API_KEY='🔑'
+```
+
+OR AWS Bedrock configuration (if using Claude through AWS as described in the [Setting Up Your AWS Bedrock Keys](#setting-up-your-aws-bedrock-keys) section):
+```
+AWS_ACCESS_KEY_ID='🔑'
+AWS_SECRET_ACCESS_KEY='🔑'
+AWS_REGION='your_aws_region'
+AWS_ARN='arn:aws:bedrock:...'
+```
+
+Finally, add OpenAI API key for code diffs:
+```
 OPENAI_API_KEY='🔑'
 ```
 
@@ -104,6 +120,65 @@ Run `npm run dev` simultaneously in:
 /frontend
 /backend/server
 ```
+
+## Setting Up Your AWS Bedrock Keys
+
+To use the `anthropic.claude-3-7-sonnet-20250219-v1:0` model via Amazon Bedrock, follow these steps:
+
+1. **Create an AWS Account** (if you don't have one)
+   - Go to [aws.amazon.com](https://aws.amazon.com/) and sign up for an AWS account.
+
+2. **Create an IAM User with Programmatic Access**
+   - Navigate to IAM in the AWS Management Console.
+   - Click "Users" → "Add users".
+   - Enter a username and select "Programmatic access".
+   - Attach permissions for Amazon Bedrock:
+     ```json
+     {
+       "Version": "2012-10-17", 
+       "Statement": [
+         {
+           "Effect": "Allow",
+           "Action": [
+             "bedrock:*",
+             "kms:GenerateDataKey",
+             "kms:Decrypt"  
+           ],
+           "Resource": "*"
+         }
+       ]
+     }
+     ```
+   - Complete the process and save your Access Key ID and Secret Access Key.
+
+3. **Enable Model Access in Bedrock**
+   - Go to Amazon Bedrock in the AWS Console.
+   - Navigate to "Model access" and request access to Anthropic Claude 3.7 Sonnet.
+   - Wait for approval (usually immediate).
+   - Note: Ensure you're in a supported region. Claude 3.7 Sonnet is available in regions like `us-east-1` (N. Virginia), `us-west-2` (Oregon), and others.
+
+4. **Create a Provisioned Throughput**
+   - In Bedrock, go to "Inference and Assessment" → "Provisioned Throughput".
+   - Create a new inference profile for Claude 3.7 Sonnet.
+   - Select the model ID: `anthropic.claude-3-7-sonnet-20250219-v1:0`
+   - Choose your desired throughput capacity.
+   - Copy the ARN (Amazon Resource Name) of your inference profile.
+
+5. **Configure Environment Variables**
+   - Add the following to your `.env` file:
+     ```
+     AWS_ACCESS_KEY_ID=your_access_key_id
+     AWS_SECRET_ACCESS_KEY=your_secret_access_key
+     AWS_REGION=your_aws_region
+     AWS_ARN=your_inference_profile_arn
+     ```
+
+6. **Verify Setup**
+   - After configuring the environment variables, restart your application.
+   - Test the connection by sending a simple prompt to the model.
+   - If you encounter issues, check the AWS CloudWatch logs for error messages.
+
+**Note:** Using AWS Bedrock incurs costs based on your usage and provisioned throughput. Review the [AWS Bedrock pricing](https://aws.amazon.com/bedrock/pricing/) before setting up.
 
 ## Setting up Deployments
 

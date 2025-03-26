@@ -60,6 +60,9 @@ export default function GenerateInput({
       setLoading({ generate: !regenerate, regenerate })
       setCurrentPrompt(input)
 
+      const selectedCode = data.code
+      const instruction = regenerate ? currentPrompt : input
+
       const response = await fetch("/api/ai", {
         method: "POST",
         headers: {
@@ -69,14 +72,15 @@ export default function GenerateInput({
           messages: [
             {
               role: "user",
-              content: regenerate ? currentPrompt : input,
+              content: instruction,
             },
           ],
-          context: null,
-          activeFileContent: data.code,
+          context: selectedCode,
+          activeFileContent: null,
           isEditMode: true,
           fileName: data.fileName,
           line: data.line,
+          templateType: "code",
         }),
       })
 
@@ -98,7 +102,14 @@ export default function GenerateInput({
         }
       }
 
-      setCode(result.trim())
+      // Clean up any potential markdown or explanation text
+      const cleanedResult = result
+        .replace(/```[\w-]*\n?/g, "") // Remove code fence markers
+        .replace(/^[\s\n]*/, "") // Remove leading whitespace/newlines
+        .replace(/[\s\n]*$/, "") // Remove trailing whitespace/newlines
+        .trim()
+
+      setCode(cleanedResult)
       router.refresh()
     } catch (error) {
       console.error("Generation error:", error)

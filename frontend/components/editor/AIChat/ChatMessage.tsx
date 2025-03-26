@@ -20,6 +20,7 @@ export default function ChatMessage({
   mergeDecorationsCollection,
   setMergeDecorationsCollection,
   selectFile,
+  tabs,
 }: MessageProps) {
   // State for expanded message index
   const [expandedMessageIndex, setExpandedMessageIndex] = useState<
@@ -117,6 +118,7 @@ export default function ChatMessage({
     editorRef,
     handleApplyCode,
     selectFile,
+    tabs,
     mergeDecorationsCollection,
     setMergeDecorationsCollection,
   )
