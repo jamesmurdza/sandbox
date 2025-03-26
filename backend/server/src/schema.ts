@@ -48,7 +48,7 @@ export const user = pgTable("user", {
   links: json("links")
     .notNull()
     .$type<UserLink[]>()
-    .default(sql`'[]'::json`),
+    .default(sql`'[]'`),
   tier: varchar("tier", { enum: ["FREE", "PRO", "ENTERPRISE"] }).default(
     "FREE"
   ),
@@ -73,6 +73,7 @@ export const sandbox = pgTable("sandbox", {
   likeCount: integer("likeCount").default(0),
   viewCount: integer("viewCount").default(0),
   containerId: text("containerId"),
+  repositoryId: text("repositoryId"),
 })
 
 export type Sandbox = typeof sandbox.$inferSelect

@@ -74,16 +74,21 @@ export default {
           id: z.string(),
           name: z.string().optional(),
           visibility: z.enum(["public", "private"]).optional(),
-          containerId: z.string(),
+          containerId: z.string().nullable().optional(),
+          repositoryId: z.string().nullable().optional(),
         })
 
-        const { id, name, visibility, containerId } = postSchema.parse(
-          request.body
-        )
+        const { id, name, visibility, containerId, repositoryId } =
+          postSchema.parse(request.body)
         const sb = (
           await db
             .update(sandbox)
-            .set({ name, visibility, containerId })
+            .set({
+              name,
+              visibility,
+              containerId,
+              repositoryId,
+            })
             .where(eq(sandbox.id, id))
             .returning()
         )[0]
@@ -95,11 +100,11 @@ export default {
           name: z.string(),
           userId: z.string(),
           visibility: z.enum(["public", "private"]),
+          repositoryId: z.string().nullable().optional(),
         })
 
-        const { type, name, userId, visibility } = initSchema.parse(
-          request.body
-        )
+        const { type, name, userId, visibility, repositoryId } =
+          initSchema.parse(request.body)
 
         const userSandboxes = await db
           .select()
@@ -115,7 +120,14 @@ export default {
         const sb = (
           await db
             .insert(sandbox)
-            .values({ type, name, userId, visibility, createdAt: new Date() })
+            .values({
+              type,
+              name,
+              userId,
+              visibility,
+              createdAt: new Date(),
+              repositoryId,
+            })
             .returning()
         )[0]
 
@@ -193,7 +205,6 @@ export default {
         ) {
           return new Response("User already has access.", { status: 400 })
         }
-
 
         await db
           .insert(usersToSandboxes)
@@ -353,7 +364,6 @@ export default {
                   liked: sb.likes.some((like: any) => like.userId === userId),
                 })
               ),
-
             }
             return json(transformedUser)
           }

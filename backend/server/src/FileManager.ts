@@ -7,6 +7,7 @@ import {
 import path from "path"
 import { MAX_BODY_SIZE } from "./ratelimit"
 import { TFile, TFolder } from "./types"
+import JSZip from 'jszip';
 
 // FileManager class to handle file operations in a container
 export class FileManager {
@@ -177,8 +178,10 @@ export class FileManager {
     folderId: string
   ): Promise<(TFolder | TFile)[]> {
     const newFileId = path.posix.join(folderId, path.posix.basename(fileId))
+
     await this.moveFileInContainer(fileId, newFileId)
     await this.fixPermissions()
+
     return await this.getFileTree()
   }
 
@@ -247,7 +250,7 @@ export class FileManager {
 
   // Delete a folder
   async deleteFolder(folderId: string): Promise<(TFolder | TFile)[]> {
-    await this.container.files.remove(path.posix.join(this.dirName, folderId))
+    this.container.files.remove(path.posix.join(this.dirName, folderId))
     return await this.getFileTree()
   }
 
