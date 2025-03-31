@@ -1,34 +1,120 @@
 "use client"
-
-import { useSocket } from "@/context/SocketContext"
-import { Sandbox, TFile, TFolder, TTab } from "@/lib/types"
-import { FilePlus, FolderPlus, MessageSquareMore, Sparkles } from "lucide-react"
-import { useEffect, useMemo, useRef, useState } from "react"
-import SidebarFile from "./file"
-import SidebarFolder from "./folder"
-import New from "./new"
-
-import { Button } from "@/components/ui/button"
+import { File, Github } from "@/components/ui/Icons"
+import Avatar from "@/components/ui/avatar"
+import { Button, buttonVariants } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuPortal,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Textarea } from "@/components/ui/textarea"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+import {
+  useCheckSandboxRepo,
+  useCreateCommit,
+  useCreateRepo,
+  useDeleteRepo,
+  useGithubLogin,
+  useGithubLogout,
+  useGithubUser,
+  type GithubUser,
+} from "@/hooks/use-github"
+import { Sandbox, TFile, TFolder, TTab } from "@/lib/types"
 import { cn, sortFileExplorer } from "@/lib/utils"
 import {
   dropTargetForElements,
   monitorForElements,
 } from "@atlaskit/pragmatic-drag-and-drop/element/adapter"
+import { Slot } from "@radix-ui/react-slot"
+import { VariantProps } from "class-variance-authority"
+import { AnimatePresence, motion } from "framer-motion"
+import {
+  FilePlus,
+  FolderPlus,
+  GitBranch,
+  Loader2,
+  MessageSquareMore,
+  MoreVertical,
+  PackagePlus,
+  RefreshCw,
+  Sparkles,
+} from "lucide-react"
+import * as React from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { Socket } from "socket.io-client"
+import { toast } from "sonner"
+import SidebarFile from "./file"
+import SidebarFolder from "./folder"
+import New from "./new"
 
-export default function Sidebar({
-  sandboxData,
-  files,
-  selectFile,
-  handleRename,
-  handleDeleteFile,
-  handleDeleteFolder,
-  setFiles,
-  deletingFolderId,
-  toggleAIChat,
-  isAIChatOpen,
-}: {
+const sidebarItem = [
+  {
+    id: "file",
+    name: "File Explorer",
+    icon: File,
+  },
+  {
+    id: "github",
+    name: "Sync to GitHub",
+    icon: Github,
+  },
+]
+// #region Sidebar
+interface SidebarProps extends FileManagerProps {}
+export default function Sidebar(props: SidebarProps) {
+  const [activeItem, setActiveItem] = useState<string | null>(sidebarItem[0].id)
+  const hideSidebar = activeItem === null
+  // prefetch queries
+  useCheckSandboxRepo()
+  useGithubUser()
+  return (
+    <TooltipProvider>
+      <div className="flex h-full">
+        <div className="w-12 flex flex-col items-center gap-3 pt-2 border-r border-secondary">
+          {sidebarItem.map(({ id, name, icon: Icon }, index) => (
+            <SidebarButton
+              key={index}
+              isActive={activeItem === id}
+              onClick={() => setActiveItem(activeItem === id ? null : id)}
+              variant="ghost"
+              size="smIcon"
+              tooltip={name}
+            >
+              <Icon className="size-5" />
+            </SidebarButton>
+          ))}
+        </div>
+        <motion.div
+          className={cn(
+            "h-full w-56 transition-all duration-300 delay-75",
+            hideSidebar ? "w-0" : "w-56"
+          )}
+        >
+          <AnimatePresence initial={false} mode="wait">
+            {activeItem === "file" && <FileExplorer {...props} />}
+            {activeItem === "github" && <GitHubSync />}
+          </AnimatePresence>
+        </motion.div>
+      </div>
+    </TooltipProvider>
+  )
+}
+// #endregion
+
+// #region File Explorer
+interface FileManagerProps {
   sandboxData: Sandbox
   files: (TFile | TFolder)[]
   selectFile: (tab: TTab) => void
@@ -40,27 +126,38 @@ export default function Sidebar({
   ) => boolean
   handleDeleteFile: (file: TFile) => void
   handleDeleteFolder: (folder: TFolder) => void
+  socket: Socket
   setFiles: (files: (TFile | TFolder)[]) => void
   deletingFolderId: string
   toggleAIChat: () => void
   isAIChatOpen: boolean
-}) {
-  const ref = useRef(null) // drop target
-
+}
+function FileExplorer({
+  sandboxData,
+  files,
+  selectFile,
+  handleRename,
+  handleDeleteFile,
+  handleDeleteFolder,
+  socket,
+  setFiles,
+  deletingFolderId,
+  toggleAIChat,
+  isAIChatOpen,
+}: FileManagerProps) {
   const [creatingNew, setCreatingNew] = useState<"file" | "folder" | null>(null)
-  const { socket } = useSocket()
-
   const [movingId, setMovingId] = useState("")
   const sortedFiles = useMemo(() => {
     return sortFileExplorer(files)
   }, [files])
+  const ref = useRef(null) // drop target
   useEffect(() => {
     const el = ref.current
 
     if (el) {
       return dropTargetForElements({
         element: el,
-        getData: () => ({ id: "/" }),
+        getData: () => ({ id: `projects/${sandboxData.id}` }),
         canDrop: ({ source }) => {
           const file = files.find((child) => child.id === source.data.id)
           return !file
@@ -73,6 +170,9 @@ export default function Sidebar({
     return monitorForElements({
       onDrop({ source, location }) {
         const destination = location.current.dropTargets[0]
+        if (!destination) {
+          return
+        }
 
         const fileId = source.data.id as string
         const folderId = destination.data.id as string
@@ -85,7 +185,7 @@ export default function Sidebar({
         console.log("move file", fileId, "to folder", folderId)
 
         setMovingId(fileId)
-        socket?.emit(
+        socket.emit(
           "moveFile",
           {
             fileId,
@@ -98,13 +198,17 @@ export default function Sidebar({
         )
       },
     })
-  }, [socket])
-
+  }, [])
   return (
-    <div className="h-full w-56 select-none flex flex-col text-sm">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="h-full select-none flex flex-col text-sm"
+    >
       <ScrollArea className="flex-grow overflow-auto px-2 pt-0 pb-4 relative">
         <div className="flex w-full items-center justify-between h-8 pb-1 isolate z-10 sticky pt-2 top-0 bg-background">
-          <div className="text-muted-foreground">Explorer</div>
+          <h2 className="font-medium">Explorer</h2>
           <div className="flex space-x-1">
             <button
               disabled={!!creatingNew}
@@ -122,17 +226,17 @@ export default function Sidebar({
             </button>
             {/* Todo: Implement file searching */}
             {/* <button className="h-6 w-6 text-muted-foreground ml-0.5 flex items-center justify-center translate-x-1 bg-transparent hover:bg-muted-foreground/25 cursor-pointer rounded-sm transition-all focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
-            <Search className="w-4 h-4" />
-          </button> */}
+              <Search className="w-4 h-4" />
+            </button> */}
           </div>
         </div>
         <div ref={ref} className="rounded-sm w-full mt-1 flex flex-col">
           {/* <div
-          ref={ref}
-          className={`${
-            isDraggedOver ? "bg-secondary/50" : ""
-          } rounded-sm w-full mt-1 flex flex-col`}
-        > */}
+            ref={ref}
+            className={`${
+              isDraggedOver ? "bg-secondary/50" : ""
+            } rounded-sm w-full mt-1 flex flex-col`}
+          > */}
           {sortedFiles.length === 0 ? (
             <div className="w-full flex flex-col justify-center">
               {new Array(6).fill(0).map((_, i) => (
@@ -165,7 +269,7 @@ export default function Sidebar({
                   />
                 )
               )}
-              {creatingNew !== null && socket ? (
+              {creatingNew !== null ? (
                 <New
                   socket={socket}
                   type={creatingNew}

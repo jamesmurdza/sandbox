@@ -1,5 +1,4 @@
 import { Check, Copy, CornerUpLeft } from "lucide-react"
-import { useTheme } from "next-themes"
 import React, { useState } from "react"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
@@ -23,7 +22,6 @@ export default function ChatMessage({
   selectFile,
   tabs,
 }: MessageProps) {
-  const { resolvedTheme: theme } = useTheme()
   // State for expanded message index
   const [expandedMessageIndex, setExpandedMessageIndex] = useState<
     number | null
@@ -112,7 +110,6 @@ export default function ChatMessage({
 
   // Create markdown components
   const components = createMarkdownComponents(
-    theme ?? "light",
     renderCopyButton,
     renderMarkdownElement,
     askAboutCode,
@@ -123,7 +120,7 @@ export default function ChatMessage({
     selectFile,
     tabs,
     mergeDecorationsCollection,
-    setMergeDecorationsCollection
+    setMergeDecorationsCollection,
   )
 
   return (
@@ -131,13 +128,13 @@ export default function ChatMessage({
       <div
         className={`relative p-2 rounded-lg ${
           message.role === "user"
-            ? "bg-foreground/80 text-background"
+            ? "bg-foreground text-background"
             : "bg-background text-foreground"
         } max-w-full`}
       >
         {/* Render context tabs */}
         {message.role === "user" && message.context && (
-          <div className="mb-2 rounded-lg">
+          <div className="mb-2 bg-input rounded-lg">
             <ContextTabs
               socket={socket}
               activeFileName=""
@@ -148,6 +145,7 @@ export default function ChatMessage({
               onToggleExpand={() =>
                 setExpandedMessageIndex(expandedMessageIndex === 0 ? null : 0)
               }
+              className="[&_div:first-child>div:first-child>div]:bg-[#0D0D0D] [&_button:first-child]:hidden [&_button:last-child]:hidden"
             />
             {expandedMessageIndex === 0 && (
               <div className="relative">

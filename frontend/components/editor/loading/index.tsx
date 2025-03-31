@@ -1,6 +1,6 @@
 "use client"
 
-import { Logo } from "@/components/logo"
+import Logo from "@/assets/logo.svg"
 import {
   Dialog,
   DialogContent,
@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Loader2, X } from "lucide-react"
+import Image from "next/image"
 import { useEffect, useState } from "react"
 
 export default function Loading({
@@ -64,7 +65,7 @@ export default function Loading({
       {withNav ? (
         <div className="h-14 px-2 w-full flex items-center justify-between border-b border-border">
           <div className="flex items-center space-x-4">
-            <Logo />
+            <Image src={Logo} alt="Logo" width={36} height={36} />
             <Skeleton className="w-[100px] h-[24px] rounded-md" />
           </div>
           <div className="flex items-center space-x-4">

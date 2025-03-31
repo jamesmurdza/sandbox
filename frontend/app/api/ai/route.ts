@@ -100,12 +100,7 @@ export async function POST(request: Request) {
 
     // Get user data and check tier
     const dbUser = await fetch(
-      `${process.env.NEXT_PUBLIC_SERVER_URL}/api/user?id=${user.id}`,
-      {
-        headers: {
-          "Content-Type": "application/json",
-        },
-      }
+      `${process.env.NEXT_PUBLIC_SERVER_URL}/api/user?id=${user.id}`
     )
     const userData = await dbUser.json()
 

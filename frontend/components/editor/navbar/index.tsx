@@ -1,6 +1,6 @@
 "use client"
 
-import { Logo } from "@/components/logo"
+//import Logo from "@/assets/logo.svg"
 import { ThemeSwitcher } from "@/components/ui/theme-switcher"
 import UserButton from "@/components/ui/userButton"
 import { Sandbox, User } from "@/lib/types"
@@ -47,9 +47,7 @@ export default function Navbar({
           <Link
             href="/"
             className="ring-offset-2 transition-all ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md"
-          >
-            <Logo />
-          </Link>
+          ></Link>
           <div className="text-sm font-medium flex items-center">
             {sandboxData.name}
             {isOwner ? (
@@ -77,6 +75,9 @@ export default function Navbar({
                 <Users className="w-4 h-4 mr-2" />
                 Share
               </Button> */}
+              {/* <GitHubSyncButton  sandboxName={sandboxData.name} />
+              <CreateRepoButton sandboxName={sandboxData.name} /> */}
+
               <DownloadButton name={sandboxData.name} />
             </>
           ) : null}

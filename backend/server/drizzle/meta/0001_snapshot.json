@@ -1,6 +1,6 @@
 {
-  "id": "78578e98-c643-4969-93f1-2aa72f776d95",
-  "prevId": "8e26581d-86dc-4212-bc00-6af5242f161f",
+  "id": "e18e4eb3-1acf-4918-a807-e02167a27ec0",
+  "prevId": "9f100afc-c471-4778-a1f8-fca6157dee96",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -61,6 +61,12 @@
         },
         "containerId": {
           "name": "containerId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "repositoryId": {
+          "name": "repositoryId",
           "type": "text",
           "primaryKey": false,
           "notNull": false
@@ -234,7 +240,7 @@
           "type": "json",
           "primaryKey": false,
           "notNull": true,
-          "default": "'[]'::json"
+          "default": "'[]'"
         },
         "tier": {
           "name": "tier",

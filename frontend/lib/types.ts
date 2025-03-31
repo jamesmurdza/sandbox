@@ -35,6 +35,8 @@ export type Sandbox = {
   userId: string
   likeCount: number
   viewCount: number
+  repositoryId?: string
+  containerId?: string
   usersToSandboxes: UsersToSandboxes[]
 }
 export type SandboxWithLiked = Sandbox & {

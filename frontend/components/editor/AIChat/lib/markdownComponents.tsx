@@ -14,7 +14,6 @@ import { isFilePath, stringifyContent } from "./chatUtils"
 
 // Create markdown components for chat message component
 export const createMarkdownComponents = (
-  theme: string,
   renderCopyButton: (text: any) => JSX.Element,
   renderMarkdownElement: (props: any) => JSX.Element,
   askAboutCode: (code: any) => void,
@@ -42,7 +41,7 @@ export const createMarkdownComponents = (
 
     return match ? (
       <div className="relative border border-input rounded-md mt-8 my-2 translate-y-[-1rem]">
-        <div className="absolute top-0 left-0 px-2 py-1 text-xs font-semibold text-foreground/70 rounded-tl">
+        <div className="absolute top-0 left-0 px-2 py-1 text-xs font-semibold text-gray-200 rounded-tl">
           {match[1]}
         </div>
         <div className="sticky top-0 right-0 flex justify-end z-10">
@@ -141,7 +140,7 @@ export const createMarkdownComponents = (
           </div>
         </div>
         <SyntaxHighlighter
-          style={theme === "light" ? oneLight : vscDarkPlus}
+          style={vscDarkPlus as any}
           language={match[1]}
           PreTag="div"
           customStyle={{
