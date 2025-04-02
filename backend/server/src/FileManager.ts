@@ -187,14 +187,18 @@ export class FileManager {
 
   // Move a file within the container
   private async moveFileInContainer(oldPath: string, newPath: string) {
-    const fileContents = await this.container.files.read(
-      path.posix.join(this.dirName, oldPath)
-    )
-    await this.container.files.write(
-      path.posix.join(this.dirName, newPath),
-      fileContents
-    )
-    await this.container.files.remove(path.posix.join(this.dirName, oldPath))
+    try {
+      const fileContents = await this.container.files.read(
+        path.posix.join(this.dirName, oldPath)
+      )
+      await this.container.files.write(
+        path.posix.join(this.dirName, newPath),
+        fileContents
+      )
+      await this.container.files.remove(path.posix.join(this.dirName, oldPath))
+    } catch (e) {
+      console.error(`Error moving file from ${oldPath} to ${newPath}:`, e)
+    }
   }
 
   // Create a new file
@@ -205,28 +209,33 @@ export class FileManager {
     return true
   }
 
-  public async getFilesForDownload(): Promise<string> {
-    // Create an output path in /tmp
-    const tempTarPath = "/tmp/project.tar.gz"
-
-    // Create an archive of the project directory
-    await this.container.commands.run(
-      `cd ${this.dirName} && tar --exclude="node_modules" --exclude="venv" -czvf ${tempTarPath} .`,
-      {
-        timeoutMs: 5000,
+  async getFilesForDownload(): Promise<string> {
+    const zip = new JSZip();
+    const fileTree = await this.getFileTree();
+    
+    // Recursive function to add files to zip
+    const addToZip = async (node: TFile | TFolder, currentPath: string = '') => {
+      if (node.type === 'file') {
+        const content = await this.getFile(node.id);
+        if (content) {
+          zip.file(currentPath + node.name, content);
+        }
+      } else if (node.type === 'folder') {
+        const folderPath = currentPath + node.name + '/';
+        for (const child of (node as TFolder).children) {
+          await addToZip(child, folderPath);
+        }
       }
-    )
-
-    // Read the archive contents in base64 format
-    const base64Result = await this.container.commands.run(
-      `cat ${tempTarPath} | base64 -w 0`
-    )
-
-    // Delete the archive
-    await this.container.commands.run(`rm ${tempTarPath}`)
-
-    // Return the base64 encoded tar.gz content
-    return base64Result.stdout.trim()
+    };
+    
+    // Process all root nodes
+    for (const node of fileTree) {
+      await addToZip(node);
+    }
+    
+    // Generate zip as base64
+    const content = await zip.generateAsync({ type: 'base64' });
+    return content;
   }
 
   // Create a new folder

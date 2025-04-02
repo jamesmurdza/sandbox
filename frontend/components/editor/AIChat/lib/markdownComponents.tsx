@@ -4,10 +4,7 @@ import { Check, CornerUpLeft, FileText, X } from "lucide-react"
 import monaco from "monaco-editor"
 import { Components } from "react-markdown"
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
-import {
-  oneLight,
-  vscDarkPlus,
-} from "react-syntax-highlighter/dist/esm/styles/prism"
+import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism"
 import { Button } from "../../../ui/button"
 import ApplyButton from "../ApplyButton"
 import { isFilePath, stringifyContent } from "./chatUtils"
@@ -22,7 +19,6 @@ export const createMarkdownComponents = (
   editorRef: any,
   handleApplyCode: (mergedCode: string, originalCode: string) => void,
   selectFile: (tab: TTab) => void,
-  tabs: TTab[],
   mergeDecorationsCollection?: monaco.editor.IEditorDecorationsCollection,
   setMergeDecorationsCollection?: (collection: undefined) => void
 ): Components => ({
@@ -192,21 +188,13 @@ export const createMarkdownComponents = (
             }
           )
         } else {
-          // First check if the file exists in the current tabs
-          const existingTab = tabs.find(
-            (t) => t.id === filePath || t.name === filePath.split("/").pop()
-          )
-          if (existingTab) {
-            selectFile(existingTab)
-          } else {
-            const tab: TTab = {
-              id: filePath,
-              name: filePath.split("/").pop() || "",
-              saved: true,
-              type: "file",
-            }
-            selectFile(tab)
+          const tab: TTab = {
+            id: filePath,
+            name: filePath.split("/").pop() || "",
+            saved: true,
+            type: "file",
           }
+          selectFile(tab)
         }
       }
 
