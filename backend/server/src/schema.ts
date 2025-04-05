@@ -48,7 +48,7 @@ export const user = pgTable("user", {
   links: json("links")
     .notNull()
     .$type<UserLink[]>()
-    .default(sql`'[]'`),
+    .default(sql`'[]'::json`),
   tier: varchar("tier", { enum: ["FREE", "PRO", "ENTERPRISE"] }).default(
     "FREE"
   ),
