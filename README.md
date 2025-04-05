@@ -211,6 +211,15 @@ DOKKU_KEY=
 
 The backend server and deployments server can be deployed using AWS's EC2 service. See [our video guide](https://www.youtube.com/watch?v=WN8HQnimjmk) on how to do this.
 
+## connecting to your GitHub account
+You can connect your GitHub account to GitWit by following these steps:
+1. Go to ``` https://github.com/settings/developers ``` and create a new OAuth App.
+2. Set the "Authorization callback URL" to ``` http://localhost:3000/loading ``` if you running locally
+3. Set the "Homepage URL" to ``` http://localhost:3000 ``` if you running locally
+4. Get the "Client ID" and "Client Secret" from the OAuth App.
+4. Set the "Client ID" and "Client Secret" in the ``` /backend/server/.env ``` file.
+
+
 ## Creating Custom Templates
 
 Anyone can contribute a custom template for integration in Sandbox. Since Sandbox is built on E2B, there is no limitation to what langauge or runtime a Sandbox can use.

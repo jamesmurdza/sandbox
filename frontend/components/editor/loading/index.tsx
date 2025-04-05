@@ -74,19 +74,29 @@ export default function Loading({
         </div>
       ) : null}
       <div className="grow flex w-screen">
-        <div className="h-full w-56 select-none flex flex-col text-sm items-start p-2">
-          <div className="flex w-full items-center justify-between h-8 mb-1 ">
-            <div className="text-muted-foreground">Explorer</div>
-            <div className="flex space-x-1">
-              <Skeleton className="w-6 h-6 rounded-md" />
-              <Skeleton className="w-6 h-6 rounded-md" />
-            </div>
+        <div className="flex h-full">
+          <div className="w-12 flex flex-col items-center gap-3 pt-2 border-r border-secondary">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Skeleton key={i} className="size-8 rounded-md" />
+            ))}
           </div>
-          <div className="w-full mt-1 flex flex-col">
-            <div className="w-full flex flex-col justify-center">
-              {new Array(6).fill(0).map((_, i) => (
-                <Skeleton key={i} className="h-[1.625rem] mb-0.5 rounded-sm" />
-              ))}
+          <div className="h-full w-56 select-none flex flex-col text-sm items-start p-2">
+            <div className="flex w-full items-center justify-between h-8 mb-1 ">
+              <div className="text-muted-foreground">Explorer</div>
+              <div className="flex space-x-1">
+                <Skeleton className="w-6 h-6 rounded-md" />
+                <Skeleton className="w-6 h-6 rounded-md" />
+              </div>
+            </div>
+            <div className="w-full mt-1 flex flex-col">
+              <div className="w-full flex flex-col justify-center">
+                {new Array(6).fill(0).map((_, i) => (
+                  <Skeleton
+                    key={i}
+                    className="h-[1.625rem] mb-0.5 rounded-sm"
+                  />
+                ))}
+              </div>
             </div>
           </div>
         </div>
