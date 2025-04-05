@@ -202,9 +202,9 @@ export function SidebarContent({
   return (
     <div
       className={cn(
-        "h-full transition-all duration-300 delay-75",
+        "h-full transition-all duration-300 delay-75 overflow-hidden",
         hideSidebar ? "w-0" : "w-56",
-        !isActive && "hidden",
+        !isActive && !hideSidebar && "hidden",
         className
       )}
       {...props}
@@ -215,7 +215,7 @@ export function SidebarContent({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="h-full select-none flex flex-col text-sm"
+            className="h-full select-none flex flex-col text-sm min-w-56"
           >
             {children}
           </motion.div>
