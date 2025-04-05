@@ -644,17 +644,7 @@ export class Project {
       }
       return { error: "Authentication failed" }
     }
-    const handleGitHubUserName: SocketHandler = async (data) => {
-      const { code } = data
-      const auth = await this.githubManager.authenticate(
-        code,
-        connection.userId
-      )
-      if (auth) {
-        return { username: auth.username, accessToken: auth.accessToken }
-      }
-      return { error: "Authentication failed" }
-    }
+
     const handleAuthenticateGithub: SocketHandler = async () => {
       const authUrl = `https://github.com/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}&scope=repo`
       return { authUrl }
@@ -682,7 +672,6 @@ export class Project {
       resizeTerminal: handleResizeTerminal,
       terminalData: handleTerminalData,
       closeTerminal: handleCloseTerminal,
-      // getGitHubUserName: handleGitHubUserName,
       getGitHubUser: handleGitHubUser,
       sandboxRepoStatus: handleCheckSandboxRepo,
       checkSandboxRepo: handleCheckSandboxRepo,
