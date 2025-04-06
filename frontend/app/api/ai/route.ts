@@ -5,6 +5,7 @@ import {
 import { templateConfigs } from "@/lib/templates"
 import { TIERS } from "@/lib/tiers"
 import { TFile, TFolder } from "@/lib/types"
+import { fetchWithAuth } from "@/lib/utils"
 import { Anthropic } from "@anthropic-ai/sdk"
 import {
   BedrockRuntimeClient,
@@ -83,7 +84,7 @@ export async function POST(request: Request) {
     }
 
     // Check and potentially reset monthly usage
-    const resetResponse = await fetch(
+    const resetResponse = await fetchWithAuth(
       `${process.env.NEXT_PUBLIC_SERVER_URL}/api/user/check-reset`,
       {
         method: "POST",
@@ -99,7 +100,7 @@ export async function POST(request: Request) {
     }
 
     // Get user data and check tier
-    const dbUser = await fetch(
+    const dbUser = await fetchWithAuth(
       `${process.env.NEXT_PUBLIC_SERVER_URL}/api/user?id=${user.id}`,
       {
         headers: {
@@ -177,7 +178,7 @@ OUTPUT THE MODIFIED CODE ONLY, NO EXPLANATIONS OR FORMATTING.`
         const response = await bedrockClient.send(command)
 
         // Increment user's generation count
-        await fetch(
+        await fetchWithAuth(
           `${process.env.NEXT_PUBLIC_SERVER_URL}/api/user/increment-generations`,
           {
             method: "POST",
@@ -256,7 +257,7 @@ OUTPUT THE MODIFIED CODE ONLY, NO EXPLANATIONS OR FORMATTING.`
         })
 
         // Increment user's generation count
-        await fetch(
+        await fetchWithAuth(
           `${process.env.NEXT_PUBLIC_SERVER_URL}/api/user/increment-generations`,
           {
             method: "POST",
@@ -366,7 +367,7 @@ ${activeFileContent ? `Active File Content:\n${activeFileContent}\n` : ""}`
         const response = await bedrockClient.send(command)
 
         // Increment user's generation count
-        await fetch(
+        await fetchWithAuth(
           `${process.env.NEXT_PUBLIC_SERVER_URL}/api/user/increment-generations`,
           {
             method: "POST",
@@ -443,7 +444,7 @@ ${activeFileContent ? `Active File Content:\n${activeFileContent}\n` : ""}`
         })
 
         // Increment user's generation count
-        await fetch(
+        await fetchWithAuth(
           `${process.env.NEXT_PUBLIC_SERVER_URL}/api/user/increment-generations`,
           {
             method: "POST",

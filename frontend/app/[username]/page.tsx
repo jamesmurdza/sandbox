@@ -1,6 +1,7 @@
 import ProfilePage from "@/components/profile"
 import ProfileNavbar from "@/components/profile/navbar"
 import { SandboxWithLiked, User } from "@/lib/types"
+import { fetchWithAuth } from "@/lib/utils"
 import { currentUser } from "@clerk/nextjs"
 import { notFound } from "next/navigation"
 
@@ -13,10 +14,10 @@ export default async function Page({
   const loggedInClerkUser = await currentUser()
 
   const [profileOwnerResponse, loggedInUserResponse] = await Promise.all([
-    fetch(
+    fetchWithAuth(
       `${process.env.NEXT_PUBLIC_SERVER_URL}/api/user?username=${username}&currentUserId=${loggedInClerkUser?.id}`
     ),
-    fetch(
+    fetchWithAuth(
       `${process.env.NEXT_PUBLIC_SERVER_URL}/api/user?id=${loggedInClerkUser?.id}`
     ),
   ])
