@@ -8,6 +8,7 @@ import api from "./api"
 
 import { ConnectionManager } from "./ConnectionManager"
 import { DokkuClient } from "./DokkuClient"
+import { requireAuth } from "./middleware/clerkAuth"
 import { Project } from "./Project"
 import { SecureGitClient } from "./SecureGitClient"
 import { socketAuth } from "./socketAuth" // Import the new socketAuth middleware
@@ -42,6 +43,10 @@ dotenv.config()
 const app: Express = express()
 const port = process.env.PORT || 4000
 app.use(cors())
+
+// Apply Clerk authentication middleware to all API routes
+app.use("/api", requireAuth)
+
 const httpServer = createServer(app)
 const io = new Server(httpServer, {
   cors: {
