@@ -54,6 +54,7 @@ import Tab from "../ui/tab"
 import AIChat from "./AIChat"
 import GenerateInput from "./generate"
 // import { Cursors } from "./live/cursors"
+import ChangesAlert, { AlertState } from "./changes-alert"
 import DisableAccessModal from "./live/disableModal"
 import Loading from "./loading"
 import PreviewWindow from "./preview"
@@ -106,6 +107,9 @@ export default function CodeEditor({
     isDisabled: false,
     message: "",
   })
+
+  // Alert State
+  const [showAlert, setShowAlert] = useState<AlertState>(null)
 
   // Layout state
   const [isHorizontalLayout, setIsHorizontalLayout] = useState(false)
@@ -173,6 +177,7 @@ export default function CodeEditor({
   const clerk = useClerk()
   const hasUnsavedFiles = tabs.some((tab) => !tab.saved)
 
+  console.log("has Unsaved: ", hasUnsavedFiles, tabs)
   // // Liveblocks hooks
   // const room = useRoom()
   // const [provider, setProvider] = useState<TypedLiveblocksProvider>()
@@ -949,7 +954,13 @@ export default function CodeEditor({
     console.log("closing tab", id, index)
 
     if (index === -1) return
-
+    const selectedTab = tabs[index]
+    // check if the tab has unsaved changes
+    if (selectedTab && !selectedTab.saved) {
+      // Show a confirmation dialog to the user
+      setShowAlert({ type: "tab", id })
+      return
+    }
     const nextId =
       activeFileId === id
         ? numTabs === 1
@@ -1089,6 +1100,36 @@ export default function CodeEditor({
 
   return (
     <div className="flex max-h-full overflow-hidden">
+      <ChangesAlert
+        state={showAlert}
+        setState={setShowAlert}
+        onAccept={() => {
+          if (!showAlert) return
+          const { id } = showAlert
+          const numTabs = tabs.length
+
+          const index = tabs.findIndex((t) => t.id === id)
+          const nextId =
+            activeFileId === id
+              ? numTabs === 1
+                ? null
+                : index < numTabs - 1
+                ? tabs[index + 1].id
+                : tabs[index - 1].id
+              : activeFileId
+
+          setTabs((prev) => prev.filter((t) => t.id !== id))
+
+          if (!nextId) {
+            setActiveFileId("")
+          } else {
+            const nextTab = tabs.find((t) => t.id === nextId)
+            if (nextTab) {
+              selectFile(nextTab)
+            }
+          }
+        }}
+      />
       <PreviewProvider>
         {/* Copilot DOM elements */}
         <div ref={generateRef} />
