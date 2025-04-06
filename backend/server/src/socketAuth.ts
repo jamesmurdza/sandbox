@@ -88,7 +88,7 @@ export const socketAuth = async (socket: Socket, next: Function) => {
         userId,
         user: clerkUser,
       }
-
+      console.log(`Socket Authenticated user: ${userId}`)
       // Allow the connection
       next()
     } catch (error) {
