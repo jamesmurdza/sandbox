@@ -1328,8 +1328,8 @@ export default function CodeEditor({
                             )
                           }
                         }}
+                        theme={theme === "light" ? "vs" : "vs-dark"}
                         options={{
-                          theme: theme === "light" ? "vs" : "vs-dark",
                           tabSize: 2,
                           minimap: {
                             enabled: false,

@@ -186,8 +186,8 @@ export default function GenerateInput({
               height="100%"
               defaultLanguage={editor.language}
               value={code}
+              theme={theme === "light" ? "vs" : "vs-dark"}
               options={{
-                theme: theme === "light" ? "vs" : "vs-dark",
                 minimap: {
                   enabled: false,
                 },
