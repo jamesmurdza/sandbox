@@ -3,7 +3,7 @@ import { ThemeProvider } from "@/components/ui/theme-provider"
 import { PreviewProvider } from "@/context/PreviewContext"
 import { ReactQueryProvider } from "@/context/ReactQuery"
 import { SocketProvider } from "@/context/SocketContext"
-import { ClerkProvider } from "@clerk/nextjs"
+import { auth, ClerkProvider } from "@clerk/nextjs"
 import { Analytics } from "@vercel/analytics/react"
 import { GeistMono } from "geist/font/mono"
 import { GeistSans } from "geist/font/sans"
@@ -31,11 +31,13 @@ export const metadata: Metadata = {
   },
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const { getToken } = auth()
+  const token = await getToken()
   return (
     <ReactQueryProvider>
       <ClerkProvider>
@@ -49,7 +51,7 @@ export default function RootLayout({
               defaultTheme="system"
               disableTransitionOnChange
             >
-              <SocketProvider>
+              <SocketProvider {...{ token }}>
                 <PreviewProvider>{children}</PreviewProvider>
               </SocketProvider>
               <Analytics />

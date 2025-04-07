@@ -10,9 +10,10 @@ interface SocketContextType {
 
 const SocketContext = createContext<SocketContextType | undefined>(undefined)
 
-export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
+export const SocketProvider: React.FC<{
+  children: React.ReactNode
+  token: string | null
+}> = ({ children, token }) => {
   const [socket, setSocket] = useState<Socket | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
   const [sandboxId, setSandboxId] = useState<string | null>(null)
@@ -21,7 +22,13 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({
     if (userId && sandboxId) {
       console.log("Initializing socket connection...")
       const newSocket = io(
-        `${process.env.NEXT_PUBLIC_SERVER_URL}?userId=${userId}&sandboxId=${sandboxId}`
+        `${process.env.NEXT_PUBLIC_SERVER_URL}?userId=${userId}&sandboxId=${sandboxId}`,
+        {
+          auth: {
+            token,
+            sandboxId,
+          },
+        }
       )
       console.log("Socket instance:", newSocket)
       setSocket(newSocket)
