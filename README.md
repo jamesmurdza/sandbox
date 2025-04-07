@@ -49,6 +49,12 @@ NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY='🔑'
 CLERK_SECRET_KEY='🔑'
 ```
 
+Then, update `backend/server/.evn`:
+
+```
+CLERK_SECRET_KEY='🔑'
+```
+
 ### 4. Deploying the database
 
 Create a database:
