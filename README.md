@@ -49,7 +49,7 @@ NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY='🔑'
 CLERK_SECRET_KEY='🔑'
 ```
 
-Then, update `backend/server/.evn`:
+Then, update `backend/server/.env`:
 
 ```
 CLERK_SECRET_KEY='🔑'
