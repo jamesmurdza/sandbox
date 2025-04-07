@@ -36,7 +36,12 @@ export const socketAuth = async (socket: Socket, next: Function) => {
 
       // Fetch project data from the database
       const dbProject = await fetch(
-        `${process.env.SERVER_URL}/api/sandbox?id=${projectId}`
+        `${process.env.SERVER_URL}/api/sandbox?id=${projectId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
       )
       const dbProjectJSON = (await dbProject.json()) as Project
 

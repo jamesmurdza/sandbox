@@ -21,12 +21,15 @@ export const SocketProvider: React.FC<{
   useEffect(() => {
     if (userId && sandboxId) {
       console.log("Initializing socket connection...")
-      const newSocket = io(process.env.NEXT_PUBLIC_SERVER_URL as string, {
-        auth: {
-          token,
-          sandboxId,
-        },
-      })
+      const newSocket = io(
+        `${process.env.NEXT_PUBLIC_SERVER_URL}?userId=${userId}&sandboxId=${sandboxId}`,
+        {
+          auth: {
+            token,
+            sandboxId,
+          },
+        }
+      )
       console.log("Socket instance:", newSocket)
       setSocket(newSocket)
 
