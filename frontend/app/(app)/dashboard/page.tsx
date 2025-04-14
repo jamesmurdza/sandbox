@@ -1,6 +1,7 @@
 import Dashboard from "@/components/dashboard"
 import Navbar from "@/components/dashboard/navbar"
 import { User } from "@/lib/types"
+import { fetchWithAuth } from "@/lib/utils"
 import { currentUser } from "@clerk/nextjs"
 import { redirect } from "next/navigation"
 
@@ -11,12 +12,12 @@ export default async function DashboardPage() {
     redirect("/")
   }
 
-  const userRes = await fetch(
+  const userRes = await fetchWithAuth(
     `${process.env.NEXT_PUBLIC_SERVER_URL}/api/user?id=${user.id}`
   )
   const userData = (await userRes.json()) as User
 
-  const sharedRes = await fetch(
+  const sharedRes = await fetchWithAuth(
     `${process.env.NEXT_PUBLIC_SERVER_URL}/api/sandbox/share?id=${user.id}`
   )
   const shared = (await sharedRes.json()) as {

@@ -49,6 +49,12 @@ NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY='🔑'
 CLERK_SECRET_KEY='🔑'
 ```
 
+Then, update `backend/server/.env`:
+
+```
+CLERK_SECRET_KEY='🔑'
+```
+
 ### 4. Deploying the database
 
 Create a database:
@@ -95,11 +101,13 @@ NEXT_PUBLIC_SERVER_URL='http://localhost:4000'
 ```
 
 Then add EITHER Anthropic direct API key:
+
 ```
 ANTHROPIC_API_KEY='🔑'
 ```
 
 OR AWS Bedrock configuration (if using Claude through AWS as described in the [Setting Up Your AWS Bedrock Keys](#setting-up-your-aws-bedrock-keys) section):
+
 ```
 AWS_ACCESS_KEY_ID='🔑'
 AWS_SECRET_ACCESS_KEY='🔑'
@@ -108,6 +116,7 @@ AWS_ARN='arn:aws:bedrock:...'
 ```
 
 Finally, add OpenAI API key for code diffs:
+
 ```
 OPENAI_API_KEY='🔑'
 ```
@@ -133,6 +142,7 @@ To use the `anthropic.claude-3-7-sonnet-20250219-v1:0` model via Amazon Bedrock,
    - Click "Users" → "Add users".
    - Enter a username and select "Programmatic access".
    - Attach permissions for Amazon Bedrock:
+
      ```json
      {
        "Version": "2012-10-17", 
@@ -149,6 +159,7 @@ To use the `anthropic.claude-3-7-sonnet-20250219-v1:0` model via Amazon Bedrock,
        ]
      }
      ```
+
    - Complete the process and save your Access Key ID and Secret Access Key.
 
 3. **Enable Model Access in Bedrock**
@@ -166,6 +177,7 @@ To use the `anthropic.claude-3-7-sonnet-20250219-v1:0` model via Amazon Bedrock,
 
 5. **Configure Environment Variables**
    - Add the following to your `.env` file:
+
      ```
      AWS_ACCESS_KEY_ID=your_access_key_id
      AWS_SECRET_ACCESS_KEY=your_secret_access_key
@@ -188,7 +200,7 @@ The steps above do not include steps to setup [Dokku](https://github.com/dokku/d
 
 Setting up deployments first requires a separate domain (such as gitwit.app, which we use).
 
-We then deploy Dokku on a separate server, according to this guide: https://dev.to/jamesmurdza/host-your-own-paas-platform-as-a-service-on-amazon-web-services-3f0d
+We then deploy Dokku on a separate server, according to this guide: <https://dev.to/jamesmurdza/host-your-own-paas-platform-as-a-service-on-amazon-web-services-3f0d>
 
 And we install [dokku-daemon](https://github.com/dokku/dokku-daemon) with the following commands:
 
@@ -212,13 +224,14 @@ DOKKU_KEY=
 The backend server and deployments server can be deployed using AWS's EC2 service. See [our video guide](https://www.youtube.com/watch?v=WN8HQnimjmk) on how to do this.
 
 ## connecting to your GitHub account
+
 You can connect your GitHub account to GitWit by following these steps:
+
 1. Go to ``` https://github.com/settings/developers ``` and create a new OAuth App.
 2. Set the "Authorization callback URL" to ``` http://localhost:3000/loading ``` if you running locally
 3. Set the "Homepage URL" to ``` http://localhost:3000 ``` if you running locally
 4. Get the "Client ID" and "Client Secret" from the OAuth App.
 4. Set the "Client ID" and "Client Secret" in the ``` /backend/server/.env ``` file.
-
 
 ## Creating Custom Templates
 
