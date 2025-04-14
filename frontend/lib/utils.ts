@@ -414,6 +414,11 @@ export const createPopupTracker = () => {
   }
 }
 
+export const getAuthToken = async () => {
+  try {
+    return (await (await auth()).getToken()) ?? undefined
+  } catch (err) {}
+}
 /**
  * The function fetchWithAuth fetches data from a URL with authentication using a bearer token.
  * @note This function must be used in a Server Component or API route.
@@ -425,8 +430,7 @@ export const createPopupTracker = () => {
  * `cache`, `
  */
 export async function fetchWithAuth(url: string, options: RequestInit = {}) {
-  const { getToken } = auth()
-  const token = await getToken()
+  const token = await getAuthToken()
   const headers = new Headers(options.headers)
   if (token) {
     headers.append("Authorization", `Bearer ${token}`)
