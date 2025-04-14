@@ -13,7 +13,6 @@ export const socketAuth = async (socket: Socket, next: Function) => {
     })
 
     const q = (socket.handshake.auth as any) || socket.handshake.query
-    console.log("Socket handshake query:", q)
     const parseQuery = handshakeSchema.safeParse(q)
 
     // Check if the query is valid according to the schema
@@ -60,7 +59,6 @@ export const socketAuth = async (socket: Socket, next: Function) => {
         }
       )
       const dbUserJSON = (await dbUser.json()) as User
-      console.log("DB User JSON:", dbUserJSON)
 
       if (!dbUserJSON) {
         next(new Error("User not found"))
@@ -93,7 +91,6 @@ export const socketAuth = async (socket: Socket, next: Function) => {
         userId,
         user: clerkUser,
       }
-      console.log(`Socket Authenticated user: ${userId}`)
       // Allow the connection
       next()
     } catch (error) {

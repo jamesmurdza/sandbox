@@ -33,7 +33,6 @@ export const requireAuth = async (
   try {
     const decoded = await clerk.verifyToken(token)
     const user = await clerk.users.getUser(decoded.sub)
-    console.log(`Authenticated user: ${user.id}`)
     // Attach the user to the request object
     req.auth = {
       userId: user.id,
