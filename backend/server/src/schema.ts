@@ -73,6 +73,7 @@ export const sandbox = pgTable("sandbox", {
   likeCount: integer("likeCount").default(0),
   viewCount: integer("viewCount").default(0),
   containerId: text("containerId"),
+  repositoryId: text("repositoryId"),
 })
 
 export type Sandbox = typeof sandbox.$inferSelect

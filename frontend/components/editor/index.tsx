@@ -54,6 +54,7 @@ import Tab from "../ui/tab"
 import AIChat from "./AIChat"
 import GenerateInput from "./generate"
 // import { Cursors } from "./live/cursors"
+import ChangesAlert, { AlertState } from "./changes-alert"
 import DisableAccessModal from "./live/disableModal"
 import Loading from "./loading"
 import PreviewWindow from "./preview"
@@ -106,6 +107,9 @@ export default function CodeEditor({
     isDisabled: false,
     message: "",
   })
+
+  // Alert State
+  const [showAlert, setShowAlert] = useState<AlertState>(null)
 
   // Layout state
   const [isHorizontalLayout, setIsHorizontalLayout] = useState(false)
@@ -171,7 +175,9 @@ export default function CodeEditor({
 
   const isOwner = sandboxData.userId === userData.id
   const clerk = useClerk()
+  const hasUnsavedFiles = tabs.some((tab) => !tab.saved)
 
+  console.log("has Unsaved: ", hasUnsavedFiles, tabs)
   // // Liveblocks hooks
   // const room = useRoom()
   // const [provider, setProvider] = useState<TypedLiveblocksProvider>()
@@ -351,55 +357,53 @@ export default function CodeEditor({
       keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyG],
       precondition:
         "editorTextFocus && !suggestWidgetVisible && !renameInputVisible && !inSnippetMode && !quickFixWidgetVisible",
-      run: () => {
-        setGenerate((prev) => {
-          return {
-            ...prev,
-            show: !prev.show,
-            pref: [monaco.editor.ContentWidgetPositionPreference.BELOW],
-          }
-        })
-      },
+      run: handleAiEdit,
     })
   }
-  const handleAiEdit = React.useCallback(() => {
-    if (!editorRef) return
-    const selection = editorRef.getSelection()
-    if (!selection) return
-    const pos = selection.getPosition()
-    const start = selection.getStartPosition()
-    const end = selection.getEndPosition()
-    let pref: monaco.editor.ContentWidgetPositionPreference
-    let id = ""
-    const isMultiline = start.lineNumber !== end.lineNumber
-    if (isMultiline) {
-      if (pos.lineNumber <= start.lineNumber) {
-        pref = monaco.editor.ContentWidgetPositionPreference.ABOVE
+  const handleAiEdit = React.useCallback(
+    (editor?: monaco.editor.ICodeEditor) => {
+      console.log("editorRef", editorRef)
+      const e = editor ?? editorRef
+      if (!e) return
+      const selection = e.getSelection()
+      console.log("selection", selection)
+      if (!selection) return
+      const pos = selection.getPosition()
+      const start = selection.getStartPosition()
+      const end = selection.getEndPosition()
+      let pref: monaco.editor.ContentWidgetPositionPreference
+      let id = ""
+      const isMultiline = start.lineNumber !== end.lineNumber
+      if (isMultiline) {
+        if (pos.lineNumber <= start.lineNumber) {
+          pref = monaco.editor.ContentWidgetPositionPreference.ABOVE
+        } else {
+          pref = monaco.editor.ContentWidgetPositionPreference.BELOW
+        }
       } else {
-        pref = monaco.editor.ContentWidgetPositionPreference.BELOW
+        pref = monaco.editor.ContentWidgetPositionPreference.ABOVE
       }
-    } else {
-      pref = monaco.editor.ContentWidgetPositionPreference.ABOVE
-    }
-    editorRef.changeViewZones(function (changeAccessor) {
-      if (!generateRef.current) return
-      if (pref === monaco.editor.ContentWidgetPositionPreference.ABOVE) {
-        id = changeAccessor.addZone({
-          afterLineNumber: start.lineNumber - 1,
-          heightInLines: 2,
-          domNode: generateRef.current,
-        })
-      }
-    })
-    setGenerate((prev) => {
-      return {
-        ...prev,
-        show: true,
-        pref: [pref],
-        id,
-      }
-    })
-  }, [editorRef])
+      e.changeViewZones(function (changeAccessor) {
+        if (!generateRef.current) return
+        if (pref === monaco.editor.ContentWidgetPositionPreference.ABOVE) {
+          id = changeAccessor.addZone({
+            afterLineNumber: start.lineNumber - 1,
+            heightInLines: 2,
+            domNode: generateRef.current,
+          })
+        }
+      })
+      setGenerate((prev) => {
+        return {
+          ...prev,
+          show: true,
+          pref: [pref],
+          id,
+        }
+      })
+    },
+    [editorRef]
+  )
 
   // handle apply code
   const handleApplyCode = useCallback(
@@ -528,6 +532,19 @@ export default function CodeEditor({
     },
     [editorRef]
   )
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedFiles) {
+        e.preventDefault()
+        e.returnValue =
+          "You have unsaved changes. Are you sure you want to leave?"
+        return e.returnValue
+      }
+    }
+    window.addEventListener("beforeunload", handleBeforeUnload)
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload)
+  }, [hasUnsavedFiles])
 
   // Generate widget effect
   useEffect(() => {
@@ -950,7 +967,13 @@ export default function CodeEditor({
     console.log("closing tab", id, index)
 
     if (index === -1) return
-
+    const selectedTab = tabs[index]
+    // check if the tab has unsaved changes
+    if (selectedTab && !selectedTab.saved) {
+      // Show a confirmation dialog to the user
+      setShowAlert({ type: "tab", id })
+      return
+    }
     const nextId =
       activeFileId === id
         ? numTabs === 1
@@ -1090,6 +1113,36 @@ export default function CodeEditor({
 
   return (
     <div className="flex max-h-full overflow-hidden">
+      <ChangesAlert
+        state={showAlert}
+        setState={setShowAlert}
+        onAccept={() => {
+          if (!showAlert) return
+          const { id } = showAlert
+          const numTabs = tabs.length
+
+          const index = tabs.findIndex((t) => t.id === id)
+          const nextId =
+            activeFileId === id
+              ? numTabs === 1
+                ? null
+                : index < numTabs - 1
+                ? tabs[index + 1].id
+                : tabs[index - 1].id
+              : activeFileId
+
+          setTabs((prev) => prev.filter((t) => t.id !== id))
+
+          if (!nextId) {
+            setActiveFileId("")
+          } else {
+            const nextTab = tabs.find((t) => t.id === nextId)
+            if (nextTab) {
+              selectFile(nextTab)
+            }
+          }
+        }}
+      />
       <PreviewProvider>
         {/* Copilot DOM elements */}
         <div ref={generateRef} />
@@ -1102,7 +1155,7 @@ export default function CodeEditor({
                 exit={{ opacity: 0 }}
                 transition={{ ease: "easeOut", duration: 0.2 }}
               >
-                <Button size="xs" type="submit" onClick={handleAiEdit}>
+                <Button size="xs" type="submit" onClick={() => handleAiEdit()}>
                   <Sparkles className="h-3 w-3 mr-1" />
                   Edit Code
                 </Button>
@@ -1192,6 +1245,7 @@ export default function CodeEditor({
                     show: !prev.show,
                   }
                 })
+                editorRef?.focus()
               }}
             />
           ) : null}
@@ -1287,6 +1341,7 @@ export default function CodeEditor({
                             )
                           }
                         }}
+                        theme={theme === "light" ? "vs" : "vs-dark"}
                         options={{
                           tabSize: 2,
                           minimap: {
@@ -1300,7 +1355,6 @@ export default function CodeEditor({
                           fixedOverflowWidgets: true,
                           fontFamily: "var(--font-geist-mono)",
                         }}
-                        theme={theme === "light" ? "vs" : "vs-dark"}
                         value={activeFileContent}
                       />
                     </>

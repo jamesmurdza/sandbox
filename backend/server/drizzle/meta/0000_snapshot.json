@@ -1,5 +1,5 @@
 {
-  "id": "8e26581d-86dc-4212-bc00-6af5242f161f",
+  "id": "9f100afc-c471-4778-a1f8-fca6157dee96",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -231,9 +231,9 @@
         },
         "links": {
           "name": "links",
-          "type": "varchar",
+          "type": "json",
           "primaryKey": false,
-          "notNull": false,
+          "notNull": true,
           "default": "'[]'"
         },
         "tier": {
