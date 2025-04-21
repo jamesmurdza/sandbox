@@ -27,7 +27,7 @@ export class GitHubApiRoutes {
     return res.status(data.code).json(data)
   })
   this.router.post("/repo/status", async (req: Request, res: Response) => {
-    const data = await this.service.checkRepoStatus(req)
+    const data = await this.service.checkRepoStatus(req.body.projectId)
     return res.status(data.code).json(data)
   })
   this.router.post("/repo/create", async (req: Request, res: Response) => {
@@ -38,7 +38,7 @@ export class GitHubApiRoutes {
     const response = await this.service.createCommit(req)
     return res.status(response.code).json(response)
   })
-  this.router.post("/remove/repo", async (req: Request, res: Response) => {
+  this.router.post("/repo/remove", async (req: Request, res: Response) => {
     const data = await this.service.removeRepoFromSandbox(req.body.projectId)
     return res.status(data.code).json(data)
   })

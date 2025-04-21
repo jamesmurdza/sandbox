@@ -74,7 +74,7 @@ export class GitHubApiService {
       }
     }
   }
-  async checkRepoStatus(req: Request): Promise<ApiResponse> {
+  async checkRepoStatus(projectId: string): Promise<ApiResponse> {
     try {
       if (!this.githubManager.octokit) {
         return {
@@ -85,7 +85,6 @@ export class GitHubApiService {
         }
       }
 
-      const { projectId } = req.body
       if (!projectId) {
         return {
           success: false,
@@ -283,9 +282,7 @@ export class GitHubApiService {
 
       // 1. Validate project
       const project = this.projects[projectId]
-      console.log(
-     {project} 
-      )
+    
       if (!project) {
         return {
           success: false,
