@@ -3,6 +3,7 @@ import Loading from "@/components/editor/loading"
 import Navbar from "@/components/editor/navbar"
 import { TerminalProvider } from "@/context/TerminalContext"
 import { Sandbox, User, UsersToSandboxes } from "@/lib/types"
+import { fetchWithAuth } from "@/lib/utils"
 import { currentUser } from "@clerk/nextjs"
 import dynamic from "next/dynamic"
 import { notFound, redirect } from "next/navigation"
@@ -10,7 +11,7 @@ import { notFound, redirect } from "next/navigation"
 export const revalidate = 0
 
 const getUserData = async (id: string) => {
-  const userRes = await fetch(
+  const userRes = await fetchWithAuth(
     `${process.env.NEXT_PUBLIC_SERVER_URL}/api/user?id=${id}`
   )
   const userData: User = await userRes.json()
@@ -18,7 +19,7 @@ const getUserData = async (id: string) => {
 }
 
 const getSandboxData = async (id: string) => {
-  const sandboxRes = await fetch(
+  const sandboxRes = await fetchWithAuth(
     `${process.env.NEXT_PUBLIC_SERVER_URL}/api/sandbox?id=${id}`
   )
   const sandboxData: Sandbox = await sandboxRes.json()
@@ -32,7 +33,7 @@ const getSharedUsers = async (usersToSandboxes: UsersToSandboxes[]) => {
 
   const shared = await Promise.all(
     usersToSandboxes.map(async (user) => {
-      const userRes = await fetch(
+      const userRes = await fetchWithAuth(
         `${process.env.NEXT_PUBLIC_SERVER_URL}/api/user?id=${user.userId}`
       )
       const userData: User = await userRes.json()

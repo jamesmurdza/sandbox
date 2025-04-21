@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { editUserSchema } from "./schema"
 import { UserLink } from "./types"
-import { parseSocialLink } from "./utils"
+import { fetchWithAuth, parseSocialLink } from "./utils"
 
 export async function createSandbox(body: {
   type: string
@@ -12,13 +12,16 @@ export async function createSandbox(body: {
   userId: string
   visibility: string
 }) {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/sandbox`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-  })
+  const res = await fetchWithAuth(
+    `${process.env.NEXT_PUBLIC_SERVER_URL}/api/sandbox`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    }
+  )
 
   return await res.text()
 }
@@ -28,7 +31,7 @@ export async function updateSandbox(body: {
   name?: string
   visibility?: "public" | "private"
 }) {
-  await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/sandbox`, {
+  await fetchWithAuth(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/sandbox`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -40,15 +43,18 @@ export async function updateSandbox(body: {
 }
 
 export async function deleteSandbox(id: string) {
-  await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/sandbox?id=${id}`, {
-    method: "DELETE",
-  })
+  await fetchWithAuth(
+    `${process.env.NEXT_PUBLIC_SERVER_URL}/api/sandbox?id=${id}`,
+    {
+      method: "DELETE",
+    }
+  )
 
   revalidatePath("/dashboard")
 }
 
 export async function shareSandbox(sandboxId: string, email: string) {
-  const res = await fetch(
+  const res = await fetchWithAuth(
     `${process.env.NEXT_PUBLIC_SERVER_URL}/api/sandbox/share`,
     {
       method: "POST",
@@ -69,19 +75,22 @@ export async function shareSandbox(sandboxId: string, email: string) {
 }
 
 export async function unshareSandbox(sandboxId: string, userId: string) {
-  await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/sandbox/share`, {
-    method: "DELETE",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ sandboxId, userId }),
-  })
+  await fetchWithAuth(
+    `${process.env.NEXT_PUBLIC_SERVER_URL}/api/sandbox/share`,
+    {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ sandboxId, userId }),
+    }
+  )
 
   revalidatePath(`/code/${sandboxId}`)
 }
 
 export async function toggleLike(sandboxId: string, userId: string) {
-  const res = await fetch(
+  const res = await fetchWithAuth(
     `${process.env.NEXT_PUBLIC_SERVER_URL}/api/sandbox/like`,
     {
       method: "POST",
@@ -135,20 +144,23 @@ export async function updateUser(
   try {
     const validatedData = editUserSchema.parse(data)
     const changedUsername = validatedData.username !== validatedData.oldUsername
-    const res = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/user`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        id: validatedData.id,
-        username: data.username ?? undefined,
-        name: data.name ?? undefined,
-        bio: data.bio ?? undefined,
-        personalWebsite: data.personalWebsite ?? undefined,
-        links: data.links ?? undefined,
-      }),
-    })
+    const res = await fetchWithAuth(
+      `${process.env.NEXT_PUBLIC_SERVER_URL}/api/user`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          id: validatedData.id,
+          username: data.username ?? undefined,
+          name: data.name ?? undefined,
+          bio: data.bio ?? undefined,
+          personalWebsite: data.personalWebsite ?? undefined,
+          links: data.links ?? undefined,
+        }),
+      }
+    )
 
     const responseData = await res.json()
 
