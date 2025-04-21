@@ -3,7 +3,7 @@ import { Socket } from "socket.io"
 import { CONTAINER_PAUSE, CONTAINER_TIMEOUT } from "./constants"
 import { DokkuClient } from "./DokkuClient"
 import { FileManager } from "./FileManager"
-import { GithubManager } from "./GithubManager"
+import { GithubManager } from "./github/GithubManager"
 import {
   createFileRL,
   createFolderRL,

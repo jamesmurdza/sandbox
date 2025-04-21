@@ -1,49 +1,38 @@
 import { createJiti } from "jiti"
+import { Service } from "typedi"
+import { GitHubTokenResponse, UserData } from "../types"
 const jiti = createJiti(__dirname)
 const { Octokit } = jiti("@octokit/core")
-
+@Service()
 export class GithubManager {
   public octokit: any = null
   private username: string | null = null
-  private accessToken: string | null = null
 
   constructor() {
     this.octokit = null
     this.username = null
   }
 
-  async authenticate(code: string, userId: string) {
+  async authenticate(code: string | null, userId: string) {
     try {
-      let accessToken = ""
-      if (code) {
-        accessToken = await this.getAccessToken(code)
-        if (accessToken) {
-          // Update user's GitHub token in database
-          await fetch(`${process.env.SERVER_URL}/api/user`, {
-            method: "PUT",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              id: userId,
-              githubToken: accessToken,
-            }),
-          })
-        }
+      let accessToken = code ? await this.getAccessToken(code) : ""
+
+      if (accessToken) {
+        await this.updateUserToken(userId, accessToken)
       }
-      const user = await fetch(
-        `${process.env.SERVER_URL}/api/user?id=${userId}`
-      )
-      const userData = await user.json()
-      accessToken = userData.githubToken as string
-      // Check if GitHub token exists, if not, just return
+
+      const userData = await this.fetchUserData(userId)
+      accessToken = userData.githubToken
+
       if (!accessToken) {
         console.log("No GitHub token found for user. Skipping authentication.")
         return null
       }
+
       this.octokit = new Octokit({ auth: accessToken })
       const { data } = await this.octokit.request("GET /user")
       this.username = data.login
+
       return data
     } catch (error) {
       console.error("GitHub authentication failed:", error)
@@ -51,8 +40,27 @@ export class GithubManager {
     }
   }
 
+  private async updateUserToken(userId: string, token: string): Promise<void> {
+    await fetch(`${process.env.SERVER_URL}/api/user`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        id: userId,
+        githubToken: token,
+      }),
+    })
+  }
+
+  private async fetchUserData(userId: string): Promise<UserData> {
+    const response = await fetch(
+      `${process.env.SERVER_URL}/api/user?id=${userId}`
+    )
+    return response.json()
+  }
+
   async getAccessToken(code: string): Promise<string> {
-    // Exchange the OAuth code for an access token
     try {
       const response = await fetch(
         "https://github.com/login/oauth/access_token",
@@ -70,7 +78,7 @@ export class GithubManager {
         }
       )
 
-      const data = await response.json()
+      const data = (await response.json()) as GitHubTokenResponse
       return data.access_token
     } catch (error) {
       console.log("Error getting access token:", error)
@@ -83,9 +91,7 @@ export class GithubManager {
   }
 
   // Helper Methods
-  async repoExistsByName(
-    repoName: string
-  ): Promise<{ exists: boolean;}> {
+  async repoExistsByName(repoName: string): Promise<{ exists: boolean }> {
     try {
       const repoData = await this.octokit.request("GET /repos/{owner}/{repo}", {
         owner: this.username,
@@ -102,9 +108,7 @@ export class GithubManager {
     }
   }
 
-  async createRepo(
-    repoName: string
-  ): Promise<{ id: string }> {
+  async createRepo(repoName: string): Promise<{ id: string }> {
     const { data } = await this.octokit.request("POST /user/repos", {
       name: repoName,
       auto_init: true,
@@ -155,28 +159,28 @@ export class GithubManager {
       // Process each file in the batch sequentially
       for (const file of batch) {
         try {
-        const { data } = await this.octokit.request(
-          "POST /repos/{owner}/{repo}/git/blobs",
-          {
-            owner: username,
-            repo: repoName,
-            content: file.data,
-            encoding: "utf-8",
-          }
-        )
-        blobs.push({
-          path: file.id.replace(/^\/+/, "").replace(/^project\/+/, ""),
-          mode: "100644",
-          type: "blob",
-          sha: data.sha,
-        })
+          const { data } = await this.octokit.request(
+            "POST /repos/{owner}/{repo}/git/blobs",
+            {
+              owner: username,
+              repo: repoName,
+              content: file.data,
+              encoding: "utf-8",
+            }
+          )
+          blobs.push({
+            path: file.id.replace(/^\/+/, "").replace(/^project\/+/, ""),
+            mode: "100644",
+            type: "blob",
+            sha: data.sha,
+          })
 
           console.log(`Successfully created blob for file: ${file.id}`)
         } catch (error) {
           console.error(`Failed to create blob for file: ${file.id}`, error)
           throw error
         }
-    }
+      }
 
       // Add a delay between batches to avoid overwhelming the connection
       if (i + batchSize < files.length) {
