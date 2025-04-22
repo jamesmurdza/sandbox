@@ -5,10 +5,10 @@ import fs from "fs"
 import { createServer } from "http"
 import { Server, Socket } from "socket.io"
 import api from "./api"
-import { GitHubApiRoutes } from "./github/GitHubApiRoutes"
 
 import { ConnectionManager } from "./ConnectionManager"
 import { DokkuClient } from "./DokkuClient"
+import { requireAuth } from "./middleware/clerkAuth"
 import { Project } from "./Project"
 import { SecureGitClient } from "./SecureGitClient"
 import { socketAuth } from "./socketAuth" // Import the new socketAuth middleware
@@ -43,6 +43,10 @@ dotenv.config()
 const app: Express = express()
 const port = process.env.PORT || 4000
 app.use(cors())
+
+// Apply Clerk authentication middleware to all API routes
+app.use("/api", requireAuth)
+
 const httpServer = createServer(app)
 const io = new Server(httpServer, {
   cors: {
@@ -106,10 +110,16 @@ io.on("connection", async (socket) => {
       // Create or retrieve the project manager for the given project ID
       const project =
         projects[data.projectId] ??
-        new Project(data.projectId, data.type, data.containerId, {
-          dokkuClient,
-          gitClient,
-        })
+        new Project(
+          socket.handshake.auth.token,
+          data.projectId,
+          data.type,
+          data.containerId,
+          {
+            dokkuClient,
+            gitClient,
+          }
+        )
       projects[data.projectId] = project
 
       // This callback recieves an update when the file list changes, and notifies all relevant connections.
@@ -182,8 +192,7 @@ io.on("connection", async (socket) => {
   }
 })
 app.use(express.json())
-const githubApi = new GitHubApiRoutes(projects)
-app.use("/api/github", githubApi.router)
+
 // Use the API routes
 app.use(async (req: any, res) => {
   try {

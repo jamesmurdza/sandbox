@@ -3,7 +3,7 @@ import { Socket } from "socket.io"
 import { CONTAINER_PAUSE, CONTAINER_TIMEOUT } from "./constants"
 import { DokkuClient } from "./DokkuClient"
 import { FileManager } from "./FileManager"
-import { GithubManager } from "./github/GithubManager"
+import { GithubManager } from "./GithubManager"
 import {
   createFileRL,
   createFolderRL,
@@ -35,6 +35,8 @@ type ServerContext = {
 }
 
 export class Project {
+  // User authentication token
+  authToken: string | null
   // Project properties:
   projectId: string
   type: string
@@ -49,11 +51,14 @@ export class Project {
   githubManager: GithubManager // Dynamically import the ESM module
 
   constructor(
+    authToken: string | null,
     projectId: string,
     type: string,
     containerId: string,
     { dokkuClient, gitClient }: ServerContext
   ) {
+    // User authentication token
+    this.authToken = authToken
     // Project properties:
     this.projectId = projectId
     this.type = type
@@ -65,7 +70,7 @@ export class Project {
     this.dokkuClient = dokkuClient
     this.gitClient = gitClient
     this.pauseTimeout = null
-    this.githubManager = new GithubManager()
+    this.githubManager = new GithubManager(authToken)
   }
 
   // Initializes the project and the "container," which is an E2B sandbox
@@ -161,6 +166,7 @@ export class Project {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${this.authToken}`,
         },
         body: JSON.stringify({
           id: this.projectId,
@@ -372,7 +378,7 @@ export class Project {
         if (files.length === 0) {
           return { success: false, error: "No files to commit" }
         }
- 
+
         const username = this.githubManager.getUsername()
         const repo = await this.githubManager.createCommit(
           id,
@@ -403,7 +409,7 @@ export class Project {
       message: any
     }) => {
       // 1. Validate GitHub authentication
-      console.log("data recieved: ",data)
+      console.log("data recieved: ", data)
       const username = this.githubManager.getUsername()
       if (!this.githubManager?.octokit || !username) {
         console.error("Error: Not authenticated with Github")
@@ -424,9 +430,7 @@ export class Project {
 
       try {
         // 2. Verify repository still exists
-        const repoCheck = await this.githubManager.repoExistsByID(
-          data.repoId
-        )
+        const repoCheck = await this.githubManager.repoExistsByID(data.repoId)
         console.log("RepoCheck: ", repoCheck)
         if (!repoCheck.exists) {
           console.error("Error: Repo no longer exists in GitHub or DB")
@@ -503,7 +507,12 @@ export class Project {
     const fetchSandboxData = async (projectId: string) => {
       const dbResponse = await fetch(
         `${process.env.SERVER_URL}/api/sandbox?id=${projectId}`,
-        { method: "GET" }
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${this.authToken}`,
+          },
+        }
       )
       return await dbResponse.json()
     }
@@ -514,7 +523,10 @@ export class Project {
     ) => {
       return await fetch(`${process.env.SERVER_URL}/api/sandbox`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${this.authToken}`,
+        },
         body: JSON.stringify({
           id: projectId.toString(),
           repositoryId: repoId,
@@ -544,7 +556,7 @@ export class Project {
       if (!this.githubManager?.octokit) {
         return {
           existsInDB: false,
-        existsInGitHub: false,
+          existsInGitHub: false,
         }
       }
       console.log("Checking Sandbox Repo...")
@@ -553,6 +565,9 @@ export class Project {
         `${process.env.SERVER_URL}/api/sandbox?id=${this.projectId}`,
         {
           method: "GET",
+          headers: {
+            Authorization: `Bearer ${this.authToken}`,
+          },
         }
       )
 
@@ -615,6 +630,7 @@ export class Project {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            Authorization: `Bearer ${this.authToken}`,
           },
           body: JSON.stringify({
             id: this.projectId.toString(),

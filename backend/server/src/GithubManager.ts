@@ -1,38 +1,57 @@
 import { createJiti } from "jiti"
-import { Service } from "typedi"
-import { GitHubTokenResponse, UserData } from "../types"
 const jiti = createJiti(__dirname)
 const { Octokit } = jiti("@octokit/core")
-@Service()
+
 export class GithubManager {
+  authToken: string | null
   public octokit: any = null
   private username: string | null = null
+  private accessToken: string | null = null
 
-  constructor() {
+  constructor(authToken: string | null) {
     this.octokit = null
     this.username = null
+    this.authToken = authToken
   }
 
-  async authenticate(code: string | null, userId: string) {
+  async authenticate(code: string, userId: string) {
     try {
-      let accessToken = code ? await this.getAccessToken(code) : ""
-
-      if (accessToken) {
-        await this.updateUserToken(userId, accessToken)
+      let accessToken = ""
+      if (code) {
+        accessToken = await this.getAccessToken(code)
+        if (accessToken) {
+          // Update user's GitHub token in database
+          await fetch(`${process.env.SERVER_URL}/api/user`, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${this.authToken}`,
+            },
+            body: JSON.stringify({
+              id: userId,
+              githubToken: accessToken,
+            }),
+          })
+        }
       }
-
-      const userData = await this.fetchUserData(userId)
-      accessToken = userData.githubToken
-
+      const user = await fetch(
+        `${process.env.SERVER_URL}/api/user?id=${userId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${this.authToken}`,
+          },
+        }
+      )
+      const userData = await user.json()
+      accessToken = userData.githubToken as string
+      // Check if GitHub token exists, if not, just return
       if (!accessToken) {
         console.log("No GitHub token found for user. Skipping authentication.")
         return null
       }
-
       this.octokit = new Octokit({ auth: accessToken })
       const { data } = await this.octokit.request("GET /user")
       this.username = data.login
-
       return data
     } catch (error) {
       console.error("GitHub authentication failed:", error)
@@ -40,27 +59,8 @@ export class GithubManager {
     }
   }
 
-  private async updateUserToken(userId: string, token: string): Promise<void> {
-    await fetch(`${process.env.SERVER_URL}/api/user`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        id: userId,
-        githubToken: token,
-      }),
-    })
-  }
-
-  private async fetchUserData(userId: string): Promise<UserData> {
-    const response = await fetch(
-      `${process.env.SERVER_URL}/api/user?id=${userId}`
-    )
-    return response.json()
-  }
-
   async getAccessToken(code: string): Promise<string> {
+    // Exchange the OAuth code for an access token
     try {
       const response = await fetch(
         "https://github.com/login/oauth/access_token",
@@ -78,7 +78,7 @@ export class GithubManager {
         }
       )
 
-      const data = (await response.json()) as GitHubTokenResponse
+      const data = await response.json()
       return data.access_token
     } catch (error) {
       console.log("Error getting access token:", error)
@@ -252,6 +252,7 @@ export class GithubManager {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
+        Authorization: `Bearer ${this.authToken}`,
       },
       body: JSON.stringify({
         id: userId,
