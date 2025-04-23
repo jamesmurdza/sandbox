@@ -3,7 +3,7 @@ import { Socket } from "socket.io"
 import { CONTAINER_PAUSE, CONTAINER_TIMEOUT } from "./constants"
 import { DokkuClient } from "./DokkuClient"
 import { FileManager } from "./FileManager"
-import { GithubManager } from "./GithubManager"
+import { GithubManager } from "./github/GithubManager"
 import {
   createFileRL,
   createFolderRL,
@@ -70,7 +70,7 @@ export class Project {
     this.dokkuClient = dokkuClient
     this.gitClient = gitClient
     this.pauseTimeout = null
-    this.githubManager = new GithubManager(authToken)
+    this.githubManager = new GithubManager()
   }
 
   // Initializes the project and the "container," which is an E2B sandbox
@@ -653,7 +653,8 @@ export class Project {
       console.log("GitHub code: ", code)
       const auth = await this.githubManager.authenticate(
         code,
-        connection.userId
+        connection.userId,
+        this.authToken
       )
       if (auth) {
         return auth
@@ -666,7 +667,7 @@ export class Project {
       return { authUrl }
     }
     const handleGithubUserLogout = async () => {
-      return this.githubManager.logoutGithubUser(connection.userId)
+      return this.githubManager.logoutGithubUser(connection.userId, this.authToken)
     }
     return {
       heartbeat: handleHeartbeat,

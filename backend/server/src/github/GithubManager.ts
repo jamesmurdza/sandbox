@@ -11,15 +11,15 @@ export class GithubManager {
     this.username = null
   }
 
-  async authenticate(code: string | null, userId: string) {
+  async authenticate(code: string | null, userId: string,authToken: string | null) {
     try {
       let accessToken = code ? await this.getAccessToken(code) : ""
 
       if (accessToken) {
-        await this.updateUserToken(userId, accessToken)
+        await this.updateUserToken(userId, accessToken,authToken)
       }
 
-      const userData = await this.fetchUserData(userId)
+      const userData = await this.fetchUserData(userId,authToken)
       accessToken = userData.githubToken
 
       if (!accessToken) {
@@ -38,11 +38,12 @@ export class GithubManager {
     }
   }
 
-  private async updateUserToken(userId: string, token: string): Promise<void> {
+  private async updateUserToken(userId: string, token: string,authToken:string|null): Promise<void> {
     await fetch(`${process.env.SERVER_URL}/api/user`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
+        Authorization: `Bearer ${authToken}`,
       },
       body: JSON.stringify({
         id: userId,
@@ -51,14 +52,20 @@ export class GithubManager {
     })
   }
 
-  private async fetchUserData(userId: string): Promise<UserData> {
+  private async fetchUserData(userId: string,authToken:string|null): Promise<UserData> {
     const response = await fetch(
-      `${process.env.SERVER_URL}/api/user?id=${userId}`
+      `${process.env.SERVER_URL}/api/user?id=${userId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+        },
+      }
     )
     return response.json()
   }
 
   async getAccessToken(code: string): Promise<string> {
+    // Exchange the OAuth code for an access token
     try {
       const response = await fetch(
         "https://github.com/login/oauth/access_token",
@@ -244,12 +251,13 @@ export class GithubManager {
     }
   }
 
-  async logoutGithubUser(userId: string) {
+  async logoutGithubUser(userId: string,authToken:string|null) {
     // Update user's GitHub token in database
     await fetch(`${process.env.SERVER_URL}/api/user`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
+        Authorization: `Bearer ${authToken}`,
       },
       body: JSON.stringify({
         id: userId,
