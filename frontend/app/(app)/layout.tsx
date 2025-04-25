@@ -1,5 +1,6 @@
 import { User } from "@/lib/types"
 import { generateUniqueUsername } from "@/lib/username-generator"
+import { fetchWithAuth } from "@/lib/utils"
 import { currentUser } from "@clerk/nextjs"
 import { redirect } from "next/navigation"
 
@@ -14,7 +15,7 @@ export default async function AppAuthLayout({
     redirect("/")
   }
 
-  const dbUser = await fetch(
+  const dbUser = await fetchWithAuth(
     `${process.env.NEXT_PUBLIC_SERVER_URL}/api/user?id=${user.id}`
   )
   const dbUserJSON = (await dbUser.json()) as User
@@ -29,27 +30,30 @@ export default async function AppAuthLayout({
       githubUsername ||
       (await generateUniqueUsername(async (username) => {
         // Check if username exists in database
-        const userCheck = await fetch(
+        const userCheck = await fetchWithAuth(
           `${process.env.NEXT_PUBLIC_SERVER_URL}/api/user/check-username?username=${username}`
         )
         const exists = await userCheck.json()
         return exists.exists
       }))
 
-    const res = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/user`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        id: user.id,
-        name: user.firstName + " " + user.lastName,
-        email: user.emailAddresses[0].emailAddress,
-        username: username,
-        avatarUrl: user.imageUrl || null,
-        createdAt: new Date().toISOString(),
-      }),
-    })
+    const res = await fetchWithAuth(
+      `${process.env.NEXT_PUBLIC_SERVER_URL}/api/user`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          id: user.id,
+          name: user.firstName + " " + user.lastName,
+          email: user.emailAddresses[0].emailAddress,
+          username: username,
+          avatarUrl: user.imageUrl || null,
+          createdAt: new Date().toISOString(),
+        }),
+      }
+    )
 
     if (!res.ok) {
       const error = await res.text()

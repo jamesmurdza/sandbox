@@ -1,6 +1,7 @@
 import express, { Request, Response } from "express"
 import { GitHubApiService } from "./GitHubApiService"
 import { Project } from "../Project"
+import { extractAuthToken } from "../utils/ExtractAuthToken"
 
 
 export class GitHubApiRoutes {
@@ -27,7 +28,8 @@ export class GitHubApiRoutes {
     return res.status(data.code).json(data)
   })
   this.router.post("/repo/status", async (req: Request, res: Response) => {
-    const data = await this.service.checkRepoStatus(req.body.projectId)
+    const authToken = extractAuthToken(req)
+    const data = await this.service.checkRepoStatus(req.body.projectId, authToken)
     return res.status(data.code).json(data)
   })
   this.router.post("/repo/create", async (req: Request, res: Response) => {
@@ -39,7 +41,8 @@ export class GitHubApiRoutes {
     return res.status(response.code).json(response)
   })
   this.router.post("/repo/remove", async (req: Request, res: Response) => {
-    const data = await this.service.removeRepoFromSandbox(req.body.projectId)
+    const authToken = extractAuthToken(req)
+    const data = await this.service.removeRepoFromSandbox(req.body.projectId, authToken)
     return res.status(data.code).json(data)
   })
   }

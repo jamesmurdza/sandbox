@@ -1,3 +1,4 @@
+import { fetchWithAuth } from "@/lib/utils"
 import { currentUser } from "@clerk/nextjs"
 
 export async function POST(request: Request) {
@@ -11,7 +12,7 @@ export async function POST(request: Request) {
 
     // handle payment processing here
 
-    const response = await fetch(
+    const response = await fetchWithAuth(
       `${process.env.NEXT_PUBLIC_SERVER_URL}/api/user/update-tier`,
       {
         method: "POST",

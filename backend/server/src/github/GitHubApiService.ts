@@ -1,8 +1,9 @@
 import dotenv from "dotenv"
-import { Project } from "../Project"
-import { GithubManager } from "./GithubManager"
-import { ApiResponse } from "../types"
 import { Request } from "express"
+import { Project } from "../Project"
+import { ApiResponse } from "../types"
+import { GithubManager } from "./GithubManager"
+import { extractAuthToken } from "../utils/ExtractAuthToken" 
 
 dotenv.config()
 
@@ -16,22 +17,29 @@ export class GitHubApiService {
       success: true,
       code: 200,
       message: "Authenticated URL",
-      data: {auth_url:`https://github.com/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}&scope=repo`},
-    });
+      data: {
+        auth_url: `https://github.com/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}&scope=repo`,
+      },
+    })
   }
 
-  async authenticateUser(req:Request): Promise<ApiResponse> {
+  async authenticateUser(req: Request): Promise<ApiResponse> {
     try {
-        const { code, userId } = req.body
-        if (!userId) {
-            return  {
-              success: false,
-              code: 400,
-              message: "Missing user id",
-              data: null,
-            }
-          }
-      const auth = await this.githubManager.authenticate(code, userId)
+      const authToken = extractAuthToken(req)
+      const { code, userId } = req.body
+      if (!userId) {
+        return {
+          success: false,
+          code: 400,
+          message: "Missing user id",
+          data: null,
+        }
+      }
+      const auth = await this.githubManager.authenticate(
+        code,
+        userId,
+        authToken
+      )
       return {
         success: true,
         code: 200,
@@ -49,6 +57,7 @@ export class GitHubApiService {
   }
   async logoutUser(req: Request): Promise<ApiResponse> {
     try {
+      const authToken = extractAuthToken(req)
       const { userId } = req.body
       if (!userId) {
         return {
@@ -58,7 +67,7 @@ export class GitHubApiService {
           data: null,
         }
       }
-      await this.githubManager.logoutGithubUser(userId)
+      await this.githubManager.logoutGithubUser(userId, authToken)
       return {
         success: true,
         code: 200,
@@ -74,7 +83,10 @@ export class GitHubApiService {
       }
     }
   }
-  async checkRepoStatus(projectId: string): Promise<ApiResponse> {
+  async checkRepoStatus(
+    projectId: string,
+    authToken: string | null
+  ): Promise<ApiResponse> {
     try {
       if (!this.githubManager.octokit) {
         return {
@@ -96,7 +108,12 @@ export class GitHubApiService {
 
       const dbResponse = await fetch(
         `${process.env.SERVER_URL}/api/sandbox?id=${projectId}`,
-        { method: "GET" }
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+          },
+        }
       )
       const sandbox = await dbResponse.json()
       const repoName = sandbox.name
@@ -129,7 +146,9 @@ export class GitHubApiService {
         }
       }
 
-      const githubRepoCheck = await this.githubManager.repoExistsByName(repoName)
+      const githubRepoCheck = await this.githubManager.repoExistsByName(
+        repoName
+      )
       if (githubRepoCheck.exists) {
         return {
           success: true,
@@ -154,7 +173,7 @@ export class GitHubApiService {
       }
     }
   }
-  async removeRepoFromSandbox(projectId: string): Promise<ApiResponse> {
+  async removeRepoFromSandbox(projectId: string,authToken: string | null): Promise<ApiResponse> {
     try {
       if (!projectId) {
         return {
@@ -167,7 +186,10 @@ export class GitHubApiService {
 
       await fetch(`${process.env.SERVER_URL}/api/sandbox`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json" ,
+          Authorization: `Bearer ${authToken}`,
+        },
         body: JSON.stringify({
           id: projectId.toString(),
           repositoryId: null,
@@ -192,6 +214,7 @@ export class GitHubApiService {
   }
   async createCommit(req: Request): Promise<ApiResponse> {
     try {
+      const authToken = extractAuthToken(req)
       const { projectId, message } = req.body
 
       // 1. Validate project
@@ -215,7 +238,7 @@ export class GitHubApiService {
           data: null,
         }
       }
-    const projectData = await this.fetchSandboxData(projectId)
+      const projectData = await this.fetchSandboxData(projectId,authToken)
       const repoId = projectData.repositoryId
       // 3. Validate repoId
       if (!repoId) {
@@ -230,7 +253,7 @@ export class GitHubApiService {
       // 4. Verify repository still exists
       const repoCheck = await this.githubManager.repoExistsByID(repoId)
       if (!repoCheck.exists) {
-        await this.removeRepoFromSandbox(projectId)
+        await this.removeRepoFromSandbox(projectId,authToken)
         return {
           success: false,
           code: 404,
@@ -255,7 +278,11 @@ export class GitHubApiService {
 
       // 6. Create the commit
       const commitMessage = message || "initial commit from GitWit"
-      const repo = await this.githubManager.createCommit(repoId, files, commitMessage)
+      const repo = await this.githubManager.createCommit(
+        repoId,
+        files,
+        commitMessage
+      )
       const repoUrl = `https://github.com/${username}/${repo.repoName}`
 
       return {
@@ -278,11 +305,12 @@ export class GitHubApiService {
   }
   async createRepo(req: Request): Promise<ApiResponse> {
     try {
+      const authToken = extractAuthToken(req)
       const { projectId } = req.body
 
       // 1. Validate project
       const project = this.projects[projectId]
-    
+
       if (!project) {
         return {
           success: false,
@@ -303,18 +331,26 @@ export class GitHubApiService {
       }
 
       // 3. Fetch sandbox data
-      const sandbox = await this.fetchSandboxData(projectId)
+      const sandbox = await this.fetchSandboxData(projectId,authToken)
       let repoName = sandbox.name
 
       // 4. Check if repo exists and handle naming conflicts
-      const {data:repoExists} = await this.checkRepoStatus(projectId)
-      repoName = await this.handleRepoScenariosAndUpdateName(repoExists, repoName, projectId)
+      const { data: repoExists } = await this.checkRepoStatus(
+        projectId,
+        authToken
+      )
+      repoName = await this.handleRepoScenariosAndUpdateName(
+        repoExists,
+        repoName,
+        projectId,
+        authToken
+      )
 
       // 5. Create the repository
       const { id } = await this.githubManager.createRepo(repoName)
 
       // 6. Update sandbox with repository ID
-      await this.updateSandboxWithRepoId(projectId, id.toString())
+      await this.updateSandboxWithRepoId(projectId, id.toString(),authToken)
 
       // 7. Create initial commit
       const files = await this.collectFilesForCommit(project)
@@ -365,7 +401,11 @@ export class GitHubApiService {
     const files: { id: any; data: any }[] = []
 
     // Recursively process the file tree
-    const processNode = async (node: { type: string; id: any; children?: any }) => {
+    const processNode = async (node: {
+      type: string
+      id: any
+      children?: any
+    }) => {
       if (node.type === "file") {
         const content = await project.fileManager?.getFile(node.id)
         if (content) {
@@ -384,20 +424,24 @@ export class GitHubApiService {
 
     return files
   }
- 
 
-  private async fetchSandboxData(projectId: string) {
+  private async fetchSandboxData(projectId: string,authToken: string | null) {
     const dbResponse = await fetch(
       `${process.env.SERVER_URL}/api/sandbox?id=${projectId}`,
-      { method: "GET" }
+      {
+         method: "GET",
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+        },
+       }
     )
     return await dbResponse.json()
   }
 
-  private async updateSandboxWithRepoId(projectId: string, repoId: string) {
+  private async updateSandboxWithRepoId(projectId: string, repoId: string,authToken: string | null) {
     return await fetch(`${process.env.SERVER_URL}/api/sandbox`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
       body: JSON.stringify({
         id: projectId.toString(),
         repositoryId: repoId,
@@ -408,7 +452,8 @@ export class GitHubApiService {
   private async handleRepoScenariosAndUpdateName(
     repoExists: { existsInDB: any; existsInGitHub: any },
     repoName: string,
-    projectId: string
+    projectId: string,
+    authToken: string | null
   ) {
     if (!repoExists.existsInDB && repoExists.existsInGitHub) {
       let newRepoName = `${repoName}-gitwit`
@@ -417,13 +462,11 @@ export class GitHubApiService {
     }
 
     if (repoExists.existsInDB && !repoExists.existsInGitHub) {
-      await this.removeRepoFromSandbox(projectId)
+      await this.removeRepoFromSandbox(projectId,authToken)
     } else if (repoExists.existsInDB && repoExists.existsInGitHub) {
       throw new Error("Repository already exists")
     }
 
     return repoName
   }
-
-
 }
