@@ -71,6 +71,28 @@ export class Project {
     this.gitClient = gitClient
     this.pauseTimeout = null
     this.githubManager = new GithubManager(authToken)
+
+    // Log environment variables related to GitHub
+    this.logGitHubEnvironmentVariables()
+  }
+
+  private logGitHubEnvironmentVariables() {
+    console.log("[GitHub Flow] Environment Variables Check:")
+    console.log(
+      "[GitHub Flow] GITHUB_CLIENT_ID exists:",
+      !!process.env.GITHUB_CLIENT_ID
+    )
+    console.log(
+      "[GitHub Flow] GITHUB_CLIENT_SECRET exists:",
+      !!process.env.GITHUB_CLIENT_SECRET
+    )
+    console.log("[GitHub Flow] SERVER_URL exists:", !!process.env.SERVER_URL)
+
+    if (!process.env.GITHUB_CLIENT_ID || !process.env.GITHUB_CLIENT_SECRET) {
+      console.error(
+        "[GitHub Flow] CRITICAL: Missing GitHub OAuth credentials in environment variables"
+      )
+    }
   }
 
   // Initializes the project and the "container," which is an E2B sandbox
@@ -673,10 +695,36 @@ export class Project {
     }
 
     const handleAuthenticateGithub: SocketHandler = async () => {
-      console.log("[GitHub Flow] Server generating GitHub authorization URL")
-      const authUrl = `https://github.com/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}&scope=repo`
-      console.log("[GitHub Flow] Server auth URL generated:", authUrl)
-      return { authUrl }
+      try {
+        console.log(
+          "[GitHub Flow] Server generating GitHub authorization URL, checking environment variables"
+        )
+
+        // Check if GitHub client ID is defined
+        if (!process.env.GITHUB_CLIENT_ID) {
+          console.error(
+            "[GitHub Flow] GITHUB_CLIENT_ID environment variable is not defined"
+          )
+          return {
+            error: "GitHub client ID is not configured on the server",
+            authUrl: null,
+          }
+        }
+
+        const authUrl = `https://github.com/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}&scope=repo`
+        console.log("[GitHub Flow] Server auth URL generated:", authUrl)
+
+        return { authUrl }
+      } catch (error) {
+        console.error(
+          "[GitHub Flow] Error generating GitHub authorization URL:",
+          error
+        )
+        return {
+          error: "Failed to generate GitHub authorization URL",
+          authUrl: null,
+        }
+      }
     }
     const handleGithubUserLogout = async () => {
       return this.githubManager.logoutGithubUser(connection.userId)

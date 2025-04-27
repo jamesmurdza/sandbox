@@ -95,10 +95,14 @@ export const useGithubLogin = ({
       const tracker = createPopupTracker()
 
       return new Promise<{ code: string }>((resolve, reject) => {
-        if (!socket?.connected) {
-          console.error("[GitHub Flow] Socket not connected in promise")
-          reject(new Error("Socket not connected"))
-          return
+        let isResolved = false
+
+        let resolveOnce = (code: string) => {
+          if (!isResolved) {
+            isResolved = true
+            console.log("[GitHub Flow] Resolving promise with code:", code)
+            resolve({ code })
+          }
         }
 
         // Set up message listener for cross-window communication
@@ -127,7 +131,7 @@ export const useGithubLogin = ({
             console.log("[GitHub Flow] Removed message event listener")
 
             // Resolve the promise with the code
-            resolve({ code: event.data.code })
+            resolveOnce(event.data.code)
           }
         }
 
@@ -138,20 +142,36 @@ export const useGithubLogin = ({
         )
 
         console.log("[GitHub Flow] Emitting 'authenticateGithub' to server")
+
+        // Create a timeout for the server response
+        const serverTimeout = setTimeout(() => {
+          console.error("[GitHub Flow] No response from server after 5 seconds")
+          window.removeEventListener("message", messageHandler)
+          reject(new Error("Server timeout - No response received from server"))
+        }, 5000)
+
         socket.emit(
           "authenticateGithub",
           { prompt: "select_account" },
-          (response: { authUrl: string }) => {
+          (response: { authUrl: string; error?: string }) => {
+            // Clear server timeout since we got a response
+            clearTimeout(serverTimeout)
+
             console.log(
               "[GitHub Flow] Received response from server:",
               response
             )
+
+            if (response.error) {
+              console.error("[GitHub Flow] Error from server:", response.error)
+              window.removeEventListener("message", messageHandler)
+              reject(new Error(response.error))
+              return
+            }
+
             if (!response.authUrl) {
               console.error("[GitHub Flow] No auth URL received from server")
               window.removeEventListener("message", messageHandler)
-              console.log(
-                "[GitHub Flow] Removed message event listener due to error"
-              )
               reject(new Error("No auth URL received"))
               return
             }
@@ -185,7 +205,7 @@ export const useGithubLogin = ({
                     console.log(
                       "[GitHub Flow] Removed message event listener after success"
                     )
-                    resolve({ code })
+                    resolveOnce(code)
                   } else {
                     console.error("[GitHub Flow] No code received in redirect")
                     window.removeEventListener("message", messageHandler)
@@ -219,6 +239,23 @@ export const useGithubLogin = ({
               reject(new Error("Failed to open authentication window"))
             } else {
               console.log("[GitHub Flow] Popup window opened successfully")
+
+              // Set a timeout for the overall authentication process
+              const authTimeout = setTimeout(() => {
+                console.error(
+                  "[GitHub Flow] Authentication process timed out after 30 seconds"
+                )
+                window.removeEventListener("message", messageHandler)
+                tracker.closePopup()
+                reject(new Error("Authentication process timed out"))
+              }, 30000)
+
+              // Add cleanup for success case
+              const originalResolveOnce = resolveOnce
+              resolveOnce = (code: string) => {
+                clearTimeout(authTimeout)
+                originalResolveOnce(code)
+              }
             }
           }
         )
@@ -353,32 +390,51 @@ export const useCheckSandboxRepo = createQuery({
   queryKey: ["CheckSandboxRepo"],
   fetcher: async (_variable: {}, context) => {
     const { socket } = context as typeof context & { socket?: Socket }
-    console.log("Query function executed, socket state:", {
+    console.log("[GitHub Flow] CheckSandboxRepo - Socket state:", {
       connected: socket?.connected,
       id: socket?.id,
     })
 
     return new Promise<CheckSandboxRepoResponse>((resolve, reject) => {
-      console.log("Setting up promise for socket emit")
+      console.log(
+        "[GitHub Flow] CheckSandboxRepo - Setting up promise for socket emit"
+      )
 
       if (!socket) {
-        console.error("Socket is null or undefined")
+        console.error(
+          "[GitHub Flow] CheckSandboxRepo - Socket is null or undefined"
+        )
         reject(new Error("Socket not available"))
         return
       }
 
       if (!socket.connected) {
-        console.error("Socket exists but not connected")
+        console.error(
+          "[GitHub Flow] CheckSandboxRepo - Socket exists but not connected. Socket ID:",
+          socket.id
+        )
         reject(new Error("Socket not connected"))
         return
       }
 
-      console.log("About to emit checkSandboxRepo event")
+      console.log(
+        "[GitHub Flow] CheckSandboxRepo - About to emit checkSandboxRepo event"
+      )
 
       // Create a timeout that we can clear if successful
       const timeoutId = setTimeout(() => {
-        console.error("No response received after 5 seconds")
-        reject(new Error("Socket timeout"))
+        console.error(
+          "[GitHub Flow] CheckSandboxRepo - No response received after 5 seconds"
+        )
+
+        // Create default fallback response instead of rejecting
+        console.log(
+          "[GitHub Flow] CheckSandboxRepo - Using fallback response due to timeout"
+        )
+        resolve({
+          existsInDB: false,
+          existsInGitHub: false,
+        })
       }, 5000)
 
       socket.emit(
@@ -388,10 +444,20 @@ export const useCheckSandboxRepo = createQuery({
           // Clear the timeout since we got a response
           clearTimeout(timeoutId)
 
-          console.log("Received response from checkSandboxRepo:", response)
+          console.log(
+            "[GitHub Flow] CheckSandboxRepo - Received response:",
+            response
+          )
           if ("error" in response) {
-            toast.error(response.error)
-            reject(new Error("No auth URL received"))
+            console.error(
+              "[GitHub Flow] CheckSandboxRepo - Error in response:",
+              response.error
+            )
+            // Don't reject, instead resolve with a default value
+            resolve({
+              existsInDB: false,
+              existsInGitHub: false,
+            })
             return
           }
           resolve(response)
