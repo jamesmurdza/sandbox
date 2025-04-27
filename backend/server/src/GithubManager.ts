@@ -17,17 +17,16 @@ export class GithubManager {
 
   async authenticate(code: string, userId: string) {
     try {
-      console.log(
-        "[GitHub Auth] Starting GitHub authentication for user:",
-        userId
-      )
+      console.log("[GitHub Flow] Server authenticating user:", userId)
       let accessToken = ""
       if (code) {
-        console.log("[GitHub Auth] Exchanging OAuth code for access token")
+        console.log(
+          "[GitHub Flow] Server exchanging OAuth code for access token"
+        )
         accessToken = await this.getAccessToken(code)
         if (accessToken) {
           console.log(
-            "[GitHub Auth] Access token received, updating user in database"
+            "[GitHub Flow] Server received access token, updating user in database"
           )
           try {
             // Update user's GitHub token in database
@@ -46,7 +45,7 @@ export class GithubManager {
             if (!response.ok) {
               const errorData = await response.text()
               console.error(
-                "[GitHub Auth] Failed to update user GitHub token in database:",
+                "[GitHub Flow] Server failed to update user GitHub token in database:",
                 response.status,
                 errorData
               )
@@ -55,27 +54,29 @@ export class GithubManager {
               )
             } else {
               console.log(
-                "[GitHub Auth] Successfully updated GitHub token in database"
+                "[GitHub Flow] Server successfully updated GitHub token in database"
               )
               // Store the token locally too
               this.accessToken = accessToken
             }
           } catch (updateError) {
             console.error(
-              "[GitHub Auth] Error updating GitHub token:",
+              "[GitHub Flow] Server error updating GitHub token:",
               updateError
             )
             throw updateError
           }
         } else {
-          console.error("[GitHub Auth] Failed to get access token from GitHub")
+          console.error(
+            "[GitHub Flow] Server failed to get access token from GitHub"
+          )
         }
       }
 
       // Small delay to ensure database update is complete
       await new Promise((resolve) => setTimeout(resolve, 500))
 
-      console.log("[GitHub Auth] Fetching user data from database")
+      console.log("[GitHub Flow] Server fetching user data from database")
       try {
         const userResponse = await fetch(
           `${process.env.SERVER_URL}/api/user?id=${userId}`,
@@ -88,7 +89,7 @@ export class GithubManager {
 
         if (!userResponse.ok) {
           console.error(
-            "[GitHub Auth] Failed to fetch user data:",
+            "[GitHub Flow] Server failed to fetch user data:",
             userResponse.status
           )
           throw new Error(`Failed to fetch user data: ${userResponse.status}`)
@@ -96,7 +97,7 @@ export class GithubManager {
 
         const userData = await userResponse.json()
         console.log(
-          "[GitHub Auth] User data retrieved, checking for GitHub token"
+          "[GitHub Flow] Server user data retrieved, checking for GitHub token"
         )
 
         // Use the saved token if the database retrieval didn't work
@@ -105,11 +106,11 @@ export class GithubManager {
         // Check if GitHub token exists, if not, just return
         if (!accessToken) {
           console.log(
-            "[GitHub Auth] No GitHub token found for user. Skipping authentication."
+            "[GitHub Flow] Server no GitHub token found for user. Skipping authentication."
           )
           if (this.accessToken) {
             console.log(
-              "[GitHub Auth] Using locally stored access token as fallback"
+              "[GitHub Flow] Server using locally stored access token as fallback"
             )
             accessToken = this.accessToken
           } else {
@@ -117,11 +118,14 @@ export class GithubManager {
           }
         }
       } catch (fetchError) {
-        console.error("[GitHub Auth] Error fetching user data:", fetchError)
+        console.error(
+          "[GitHub Flow] Server error fetching user data:",
+          fetchError
+        )
         // Use the token we got earlier if database fetch failed
         if (this.accessToken) {
           console.log(
-            "[GitHub Auth] Using locally stored access token as fallback after fetch error"
+            "[GitHub Flow] Server using locally stored access token as fallback after fetch error"
           )
           accessToken = this.accessToken
         } else {
@@ -129,17 +133,17 @@ export class GithubManager {
         }
       }
 
-      console.log("[GitHub Auth] Initializing Octokit with access token")
+      console.log("[GitHub Flow] Server initializing Octokit with access token")
       this.octokit = new Octokit({ auth: accessToken })
       const { data } = await this.octokit.request("GET /user")
       this.username = data.login
       console.log(
-        "[GitHub Auth] Successfully authenticated with GitHub for user:",
+        "[GitHub Flow] Server successfully authenticated with GitHub for user:",
         data.login
       )
       return data
     } catch (error) {
-      console.error("[GitHub Auth] GitHub authentication failed:", error)
+      console.error("[GitHub Flow] Server GitHub authentication failed:", error)
       return null
     }
   }
@@ -147,7 +151,9 @@ export class GithubManager {
   async getAccessToken(code: string): Promise<string> {
     // Exchange the OAuth code for an access token
     try {
-      console.log("[GitHub Auth] Making request to GitHub OAuth token endpoint")
+      console.log(
+        "[GitHub Flow] Server making request to GitHub OAuth token endpoint"
+      )
       const response = await fetch(
         "https://github.com/login/oauth/access_token",
         {
@@ -166,18 +172,18 @@ export class GithubManager {
 
       const data = await response.json()
       console.log(
-        "[GitHub Auth] Response from GitHub token endpoint:",
+        "[GitHub Flow] Server response from GitHub token endpoint:",
         data.error || "Success"
       )
       if (data.error) {
         console.error(
-          "[GitHub Auth] GitHub OAuth error:",
+          "[GitHub Flow] Server GitHub OAuth error:",
           data.error_description || data.error
         )
       }
       return data.access_token
     } catch (error) {
-      console.error("[GitHub Auth] Error getting access token:", error)
+      console.error("[GitHub Flow] Server error getting access token:", error)
       throw error
     }
   }

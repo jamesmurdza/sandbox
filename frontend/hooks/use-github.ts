@@ -71,19 +71,39 @@ export const useGithubLogin = ({
   return useMutation({
     onSuccess,
     mutationFn: async () => {
-      console.log("[GitHub Auth] Starting GitHub login flow")
+      console.log("[GitHub Flow] Button clicked - Starting GitHub login flow")
+
+      // Check socket connection first
+      if (!socket) {
+        console.error("[GitHub Flow] Socket is null or undefined")
+        throw new Error("Socket not available")
+      }
+
+      if (!socket.connected) {
+        console.error(
+          "[GitHub Flow] Socket exists but not connected. Socket ID:",
+          socket.id
+        )
+        throw new Error("Socket not connected")
+      }
+
+      console.log(
+        "[GitHub Flow] Socket connection verified. Socket ID:",
+        socket.id
+      )
+      console.log("[GitHub Flow] Creating popup tracker")
       const tracker = createPopupTracker()
 
       return new Promise<{ code: string }>((resolve, reject) => {
         if (!socket?.connected) {
-          console.error("[GitHub Auth] Socket not connected")
+          console.error("[GitHub Flow] Socket not connected in promise")
           reject(new Error("Socket not connected"))
           return
         }
 
         // Set up message listener for cross-window communication
         const messageHandler = (event: MessageEvent) => {
-          console.log("[GitHub Auth] Received message event:", event.data)
+          console.log("[GitHub Flow] Received message event:", event.data)
 
           // Validate message structure
           if (
@@ -92,19 +112,19 @@ export const useGithubLogin = ({
             event.data.code
           ) {
             console.log(
-              "[GitHub Auth] Valid github-auth-code message received with code:",
+              "[GitHub Flow] Valid github-auth-code message received with code:",
               event.data.code
             )
 
             // Close the popup if it's still open
             tracker.closePopup()
             console.log(
-              "[GitHub Auth] Closed popup after receiving postMessage"
+              "[GitHub Flow] Closed popup after receiving postMessage"
             )
 
             // Clean up the event listener
             window.removeEventListener("message", messageHandler)
-            console.log("[GitHub Auth] Removed message event listener")
+            console.log("[GitHub Flow] Removed message event listener")
 
             // Resolve the promise with the code
             resolve({ code: event.data.code })
@@ -114,23 +134,23 @@ export const useGithubLogin = ({
         // Add the message event listener
         window.addEventListener("message", messageHandler)
         console.log(
-          "[GitHub Auth] Added message event listener for postMessage communication"
+          "[GitHub Flow] Added message event listener for postMessage communication"
         )
 
-        console.log("[GitHub Auth] Emitting 'authenticateGithub' to server")
+        console.log("[GitHub Flow] Emitting 'authenticateGithub' to server")
         socket.emit(
           "authenticateGithub",
           { prompt: "select_account" },
           (response: { authUrl: string }) => {
             console.log(
-              "[GitHub Auth] Received response from server:",
+              "[GitHub Flow] Received response from server:",
               response
             )
             if (!response.authUrl) {
-              console.error("[GitHub Auth] No auth URL received from server")
+              console.error("[GitHub Flow] No auth URL received from server")
               window.removeEventListener("message", messageHandler)
               console.log(
-                "[GitHub Auth] Removed message event listener due to error"
+                "[GitHub Flow] Removed message event listener due to error"
               )
               reject(new Error("No auth URL received"))
               return
@@ -138,38 +158,39 @@ export const useGithubLogin = ({
 
             const authUrl = new URL(response.authUrl)
             authUrl.searchParams.append("prompt", "select_account")
-            console.log("[GitHub Auth] Final auth URL:", authUrl.toString())
+            console.log("[GitHub Flow] Final auth URL:", authUrl.toString())
 
-            tracker.openPopup(authUrl.toString(), {
+            console.log("[GitHub Flow] Attempting to open popup window")
+            const popupOpened = tracker.openPopup(authUrl.toString(), {
               onUrlChange(newUrl: string) {
-                console.log("[GitHub Auth] URL changed in popup:", newUrl)
+                console.log("[GitHub Flow] URL changed in popup:", newUrl)
                 if (newUrl.includes(REDIRECT_URI)) {
                   console.log(
-                    "[GitHub Auth] Detected redirect to loading page:",
+                    "[GitHub Flow] Detected redirect to loading page:",
                     newUrl
                   )
                   const urlParams = new URLSearchParams(new URL(newUrl).search)
                   const code = urlParams.get("code")
-                  console.log("[GitHub Auth] Code parameter present:", !!code)
+                  console.log("[GitHub Flow] Code parameter present:", !!code)
 
                   tracker.closePopup()
-                  console.log("[GitHub Auth] Popup closed after detecting code")
+                  console.log("[GitHub Flow] Popup closed after detecting code")
 
                   if (code) {
                     console.log(
-                      "[GitHub Auth] Received OAuth code, resolving promise with code:",
+                      "[GitHub Flow] Received OAuth code, resolving promise with code:",
                       code
                     )
                     window.removeEventListener("message", messageHandler)
                     console.log(
-                      "[GitHub Auth] Removed message event listener after success"
+                      "[GitHub Flow] Removed message event listener after success"
                     )
                     resolve({ code })
                   } else {
-                    console.error("[GitHub Auth] No code received in redirect")
+                    console.error("[GitHub Flow] No code received in redirect")
                     window.removeEventListener("message", messageHandler)
                     console.log(
-                      "[GitHub Auth] Removed message event listener due to error"
+                      "[GitHub Flow] Removed message event listener due to error"
                     )
                     reject(new Error("No code received"))
                   }
@@ -177,15 +198,28 @@ export const useGithubLogin = ({
               },
               onClose() {
                 console.log(
-                  "[GitHub Auth] Authentication window closed by user"
+                  "[GitHub Flow] Authentication window closed by user"
                 )
                 window.removeEventListener("message", messageHandler)
                 console.log(
-                  "[GitHub Auth] Removed message event listener due to popup close"
+                  "[GitHub Flow] Removed message event listener due to popup close"
                 )
                 reject(new Error("Authentication window closed"))
               },
             })
+
+            if (!popupOpened) {
+              console.error(
+                "[GitHub Flow] Failed to open popup window - likely blocked by browser"
+              )
+              window.removeEventListener("message", messageHandler)
+              console.log(
+                "[GitHub Flow] Removed message event listener due to popup failure"
+              )
+              reject(new Error("Failed to open authentication window"))
+            } else {
+              console.log("[GitHub Flow] Popup window opened successfully")
+            }
           }
         )
       })

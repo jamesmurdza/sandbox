@@ -94,7 +94,10 @@ export function GitHubSync() {
             variant="secondary"
             size="xs"
             className="mt-4 w-full font-normal"
-            onClick={() => handleGithubLogin()}
+            onClick={() => {
+              console.log("[GitHub Flow] Connect to GitHub button clicked")
+              handleGithubLogin()
+            }}
             disabled={isLoggingIn}
           >
             {isLoggingIn ? (
