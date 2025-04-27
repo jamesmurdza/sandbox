@@ -12,49 +12,134 @@ export class GithubManager {
     this.octokit = null
     this.username = null
     this.authToken = authToken
+    this.accessToken = null
   }
 
   async authenticate(code: string, userId: string) {
     try {
+      console.log(
+        "[GitHub Auth] Starting GitHub authentication for user:",
+        userId
+      )
       let accessToken = ""
       if (code) {
+        console.log("[GitHub Auth] Exchanging OAuth code for access token")
         accessToken = await this.getAccessToken(code)
         if (accessToken) {
-          // Update user's GitHub token in database
-          await fetch(`${process.env.SERVER_URL}/api/user`, {
-            method: "PUT",
+          console.log(
+            "[GitHub Auth] Access token received, updating user in database"
+          )
+          try {
+            // Update user's GitHub token in database
+            const response = await fetch(`${process.env.SERVER_URL}/api/user`, {
+              method: "PUT",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${this.authToken}`,
+              },
+              body: JSON.stringify({
+                id: userId,
+                githubToken: accessToken,
+              }),
+            })
+
+            if (!response.ok) {
+              const errorData = await response.text()
+              console.error(
+                "[GitHub Auth] Failed to update user GitHub token in database:",
+                response.status,
+                errorData
+              )
+              throw new Error(
+                `Failed to update user's GitHub token: ${response.status}`
+              )
+            } else {
+              console.log(
+                "[GitHub Auth] Successfully updated GitHub token in database"
+              )
+              // Store the token locally too
+              this.accessToken = accessToken
+            }
+          } catch (updateError) {
+            console.error(
+              "[GitHub Auth] Error updating GitHub token:",
+              updateError
+            )
+            throw updateError
+          }
+        } else {
+          console.error("[GitHub Auth] Failed to get access token from GitHub")
+        }
+      }
+
+      // Small delay to ensure database update is complete
+      await new Promise((resolve) => setTimeout(resolve, 500))
+
+      console.log("[GitHub Auth] Fetching user data from database")
+      try {
+        const userResponse = await fetch(
+          `${process.env.SERVER_URL}/api/user?id=${userId}`,
+          {
             headers: {
-              "Content-Type": "application/json",
               Authorization: `Bearer ${this.authToken}`,
             },
-            body: JSON.stringify({
-              id: userId,
-              githubToken: accessToken,
-            }),
-          })
+          }
+        )
+
+        if (!userResponse.ok) {
+          console.error(
+            "[GitHub Auth] Failed to fetch user data:",
+            userResponse.status
+          )
+          throw new Error(`Failed to fetch user data: ${userResponse.status}`)
+        }
+
+        const userData = await userResponse.json()
+        console.log(
+          "[GitHub Auth] User data retrieved, checking for GitHub token"
+        )
+
+        // Use the saved token if the database retrieval didn't work
+        accessToken = userData.githubToken || this.accessToken
+
+        // Check if GitHub token exists, if not, just return
+        if (!accessToken) {
+          console.log(
+            "[GitHub Auth] No GitHub token found for user. Skipping authentication."
+          )
+          if (this.accessToken) {
+            console.log(
+              "[GitHub Auth] Using locally stored access token as fallback"
+            )
+            accessToken = this.accessToken
+          } else {
+            return null
+          }
+        }
+      } catch (fetchError) {
+        console.error("[GitHub Auth] Error fetching user data:", fetchError)
+        // Use the token we got earlier if database fetch failed
+        if (this.accessToken) {
+          console.log(
+            "[GitHub Auth] Using locally stored access token as fallback after fetch error"
+          )
+          accessToken = this.accessToken
+        } else {
+          throw fetchError
         }
       }
-      const user = await fetch(
-        `${process.env.SERVER_URL}/api/user?id=${userId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${this.authToken}`,
-          },
-        }
-      )
-      const userData = await user.json()
-      accessToken = userData.githubToken as string
-      // Check if GitHub token exists, if not, just return
-      if (!accessToken) {
-        console.log("No GitHub token found for user. Skipping authentication.")
-        return null
-      }
+
+      console.log("[GitHub Auth] Initializing Octokit with access token")
       this.octokit = new Octokit({ auth: accessToken })
       const { data } = await this.octokit.request("GET /user")
       this.username = data.login
+      console.log(
+        "[GitHub Auth] Successfully authenticated with GitHub for user:",
+        data.login
+      )
       return data
     } catch (error) {
-      console.error("GitHub authentication failed:", error)
+      console.error("[GitHub Auth] GitHub authentication failed:", error)
       return null
     }
   }
@@ -62,6 +147,7 @@ export class GithubManager {
   async getAccessToken(code: string): Promise<string> {
     // Exchange the OAuth code for an access token
     try {
+      console.log("[GitHub Auth] Making request to GitHub OAuth token endpoint")
       const response = await fetch(
         "https://github.com/login/oauth/access_token",
         {
@@ -79,9 +165,19 @@ export class GithubManager {
       )
 
       const data = await response.json()
+      console.log(
+        "[GitHub Auth] Response from GitHub token endpoint:",
+        data.error || "Success"
+      )
+      if (data.error) {
+        console.error(
+          "[GitHub Auth] GitHub OAuth error:",
+          data.error_description || data.error
+        )
+      }
       return data.access_token
     } catch (error) {
-      console.log("Error getting access token:", error)
+      console.error("[GitHub Auth] Error getting access token:", error)
       throw error
     }
   }
@@ -97,13 +193,26 @@ export class GithubManager {
         owner: this.username,
         repo: repoName,
       })
-      const result = {
+      console.log(
+        `[GitHub] Repository ${repoName} found for user ${this.username}`
+      )
+      return {
         exists: !!repoData,
       }
+    } catch (error: any) {
+      // Check if this is a 404 error, which is expected if repo doesn't exist
+      if (error.status === 404) {
+        console.log(
+          `[GitHub] Repository ${repoName} does not exist for user ${this.username} (404)`
+        )
+        return { exists: false }
+      }
 
-      return result
-    } catch (error) {
-      console.log("Error getting repo data:", error)
+      // Only log as error if it's not a 404
+      console.error(
+        "[GitHub] Error checking if repo exists:",
+        error.message || error
+      )
       return { exists: false }
     }
   }
@@ -233,13 +342,24 @@ export class GithubManager {
           id: repoId,
         }
       )
+      console.log(`[GitHub] Repository with ID ${repoId} found`)
       return {
         exists: !!githubRepo,
         repoId: githubRepo?.id?.toString() || "",
         repoName: githubRepo?.name || "",
       }
-    } catch (error) {
-      console.error("Error getting repository:", error)
+    } catch (error: any) {
+      // Check if this is a 404 error, which is expected if repo doesn't exist
+      if (error.status === 404) {
+        console.log(
+          `[GitHub] Repository with ID ${repoId} does not exist (404)`
+        )
+      } else {
+        console.error(
+          "[GitHub] Error checking repository by ID:",
+          error.message || error
+        )
+      }
       return {
         exists: false,
       }

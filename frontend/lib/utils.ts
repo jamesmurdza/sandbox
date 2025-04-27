@@ -197,6 +197,11 @@ export const createPopupTracker = () => {
   ) => {
     if (!popup || !onUrlChange) return
 
+    console.log(
+      "[GitHub Auth] Setting up URL change detection with pollInterval:",
+      pollInterval
+    )
+
     // Method 1: Try using MutationObserver (may fail due to CORS)
     try {
       observer = new MutationObserver(() => {
@@ -208,9 +213,12 @@ export const createPopupTracker = () => {
         childList: true,
         attributes: true,
       })
+      console.log(
+        "[GitHub Auth] Successfully set up MutationObserver for popup"
+      )
     } catch (error) {
       console.warn(
-        "Unable to observe popup DOM changes, falling back to polling",
+        "[GitHub Auth] Unable to observe popup DOM changes, falling back to polling",
         error
       )
     }
@@ -219,6 +227,10 @@ export const createPopupTracker = () => {
     pollTimer = window.setInterval(() => {
       checkForUrlChange(onUrlChange)
     }, pollInterval) as unknown as number
+    console.log(
+      "[GitHub Auth] Set up polling for URL changes with interval:",
+      pollInterval
+    )
 
     // Method 3: Listen for navigation events if possible
     try {
@@ -227,8 +239,13 @@ export const createPopupTracker = () => {
           checkForUrlChange(onUrlChange)
         }, 0)
       })
+      console.log("[GitHub Auth] Added beforeunload event listener to popup")
     } catch (error) {
       // Ignore if we can't attach event listener due to CORS
+      console.warn(
+        "[GitHub Auth] Could not add beforeunload listener due to CORS:",
+        error
+      )
     }
   }
 
@@ -238,13 +255,24 @@ export const createPopupTracker = () => {
   const checkForUrlChange = (onUrlChange: (newUrl: string) => void) => {
     try {
       const currentUrl = popup?.location.href
+      console.log(
+        "[GitHub Auth] Checking for URL changes, current URL:",
+        currentUrl
+      )
+
       if (currentUrl && currentUrl !== lastUrl) {
+        console.log(
+          `[GitHub Auth] URL changed from "${lastUrl}" to "${currentUrl}"`
+        )
         lastUrl = currentUrl
         onUrlChange(currentUrl)
       }
     } catch (e) {
       // CORS error when trying to access location - this is expected
       // when the popup navigates to a different origin
+      console.log(
+        "[GitHub Auth] CORS error when checking popup URL - navigation to different origin"
+      )
     }
   }
 
@@ -257,6 +285,7 @@ export const createPopupTracker = () => {
     // Create an interval that checks if the popup is closed
     closeCheckInterval = window.setInterval(() => {
       if (!popup || popup.closed) {
+        console.log("[GitHub Auth] Popup closed (detected by interval)")
         clearAllIntervals()
         onClose()
         cleanup()
@@ -340,6 +369,8 @@ export const createPopupTracker = () => {
       pollInterval = 100,
     } = options
 
+    console.log("[GitHub Auth] Attempting to open popup window with URL:", url)
+
     // Close any existing popup before opening a new one
     closePopup()
 
@@ -356,22 +387,34 @@ export const createPopupTracker = () => {
 
     // Handle popup blockers
     if (!popup || popup.closed || typeof popup.closed === "undefined") {
-      console.error("Popup blocked! Please allow popups for this website.")
+      console.error(
+        "[GitHub Auth] Popup blocked! Please allow popups for this website."
+      )
       return false
     }
+
+    console.log("[GitHub Auth] Popup successfully opened")
 
     // Store initial URL
     try {
       lastUrl = popup.location.href
+      console.log("[GitHub Auth] Initial URL set:", lastUrl)
     } catch (e) {
       // Handle CORS error silently
       lastUrl = url
+      console.log(
+        "[GitHub Auth] Could not access popup location due to CORS, using provided URL:",
+        url
+      )
     }
 
     // Setup URL change detection after the page loads
     popup.addEventListener(
       "load",
       () => {
+        console.log(
+          "[GitHub Auth] Popup loaded, setting up URL change detection"
+        )
         setupUrlChangeDetection(onUrlChange, pollInterval)
       },
       { once: true }

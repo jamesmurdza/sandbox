@@ -650,19 +650,32 @@ export class Project {
     }
     const handleGitHubUser: SocketHandler = async (data) => {
       const { code } = data
-      console.log("GitHub code: ", code)
+      console.log(
+        "[GitHub Auth] Received code from client, authenticating user:",
+        connection.userId
+      )
       const auth = await this.githubManager.authenticate(
         code,
         connection.userId
       )
       if (auth) {
+        console.log(
+          "[GitHub Auth] User authenticated successfully:",
+          auth.login
+        )
         return auth
       }
+      console.error(
+        "[GitHub Auth] Authentication failed for user:",
+        connection.userId
+      )
       return { error: "Authentication failed" }
     }
 
     const handleAuthenticateGithub: SocketHandler = async () => {
+      console.log("[GitHub Auth] Generating GitHub authorization URL")
       const authUrl = `https://github.com/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}&scope=repo`
+      console.log("[GitHub Auth] Auth URL generated:", authUrl)
       return { authUrl }
     }
     const handleGithubUserLogout = async () => {
