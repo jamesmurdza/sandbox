@@ -1,25 +1,34 @@
+import { type Octokit as OctokitType } from "@octokit/core"
+import { Request } from "express"
 import { createJiti } from "jiti"
 import { GitHubTokenResponse, UserData } from "../types"
+import { extractAuthToken } from "../utils/ExtractAuthToken"
 const jiti = createJiti(__dirname)
 const { Octokit } = jiti("@octokit/core")
 export class GithubManager {
-  public octokit: any = null
+  public octokit: OctokitType | null = null
   private username: string | null = null
+  private initPromise: Promise<void> | null = null
 
-  constructor() {
+  constructor(req: Request) {
     this.octokit = null
     this.username = null
+    this.initPromise = this.initializeOctokit(req)
   }
 
-  async authenticate(code: string | null, userId: string,authToken: string | null) {
+  async authenticate(
+    code: string | null,
+    userId: string,
+    authToken: string | null
+  ) {
     try {
       let accessToken = code ? await this.getAccessToken(code) : ""
 
       if (accessToken) {
-        await this.updateUserToken(userId, accessToken,authToken)
+        await this.updateUserToken(userId, accessToken, authToken)
       }
 
-      const userData = await this.fetchUserData(userId,authToken)
+      const userData = await this.fetchUserData(userId, authToken)
       accessToken = userData.githubToken
 
       if (!accessToken) {
@@ -28,17 +37,24 @@ export class GithubManager {
       }
 
       this.octokit = new Octokit({ auth: accessToken })
-      const { data } = await this.octokit.request("GET /user")
-      this.username = data.login
+      const res = await this.octokit?.request("GET /user")
+      if (!res?.data) {
+        throw new Error("Failed to fetch user data from GitHub.")
+      }
+      this.username = res.data.login
 
-      return data
+      return res.data
     } catch (error) {
       console.error("GitHub authentication failed:", error)
       return null
     }
   }
 
-  private async updateUserToken(userId: string, token: string,authToken:string|null): Promise<void> {
+  private async updateUserToken(
+    userId: string,
+    token: string,
+    authToken: string | null
+  ): Promise<void> {
     await fetch(`${process.env.SERVER_URL}/api/user`, {
       method: "PUT",
       headers: {
@@ -52,7 +68,10 @@ export class GithubManager {
     })
   }
 
-  private async fetchUserData(userId: string,authToken:string|null): Promise<UserData> {
+  private async fetchUserData(
+    userId: string,
+    authToken: string | null
+  ): Promise<UserData> {
     const response = await fetch(
       `${process.env.SERVER_URL}/api/user?id=${userId}`,
       {
@@ -92,14 +111,64 @@ export class GithubManager {
   }
 
   getUsername() {
-    return this.username
+    return this.username || ""
+  }
+  async initializeOctokit(req: Request) {
+    try {
+      const userId = req.auth?.userId
+      const authToken = extractAuthToken(req)
+      // Authenticate using stored token
+      if (!userId) {
+        throw new Error("User ID not found in request.")
+      }
+      const user = await this.fetchUserData(userId, authToken)
+      if (!user?.githubToken) {
+        throw new Error("GitHub authentication token not found for user.")
+      }
+      this.octokit = new Octokit({ auth: user.githubToken })
+    } catch (error) {
+      console.error("Error initializing Octokit:", error)
+      // throw error
+    }
+  }
+  private async ensureInitialized() {
+    if (!this.octokit) {
+      if (this.initPromise) {
+        await this.initPromise
+        if (!this.octokit) {
+          throw new Error("Octokit initialization failed.")
+        }
+      }
+    }
+    return this.octokit as OctokitType
+  }
+  async getGithubUser({
+    code,
+    authToken,
+    userId,
+  }: {
+    code?: string
+    authToken: string
+    userId: string
+  }) {
+    try {
+      // Fetch and return user data
+      const { data } = await (
+        await this.ensureInitialized()
+      ).request("GET /user")
+      return data
+    } catch (error) {
+      throw error
+    }
   }
 
   // Helper Methods
   async repoExistsByName(repoName: string): Promise<{ exists: boolean }> {
     try {
-      const repoData = await this.octokit.request("GET /repos/{owner}/{repo}", {
-        owner: this.username,
+      const repoData = await (
+        await this.ensureInitialized()
+      ).request("GET /repos/{owner}/{repo}", {
+        owner: this.username || "",
         repo: repoName,
       })
       const result = {
@@ -114,7 +183,9 @@ export class GithubManager {
   }
 
   async createRepo(repoName: string): Promise<{ id: string }> {
-    const { data } = await this.octokit.request("POST /user/repos", {
+    const { data } = await (
+      await this.ensureInitialized()
+    ).request("POST /user/repos", {
       name: repoName,
       auto_init: true,
       private: false,
@@ -138,15 +209,21 @@ export class GithubManager {
     const repoName = repoInfo.repoName
 
     // Get the current commit SHA
-    const { data: ref } = await this.octokit.request(
-      "GET /repos/{owner}/{repo}/git/ref/{ref}",
-      { owner: username, repo: repoName, ref: "heads/main" }
-    )
+    const { data: ref } = await (
+      await this.ensureInitialized()
+    ).request("GET /repos/{owner}/{repo}/git/ref/{ref}", {
+      owner: username,
+      repo: repoName,
+      ref: "heads/main",
+    })
 
-    const { data: baseTree } = await this.octokit.request(
-      "GET /repos/{owner}/{repo}/git/commits/{commit_sha}",
-      { owner: username, repo: repoName, commit_sha: ref.object.sha }
-    )
+    const { data: baseTree } = await (
+      await this.ensureInitialized()
+    ).request("GET /repos/{owner}/{repo}/git/commits/{commit_sha}", {
+      owner: username,
+      repo: repoName,
+      commit_sha: ref.object.sha,
+    })
 
     // Create blobs for all files
     // Process files in batches with retry logic
@@ -164,15 +241,14 @@ export class GithubManager {
       // Process each file in the batch sequentially
       for (const file of batch) {
         try {
-          const { data } = await this.octokit.request(
-            "POST /repos/{owner}/{repo}/git/blobs",
-            {
-              owner: username,
-              repo: repoName,
-              content: file.data,
-              encoding: "utf-8",
-            }
-          )
+          const { data } = await (
+            await this.ensureInitialized()
+          ).request("POST /repos/{owner}/{repo}/git/blobs", {
+            owner: username,
+            repo: repoName,
+            content: file.data,
+            encoding: "utf-8",
+          })
           blobs.push({
             path: file.id.replace(/^\/+/, "").replace(/^project\/+/, ""),
             mode: "100644",
@@ -194,30 +270,30 @@ export class GithubManager {
     }
 
     // Create a new tree
-    const { data: tree } = await this.octokit.request(
-      "POST /repos/{owner}/{repo}/git/trees",
-      {
-        owner: username,
-        repo: repoName,
-        base_tree: baseTree.tree.sha,
-        tree: blobs,
-      }
-    )
+    const { data: tree } = await (
+      await this.ensureInitialized()
+    ).request("POST /repos/{owner}/{repo}/git/trees", {
+      owner: username,
+      repo: repoName,
+      base_tree: baseTree.tree.sha,
+      tree: blobs as any,
+    })
 
     // Create a new commit
-    const { data: newCommit } = await this.octokit.request(
-      "POST /repos/{owner}/{repo}/git/commits",
-      {
-        owner: username,
-        repo: repoName,
-        message,
-        tree: tree.sha,
-        parents: [ref.object.sha],
-      }
-    )
+    const { data: newCommit } = await (
+      await this.ensureInitialized()
+    ).request("POST /repos/{owner}/{repo}/git/commits", {
+      owner: username,
+      repo: repoName,
+      message,
+      tree: tree.sha,
+      parents: [ref.object.sha],
+    })
 
     // Update the reference
-    await this.octokit.request("PATCH /repos/{owner}/{repo}/git/refs/{ref}", {
+    await (
+      await this.ensureInitialized()
+    ).request("PATCH /repos/{owner}/{repo}/git/refs/{ref}", {
       owner: username,
       repo: repoName,
       ref: "heads/main",
@@ -232,12 +308,11 @@ export class GithubManager {
     { exists: boolean; repoId: string; repoName: string } | { exists: false }
   > {
     try {
-      const { data: githubRepo } = await this.octokit.request(
-        "GET /repositories/:id",
-        {
-          id: repoId,
-        }
-      )
+      const { data: githubRepo } = await (
+        await this.ensureInitialized()
+      ).request("GET /repositories/:id", {
+        id: repoId,
+      })
       return {
         exists: !!githubRepo,
         repoId: githubRepo?.id?.toString() || "",
@@ -251,7 +326,8 @@ export class GithubManager {
     }
   }
 
-  async logoutGithubUser(userId: string,authToken:string|null) {
+  async logoutGithubUser(userId: string, authToken: string | null) {
+    this.octokit = null
     // Update user's GitHub token in database
     await fetch(`${process.env.SERVER_URL}/api/user`, {
       method: "PUT",
