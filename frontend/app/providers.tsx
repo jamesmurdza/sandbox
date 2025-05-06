@@ -4,13 +4,17 @@ import { ThemeProvider } from "@/components/ui/theme-provider"
 import { PreviewProvider } from "@/context/PreviewContext"
 import { SocketProvider } from "@/context/SocketContext"
 import { ClerkProvider } from "@clerk/nextjs"
-import { auth } from "@clerk/nextjs/server"
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools"
 import { Analytics } from "@vercel/analytics/react"
 import * as React from "react"
 
-export async function Providers({ children }: { children: React.ReactNode }) {
-  const token = await (await auth()).getToken()
+export function Providers({
+  children,
+  authToken,
+}: {
+  children: React.ReactNode
+  authToken: string | null
+}) {
   return (
     <QueryClientProvider>
       <ClerkProvider>
@@ -19,7 +23,7 @@ export async function Providers({ children }: { children: React.ReactNode }) {
           defaultTheme="system"
           disableTransitionOnChange
         >
-          <SocketProvider token={token}>
+          <SocketProvider token={authToken}>
             <PreviewProvider>{children}</PreviewProvider>
             <Analytics />
             <Toaster position="bottom-left" richColors />

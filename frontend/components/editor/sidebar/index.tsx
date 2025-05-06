@@ -5,10 +5,7 @@ import {
   SidebarContent,
   SidebarRail,
 } from "@/components/ui/sidebar"
-import { github } from "@/hooks/github"
-import { getQueryClient } from "@/lib/get-query-client"
 import type { Sandbox, TFile, TFolder, TTab } from "@/lib/types"
-import { dehydrate, HydrationBoundary } from "@tanstack/react-query"
 import { FileExplorer } from "./file-explorer"
 import { GitHubSync } from "./github-sync"
 const sidebarItems = [
@@ -42,7 +39,7 @@ interface AppSidebarProps {
   isAIChatOpen: boolean
 }
 
-export default async function AppSidebar({
+export default function AppSidebar({
   sandboxData,
   files,
   selectFile,
@@ -54,19 +51,6 @@ export default async function AppSidebar({
   toggleAIChat,
   isAIChatOpen,
 }: AppSidebarProps) {
-  const queryClient = getQueryClient()
-  await Promise.all([
-    queryClient.prefetchQuery(
-      github.githubUser.getOptions({
-        userId: sandboxData.userId,
-      })
-    ),
-    queryClient.prefetchQuery(
-      github.repoStatus.getOptions({
-        projectId: sandboxData.id,
-      })
-    ),
-  ])
   return (
     <Sidebar defaultActiveItem="file">
       <SidebarRail>
@@ -93,9 +77,7 @@ export default async function AppSidebar({
       </SidebarContent>
 
       <SidebarContent id="github">
-        <HydrationBoundary state={dehydrate(queryClient)}>
-          <GitHubSync sandboxId={sandboxData.id} userId={sandboxData.userId} />
-        </HydrationBoundary>
+        <GitHubSync sandboxId={sandboxData.id} userId={sandboxData.userId} />
       </SidebarContent>
     </Sidebar>
   )
