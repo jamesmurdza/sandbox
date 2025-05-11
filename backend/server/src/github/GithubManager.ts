@@ -8,12 +8,12 @@ const { Octokit } = jiti("@octokit/core")
 export class GithubManager {
   public octokit: OctokitType | null = null
   private username: string | null = null
-  private initPromise: Promise<void> | null = null
+  private request: Request
 
   constructor(req: Request) {
     this.octokit = null
     this.username = null
-    this.initPromise = this.initializeOctokit(req)
+    this.request = req
   }
 
   async authenticate(
@@ -131,16 +131,14 @@ export class GithubManager {
       // throw error
     }
   }
-  private async ensureInitialized() {
+  private async ensureInitialized(): Promise<OctokitType> {
     if (!this.octokit) {
-      if (this.initPromise) {
-        await this.initPromise
-        if (!this.octokit) {
-          throw new Error("Octokit initialization failed.")
-        }
+      await this.initializeOctokit(this.request);
+      if (!this.octokit) {
+        throw new Error("Octokit initialization failed.");
       }
     }
-    return this.octokit as OctokitType
+    return this.octokit as OctokitType;
   }
   async getGithubUser({
     code,
@@ -171,17 +169,18 @@ export class GithubManager {
         owner: this.username || "",
         repo: repoName,
       })
-      const result = {
+      return {
         exists: !!repoData,
       }
-
-      return result
-    } catch (error) {
-      console.log("Error getting repo data:", error)
+    } catch (error: any) {
+      if (error.status === 404) {
+        console.log(`Repo "${repoName}" does not exist`)
+      } else {
+        console.log(`Error checking repo "${repoName}":`, error)
+      }
       return { exists: false }
     }
   }
-
   async createRepo(repoName: string): Promise<{ id: string }> {
     const { data } = await (
       await this.ensureInitialized()
@@ -318,8 +317,12 @@ export class GithubManager {
         repoId: githubRepo?.id?.toString() || "",
         repoName: githubRepo?.name || "",
       }
-    } catch (error) {
-      console.error("Error getting repository:", error)
+    } catch (error: any) {
+      if (error.status === 404) {
+        console.log(`Repo with id "${repoId}" does not exist`)
+      } else {
+        console.log(`Error checking repo "${repoId}":`, error)
+      }
       return {
         exists: false,
       }

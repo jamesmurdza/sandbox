@@ -2,6 +2,7 @@ import express, { Request, Response } from "express"
 import { Project } from "../Project"
 import { extractAuthToken } from "../utils/ExtractAuthToken"
 import { GitHubApiService } from "./GitHubApiService"
+import { requireGithubAuth } from "../middleware/GitHubAuthUsers"
 
 export class GitHubApiRoutes {
   public router = express.Router()
@@ -25,7 +26,7 @@ export class GitHubApiRoutes {
       return res.status(data.code).json(data)
     })
 
-    this.router.get("/user", async (req: Request, res: Response) => {
+  this.router.get("/user", requireGithubAuth, async (req: Request, res: Response) => {
       const data = await this.ensureServiceInitialized(req).getUserData(req)
       return res.status(data.code).json(data)
     })
@@ -36,11 +37,11 @@ export class GitHubApiRoutes {
       )
       return res.status(data.code).json(data)
     })
-    this.router.post("/logout", async (req: Request, res: Response) => {
+    this.router.post("/logout", requireGithubAuth,async (req: Request, res: Response) => {
       const data = await this.ensureServiceInitialized(req).logoutUser(req)
       return res.status(data.code).json(data)
     })
-    this.router.get("/repo/status", async (req: Request, res: Response) => {
+    this.router.get("/repo/status",requireGithubAuth, async (req: Request, res: Response) => {
       const authToken = extractAuthToken(req)
       const data = await this.ensureServiceInitialized(req).checkRepoStatus(
         req.query.projectId as string,
@@ -48,17 +49,17 @@ export class GitHubApiRoutes {
       )
       return res.status(data.code).json(data)
     })
-    this.router.post("/repo/create", async (req: Request, res: Response) => {
+    this.router.post("/repo/create", requireGithubAuth,async (req: Request, res: Response) => {
       const result = await this.ensureServiceInitialized(req).createRepo(req)
       return res.status(result.code).json(result)
     })
-    this.router.post("/repo/commit", async (req: Request, res: Response) => {
+    this.router.post("/repo/commit",requireGithubAuth, async (req: Request, res: Response) => {
       const response = await this.ensureServiceInitialized(req).createCommit(
         req
       )
       return res.status(response.code).json(response)
     })
-    this.router.post("/repo/remove", async (req: Request, res: Response) => {
+    this.router.post("/repo/remove", requireGithubAuth, async (req: Request, res: Response) => {
       const authToken = extractAuthToken(req)
       const data = await this.ensureServiceInitialized(
         req
