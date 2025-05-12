@@ -193,3 +193,188 @@ export async function updateUser(
     return { message: "An unexpected error occurred", fields: data }
   }
 }
+export type GithubUser = {
+  name: string
+  avatar_url: string
+  login: string
+  html_url: string
+  // ...the rest
+}
+
+export async function getGitHubUser({
+  code,
+  userId,
+}: {
+  code?: string
+  userId: string
+}) {
+  const res = await fetchWithAuth(
+    `${
+      process.env.NEXT_PUBLIC_SERVER_URL
+    }/api/github/user?${new URLSearchParams(
+      code ? { code, userId } : { userId }
+    )}`,
+    {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    }
+  )
+  const json = await res.json()
+  const data = json.data as GithubUser
+  if (res.status !== 200) {
+    return null
+  }
+  return data
+}
+
+export async function getGitHubAuthUrl() {
+  const res = await fetchWithAuth(
+    `${process.env.NEXT_PUBLIC_SERVER_URL}/api/github/authenticate/url`,
+    {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    }
+  )
+
+  const data = (await res.json()).data as {
+    auth_url: string
+  }
+
+  if (res.status !== 200) {
+    throw new Error("No auth URL received")
+  }
+  return data
+}
+
+export async function githubLogin({
+  code,
+  userId,
+}: {
+  code: string
+  userId: string
+}) {
+  const res = await fetchWithAuth(
+    `${process.env.NEXT_PUBLIC_SERVER_URL}/api/github/login`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ code, userId }),
+    }
+  )
+  const data = (await res.json()).data as GithubUser
+  if (res.status !== 200) {
+    throw new Error("Login failed")
+  }
+  return data
+}
+
+export async function githubLogout({ userId }: { userId: string }) {
+  const res = await fetchWithAuth(
+    `${process.env.NEXT_PUBLIC_SERVER_URL}/api/github/logout`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ userId }),
+    }
+  )
+  const data = (await res.json()).data as GithubUser
+
+  if (res.status !== 200) {
+    throw new Error("Logout failed")
+  }
+  return data
+}
+
+export async function getRepoStatus({ projectId }: { projectId: string }) {
+  const res = await fetchWithAuth(
+    `${
+      process.env.NEXT_PUBLIC_SERVER_URL
+    }/api/github/repo/status?${new URLSearchParams({ projectId })}`,
+    {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    }
+  )
+  const data = (await res.json()).data as {
+    existsInDB: boolean
+    existsInGitHub: boolean
+    repo?: {
+      id: string
+      name: string
+    }
+  }
+  if (res.status !== 200) {
+    throw new Error("Repo status check failed")
+  }
+  return data
+}
+
+export async function createRepo({ projectId }: { projectId: string }) {
+  const res = await fetchWithAuth(
+    `${process.env.NEXT_PUBLIC_SERVER_URL}/api/github/repo/create`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ projectId }),
+    }
+  )
+  const data = (await res.json()).data as { repoUrl: string }
+  if (res.status !== 200) {
+    throw new Error("Repo creation failed")
+  }
+  return data
+}
+
+export async function createCommit({
+  projectId,
+  message,
+}: {
+  projectId: string
+  message: string
+}) {
+  const res = await fetchWithAuth(
+    `${process.env.NEXT_PUBLIC_SERVER_URL}/api/github/repo/commit`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ projectId, message }),
+    }
+  )
+  const data = (await res.json()).data as { repoUrl: string }
+  if (res.status !== 200) {
+    throw new Error("Repo creation failed")
+  }
+  return data
+}
+
+export async function removeRepo({ projectId }: { projectId: string }) {
+  const res = await fetchWithAuth(
+    `${process.env.NEXT_PUBLIC_SERVER_URL}/api/github/repo/remove`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ projectId }),
+    }
+  )
+  const data = (await res.json()).data as null
+  if (res.status !== 200) {
+    throw new Error("Repo creation failed")
+  }
+  return data
+}

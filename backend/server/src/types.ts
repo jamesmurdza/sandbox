@@ -86,3 +86,16 @@ declare module "socket.io" {
     }
   }
 }
+export interface GitHubTokenResponse {
+  access_token: string
+}
+
+export interface UserData {
+  githubToken: string
+}
+export interface ApiResponse {
+  success: boolean
+  code: number
+  message: string
+  data: any
+}

@@ -1,4 +1,3 @@
-"use client"
 import { File, Github } from "@/components/ui/icons"
 import {
   Sidebar,
@@ -78,7 +77,7 @@ export default function AppSidebar({
       </SidebarContent>
 
       <SidebarContent id="github">
-        <GitHubSync />
+        <GitHubSync sandboxId={sandboxData.id} userId={sandboxData.userId} />
       </SidebarContent>
     </Sidebar>
   )

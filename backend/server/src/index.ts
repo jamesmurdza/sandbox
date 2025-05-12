@@ -5,6 +5,7 @@ import fs from "fs"
 import { createServer } from "http"
 import { Server, Socket } from "socket.io"
 import api from "./api"
+import { GitHubApiRoutes } from "./github/GitHubApiRoutes"
 
 import { ConnectionManager } from "./ConnectionManager"
 import { DokkuClient } from "./DokkuClient"
@@ -192,7 +193,8 @@ io.on("connection", async (socket) => {
   }
 })
 app.use(express.json())
-
+const githubApi = new GitHubApiRoutes(projects)
+app.use("/api/github", githubApi.router)
 // Use the API routes
 app.use(async (req: any, res) => {
   try {

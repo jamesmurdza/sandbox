@@ -1,14 +1,9 @@
-import { Toaster } from "@/components/ui/sonner"
-import { ThemeProvider } from "@/components/ui/theme-provider"
-import { PreviewProvider } from "@/context/PreviewContext"
-import { ReactQueryProvider } from "@/context/ReactQuery"
-import { SocketProvider } from "@/context/SocketContext"
-import { auth, ClerkProvider } from "@clerk/nextjs"
-import { Analytics } from "@vercel/analytics/react"
+import { auth } from "@clerk/nextjs"
 import { GeistMono } from "geist/font/mono"
 import { GeistSans } from "geist/font/sans"
 import type { Metadata } from "next"
 import "./globals.css"
+import { Providers } from "./providers"
 
 export const metadata: Metadata = {
   title: "Sandbox",
@@ -36,30 +31,13 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
-  const { getToken } = auth()
-  const token = await getToken()
+  const token = await (await auth()).getToken()
+
   return (
-    <ReactQueryProvider>
-      <ClerkProvider>
-        <html
-          lang="en"
-          className={`${GeistSans.variable} ${GeistMono.variable}`}
-        >
-          <body>
-            <ThemeProvider
-              attribute="class"
-              defaultTheme="system"
-              disableTransitionOnChange
-            >
-              <SocketProvider {...{ token }}>
-                <PreviewProvider>{children}</PreviewProvider>
-              </SocketProvider>
-              <Analytics />
-              <Toaster position="bottom-left" richColors />
-            </ThemeProvider>
-          </body>
-        </html>
-      </ClerkProvider>
-    </ReactQueryProvider>
+    <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable}`}>
+      <body>
+        <Providers authToken={token}>{children}</Providers>
+      </body>
+    </html>
   )
 }
