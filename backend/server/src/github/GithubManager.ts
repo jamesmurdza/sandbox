@@ -133,12 +133,12 @@ export class GithubManager {
   }
   private async ensureInitialized(): Promise<OctokitType> {
     if (!this.octokit) {
-      await this.initializeOctokit(this.request);
+      await this.initializeOctokit(this.request)
       if (!this.octokit) {
-        throw new Error("Octokit initialization failed.");
+        throw new Error("Octokit initialization failed.")
       }
     }
-    return this.octokit as OctokitType;
+    return this.octokit as OctokitType
   }
   async getGithubUser({
     code,
