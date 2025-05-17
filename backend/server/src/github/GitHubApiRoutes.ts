@@ -9,17 +9,31 @@ export class GitHubApiRoutes {
   private service: GitHubApiService | null
   // private projects: Record<string, Project>
 
+  /**
+   * Initializes a new instance of GitHubApiRoutes
+   * @param projects - Map of project IDs to Project instances
+   */
   constructor(private readonly projects: Record<string, Project>) {
     this.service = null
     this.projects = projects
     this.initializeRoutes()
   }
+
+  /**
+   * Ensures the GitHub API service is initialized
+   * @param req - Express request object
+   * @returns Initialized GitHubApiService instance
+   */
   private ensureServiceInitialized(req: Request): GitHubApiService {
     if (!this.service) {
       this.service = new GitHubApiService(this.projects, req)
     }
     return this.service
   }
+
+  /**
+   * Sets up all GitHub API routes including authentication, user management, and repository operations
+   */
   private initializeRoutes() {
     this.router.get("/authenticate/url", async (req, res: Response) => {
       const data = await this.ensureServiceInitialized(req).getAuthUrl()

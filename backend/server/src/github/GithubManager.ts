@@ -3,19 +3,40 @@ import { Request } from "express"
 import { createJiti } from "jiti"
 import { GitHubTokenResponse, UserData } from "../types"
 import { extractAuthToken } from "../utils/ExtractAuthToken"
+
+// Initialize jiti for dynamic imports
 const jiti = createJiti(__dirname)
 const { Octokit } = jiti("@octokit/core")
+
+/**
+ * Manages GitHub API interactions and authentication.
+ * Handles user authentication, repository operations, and GitHub API requests.
+ */
 export class GithubManager {
+  // GitHub API client instance
   public octokit: OctokitType | null = null
+  // Authenticated GitHub username
   private username: string | null = null
+  // Express request object
   private request: Request
 
+  /**
+   * Creates a new GithubManager instance
+   * @param req - Express request object
+   */
   constructor(req: Request) {
     this.octokit = null
     this.username = null
     this.request = req
   }
 
+  /**
+   * Authenticates a user with GitHub
+   * @param code - GitHub OAuth code (optional)
+   * @param userId - User's ID in the system
+   * @param authToken - Authentication token (optional)
+   * @returns GitHub user data or null if authentication fails
+   */
   async authenticate(
     code: string | null,
     userId: string,
@@ -50,6 +71,12 @@ export class GithubManager {
     }
   }
 
+  /**
+   * Updates the user's GitHub token in the database
+   * @param userId - User's ID
+   * @param token - New GitHub token
+   * @param authToken - Authentication token
+   */
   private async updateUserToken(
     userId: string,
     token: string,
@@ -68,6 +95,12 @@ export class GithubManager {
     })
   }
 
+  /**
+   * Fetches user data from the database
+   * @param userId - User's ID
+   * @param authToken - Authentication token
+   * @returns User data including GitHub token
+   */
   private async fetchUserData(
     userId: string,
     authToken: string | null
@@ -83,8 +116,12 @@ export class GithubManager {
     return response.json()
   }
 
+  /**
+   * Exchanges GitHub OAuth code for an access token
+   * @param code - GitHub OAuth code
+   * @returns GitHub access token
+   */
   async getAccessToken(code: string): Promise<string> {
-    // Exchange the OAuth code for an access token
     try {
       const response = await fetch(
         "https://github.com/login/oauth/access_token",
@@ -110,9 +147,18 @@ export class GithubManager {
     }
   }
 
+  /**
+   * Gets the authenticated user's GitHub username
+   * @returns GitHub username or empty string if not authenticated
+   */
   getUsername() {
     return this.username || ""
   }
+
+  /**
+   * Initializes the Octokit instance with stored GitHub token
+   * @param req - Express request object
+   */
   async initializeOctokit(req: Request) {
     try {
       const userId = req.auth?.userId
@@ -131,6 +177,12 @@ export class GithubManager {
       // throw error
     }
   }
+
+  /**
+   * Ensures Octokit is initialized before making GitHub API calls
+   * @returns Initialized Octokit instance
+   * @throws Error if initialization fails
+   */
   private async ensureInitialized(): Promise<OctokitType> {
     if (!this.octokit) {
       await this.initializeOctokit(this.request)
@@ -140,6 +192,14 @@ export class GithubManager {
     }
     return this.octokit as OctokitType
   }
+
+  /**
+   * Fetches GitHub user data for the authenticated user
+   * @param params.code - Optional GitHub OAuth code
+   * @param params.authToken - Authentication token
+   * @param params.userId - User's ID
+   * @returns GitHub user data
+   */
   async getGithubUser({
     code,
     authToken,
@@ -160,7 +220,11 @@ export class GithubManager {
     }
   }
 
-  // Helper Methods
+  /**
+   * Checks if a repository exists for the authenticated user
+   * @param repoName - Name of the repository to check
+   * @returns Object indicating if the repository exists
+   */
   async repoExistsByName(repoName: string): Promise<{ exists: boolean }> {
     try {
       const repoData = await (
@@ -181,6 +245,12 @@ export class GithubManager {
       return { exists: false }
     }
   }
+
+  /**
+   * Creates a new public GitHub repository
+   * @param repoName - Name for the new repository
+   * @returns Object containing the new repository's ID
+   */
   async createRepo(repoName: string): Promise<{ id: string }> {
     const { data } = await (
       await this.ensureInitialized()
@@ -194,6 +264,18 @@ export class GithubManager {
     }
   }
 
+  /**
+   * Creates a new commit in a GitHub repository with multiple files
+   * @param repoID - ID of the target repository
+   * @param files - Array of file objects to commit, each containing:
+   *               - id: File path relative to repo root
+   *               - data: File content as string
+   * @param message - Commit message
+   * @returns Object containing the repository name
+   * @throws Error if repository not found or blob creation fails
+   *
+   * Note: Files are processed in batches to avoid overwhelming the GitHub API
+   */
   async createCommit(
     repoID: string,
     files: Array<{ id: string; data: string }>,
@@ -301,6 +383,15 @@ export class GithubManager {
     return { repoName }
   }
 
+  /**
+   * Checks if a repository exists by its GitHub repository ID
+   * @param repoId - GitHub repository ID to check
+   * @returns Object containing repository information if found:
+   *          - exists: true/false indicating if repo exists
+   *          - repoId: repository ID if found
+   *          - repoName: repository name if found
+   *          If not found, returns { exists: false }
+   */
   async repoExistsByID(
     repoId: string
   ): Promise<
@@ -329,6 +420,12 @@ export class GithubManager {
     }
   }
 
+  /**
+   * Logs out a user from GitHub by clearing their GitHub token
+   * @param userId - ID of the user to log out
+   * @param authToken - Authentication token for the API request
+   * @returns Object indicating success of the logout operation
+   */
   async logoutGithubUser(userId: string, authToken: string | null) {
     this.octokit = null
     // Update user's GitHub token in database

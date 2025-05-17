@@ -9,12 +9,23 @@ dotenv.config()
 
 export class GitHubApiService {
   private githubManager: GithubManager
+
+  /**
+   * Initializes a new instance of GitHubApiService
+   * @param projects - Map of project IDs to Project instances
+   * @param req - Express request object
+   */
   constructor(
     private readonly projects: Record<string, Project>,
     req: Request
   ) {
     this.githubManager = new GithubManager(req)
   }
+
+  /**
+   * Generates GitHub OAuth authorization URL
+   * @returns Promise containing the GitHub authorization URL
+   */
   getAuthUrl(): Promise<ApiResponse> {
     return Promise.resolve({
       success: true,
@@ -25,6 +36,12 @@ export class GitHubApiService {
       },
     })
   }
+
+  /**
+   * Retrieves GitHub user data using OAuth code
+   * @param req - Express request containing code and userId
+   * @returns Promise containing user data from GitHub
+   */
   async getUserData(req: Request): Promise<ApiResponse> {
     //  read from query params
     const { code, userId } = req.query as {
@@ -52,6 +69,12 @@ export class GitHubApiService {
       }
     }
   }
+
+  /**
+   * Authenticates a user with GitHub using OAuth code
+   * @param req - Express request containing code and userId
+   * @returns Promise containing authentication result
+   */
   async authenticateUser(req: Request): Promise<ApiResponse> {
     try {
       const authToken = extractAuthToken(req)
@@ -84,6 +107,12 @@ export class GitHubApiService {
       }
     }
   }
+
+  /**
+   * Logs out a user from GitHub
+   * @param req - Express request containing userId
+   * @returns Promise containing logout result
+   */
   async logoutUser(req: Request): Promise<ApiResponse> {
     try {
       const authToken = extractAuthToken(req)
@@ -112,6 +141,13 @@ export class GitHubApiService {
       }
     }
   }
+
+  /**
+   * Checks if a repository exists in both GitHub and local database
+   * @param projectId - ID of the project to check
+   * @param authToken - Authentication token for API requests
+   * @returns Promise containing repository status in both GitHub and DB
+   */
   async checkRepoStatus(
     projectId: string,
     authToken: string | null
@@ -193,6 +229,13 @@ export class GitHubApiService {
       }
     }
   }
+
+  /**
+   * Removes repository connection from sandbox project
+   * @param projectId - ID of the project to remove repo from
+   * @param authToken - Authentication token for API requests
+   * @returns Promise containing removal operation result
+   */
   async removeRepoFromSandbox(
     projectId: string,
     authToken: string | null
@@ -235,6 +278,12 @@ export class GitHubApiService {
       }
     }
   }
+
+  /**
+   * Creates a commit in the GitHub repository for a project
+   * @param req - Express request containing projectId and commit message
+   * @returns Promise containing commit result
+   */
   async createCommit(req: Request): Promise<ApiResponse> {
     try {
       const authToken = extractAuthToken(req)
@@ -326,6 +375,12 @@ export class GitHubApiService {
       }
     }
   }
+
+  /**
+   * Creates a new repository in GitHub for a project
+   * @param req - Express request containing projectId and userId
+   * @returns Promise containing repository creation result
+   */
   async createRepo(req: Request): Promise<ApiResponse> {
     try {
       const authToken = extractAuthToken(req) ?? ""
@@ -403,8 +458,12 @@ export class GitHubApiService {
       }
     }
   }
-  // --- Helper methods below ---
 
+  /**
+   * Collects files for commit
+   * @param project - Project instance
+   * @returns Array of files for commit
+   */
   private async collectFilesForCommit(project: Project) {
     const fileTree = await project.fileManager?.getFileTree()
     if (!fileTree || fileTree.length === 0) {
@@ -451,6 +510,13 @@ export class GitHubApiService {
     return await dbResponse.json()
   }
 
+  /**
+   * Updates sandbox with repository ID
+   * @param projectId - ID of the project
+   * @param repoId - ID of the repository
+   * @param authToken - Authentication token for API requests
+   * @returns Promise containing update result
+   */
   private async updateSandboxWithRepoId(
     projectId: string,
     repoId: string,
@@ -469,6 +535,14 @@ export class GitHubApiService {
     })
   }
 
+  /**
+   * Handles repository scenarios and updates repository name if necessary
+   * @param repoExists - Object containing repository existence status in both GitHub and DB
+   * @param repoName - Name of the repository
+   * @param projectId - ID of the project
+   * @param authToken - Authentication token for API requests
+   * @returns Updated repository name
+   */
   private async handleRepoScenariosAndUpdateName(
     repoExists: { existsInDB: any; existsInGitHub: any },
     repoName: string,
