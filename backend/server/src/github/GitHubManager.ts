@@ -12,7 +12,7 @@ const { Octokit } = jiti("@octokit/core")
  * Manages GitHub API interactions and authentication.
  * Handles user authentication, repository operations, and GitHub API requests.
  */
-export class GithubManager {
+export class GitHubManager {
   // GitHub API client instance
   public octokit: OctokitType | null = null
   // Authenticated GitHub username
@@ -21,7 +21,7 @@ export class GithubManager {
   private request: Request
 
   /**
-   * Creates a new GithubManager instance
+   * Creates a new GitHubManager instance
    * @param req - Express request object
    */
   constructor(req: Request) {

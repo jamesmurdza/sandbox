@@ -3,12 +3,12 @@ import { Request } from "express"
 import { Project } from "../Project"
 import { ApiResponse } from "../types"
 import { extractAuthToken } from "../utils/ExtractAuthToken"
-import { GithubManager } from "./GithubManager"
+import { GitHubManager } from "./GitHubManager"
 
 dotenv.config()
 
 export class GitHubApiService {
-  private githubManager: GithubManager
+  private githubManager: GitHubManager
 
   /**
    * Initializes a new instance of GitHubApiService
@@ -19,7 +19,7 @@ export class GitHubApiService {
     private readonly projects: Record<string, Project>,
     req: Request
   ) {
-    this.githubManager = new GithubManager(req)
+    this.githubManager = new GitHubManager(req)
   }
 
   /**
