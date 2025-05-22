@@ -3,21 +3,13 @@
 import { QueryClientProvider } from "@/components/query-client"
 import { Toaster } from "@/components/ui/sonner"
 import { ThemeProvider } from "@/components/ui/theme-provider"
-import { PreviewProvider } from "@/context/PreviewContext"
-import { SocketProvider } from "@/context/SocketContext"
 import { AppProgressProvider as ProgressProvider } from "@bprogress/next"
 import { ClerkProvider } from "@clerk/nextjs"
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools"
 import { Analytics } from "@vercel/analytics/react"
 import * as React from "react"
 
-export function Providers({
-  children,
-  authToken,
-}: {
-  children: React.ReactNode
-  authToken: string | null
-}) {
+export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider>
       <ClerkProvider>
@@ -33,11 +25,9 @@ export function Providers({
             options={{ showSpinner: false }}
             shallowRouting
           >
-            <SocketProvider token={authToken}>
-              <PreviewProvider>{children}</PreviewProvider>
-              <Analytics />
-              <Toaster position="bottom-left" richColors />
-            </SocketProvider>
+            {children}
+            <Analytics />
+            <Toaster position="bottom-left" richColors />
           </ProgressProvider>
         </ThemeProvider>
       </ClerkProvider>
