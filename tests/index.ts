@@ -1,47 +1,43 @@
-// Import necessary modules
-import dotenv from "dotenv";
-import { io, Socket } from "socket.io-client";
+import dotenv from "dotenv"
+import supertest from "supertest"
+import { ClerkAuth } from "./auth.js"
 
-dotenv.config();
+dotenv.config()
 
-interface CallbackResponse {
-  success: boolean;
-  apps?: string[];
-  message?: string;
+/**
+ * Main test function that verifies API endpoint access with Clerk authentication
+ */
+const runTest = async (): Promise<void> => {
+  try {
+    // Verify required environment variable is set
+    if (!process.env.CLERK_TEST_USER_ID) {
+      throw new Error("CLERK_TEST_USER_ID environment variable is required")
+    }
+
+    // Initialize Clerk authentication and create a test session
+    const auth = new ClerkAuth()
+    const session = await auth.createTestSession(process.env.CLERK_TEST_USER_ID)
+    const jwt = await auth.getSessionToken(session.id)
+
+    // Make authenticated request to the sandbox endpoint
+    const response = await supertest("http://localhost:4000")
+      .get("/api/sandbox") // Test endpoint
+      .set("Authorization", `Bearer ${jwt}`) // Include JWT in Authorization header
+      .expect(200) // Expect HTTP 200 OK response
+
+    // Log successful test result
+    console.log("Test successful:", response.text)
+  } catch (error) {
+    // Log detailed error and exit with non-zero status code on failure
+    console.error(
+      "Test failed:",
+      error instanceof Error ? error.message : error
+    )
+    process.exit(1)
+  }
 }
 
-let socketRef: Socket = io(
-  `http://localhost:4000?userId=user_2hFB6KcK6bb3Gx9241UXsxFq4kO&sandboxId=v30a2c48xal03tzio7mapt19`,
-  {
-    timeout: 2000,
-  }
-);
-
-socketRef.on("connect", async () => {
-  console.log("Connected to the server");
-  await new Promise((resolve) => setTimeout(resolve, 1000));
-
-  socketRef.emit("list", {}, (response: CallbackResponse) => {
-    if (response.success) {
-      console.log("List of apps:", response.apps);
-    } else {
-      console.log("Error:", response.message);
-    }
-  });
-
-  socketRef.emit("deploy", {}, (response: CallbackResponse) => {
-    if (response.success) {
-      console.log("It worked!");
-    } else {
-      console.log("Error:", response.message);
-    }
-  });
-});
-
-socketRef.on("disconnect", () => {
-  console.log("Disconnected from the server");
-});
-
-socketRef.on("connect_error", (error: Error) => {
-  console.error("Connection error:", error);
-});
+runTest().catch((error) => {
+  console.error("Unhandled error in test execution:", error)
+  process.exit(1)
+})

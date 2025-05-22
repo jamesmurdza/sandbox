@@ -2,15 +2,19 @@
 import Loading from "@/components/editor/loading"
 import Navbar from "@/components/editor/navbar"
 import { TerminalProvider } from "@/context/TerminalContext"
+import { github } from "@/hooks/github"
+import { getQueryClient } from "@/lib/get-query-client"
 import { Sandbox, User, UsersToSandboxes } from "@/lib/types"
+import { fetchWithAuth } from "@/lib/utils"
 import { currentUser } from "@clerk/nextjs"
+import { dehydrate, HydrationBoundary } from "@tanstack/react-query"
 import dynamic from "next/dynamic"
 import { notFound, redirect } from "next/navigation"
 
 export const revalidate = 0
 
 const getUserData = async (id: string) => {
-  const userRes = await fetch(
+  const userRes = await fetchWithAuth(
     `${process.env.NEXT_PUBLIC_SERVER_URL}/api/user?id=${id}`
   )
   const userData: User = await userRes.json()
@@ -18,7 +22,7 @@ const getUserData = async (id: string) => {
 }
 
 const getSandboxData = async (id: string) => {
-  const sandboxRes = await fetch(
+  const sandboxRes = await fetchWithAuth(
     `${process.env.NEXT_PUBLIC_SERVER_URL}/api/sandbox?id=${id}`
   )
   const sandboxData: Sandbox = await sandboxRes.json()
@@ -32,7 +36,7 @@ const getSharedUsers = async (usersToSandboxes: UsersToSandboxes[]) => {
 
   const shared = await Promise.all(
     usersToSandboxes.map(async (user) => {
-      const userRes = await fetch(
+      const userRes = await fetchWithAuth(
         `${process.env.NEXT_PUBLIC_SERVER_URL}/api/user?id=${user.userId}`
       )
       const userData: User = await userRes.json()
@@ -55,14 +59,29 @@ const CodeEditor = dynamic(() => import("@/components/editor"), {
 export default async function CodePage({ params }: { params: { id: string } }) {
   const user = await currentUser()
   const sandboxId = params.id
-
+  const queryClient = getQueryClient()
   if (!user) {
     redirect("/")
   }
 
-  const userData = await getUserData(user.id)
-  const sandboxData = await getSandboxData(sandboxId)
-  const shared = await getSharedUsers(sandboxData.usersToSandboxes)
+  const [userData, sandboxData] = await Promise.all([
+    getUserData(user.id),
+    getSandboxData(sandboxId),
+  ])
+
+  const [shared] = await Promise.all([
+    getSharedUsers(sandboxData.usersToSandboxes),
+    queryClient.prefetchQuery(
+      github.githubUser.getOptions({
+        userId: sandboxData.userId,
+      })
+    ),
+    queryClient.prefetchQuery(
+      github.repoStatus.getOptions({
+        projectId: sandboxData.id,
+      })
+    ),
+  ])
 
   const isOwner = sandboxData.userId === user.id
   const isSharedUser = shared.some((uts) => uts.id === user.id)
@@ -84,7 +103,9 @@ export default async function CodePage({ params }: { params: { id: string } }) {
           sandboxData={sandboxData}
           shared={shared as { id: string; name: string; avatarUrl: string }[]}
         />
-        <CodeEditor userData={userData} sandboxData={sandboxData} />
+        <HydrationBoundary state={dehydrate(queryClient)}>
+          <CodeEditor userData={userData} sandboxData={sandboxData} />
+        </HydrationBoundary>
       </div>
       {/* </Room> */}
     </TerminalProvider>

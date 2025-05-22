@@ -11,11 +11,14 @@
     "author": "Your Name",
     "license": "ISC",
     "dependencies": {
+        "axios": "^1.9.0",
         "dotenv": "^16.4.5",
-        "socket.io-client": "^4.7.5"
+        "socket.io-client": "^4.7.5",
+        "supertest": "^7.1.1"
     },
     "devDependencies": {
-        "typescript": "^5.0.0",
-        "ts-node": "^10.9.2"
+        "@types/supertest": "^6.0.3",
+        "ts-node": "^10.9.2",
+        "typescript": "^5.0.0"
     }
 }

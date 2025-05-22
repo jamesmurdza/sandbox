@@ -1,3 +1,5 @@
+import { User as ClerkUser } from "@clerk/clerk-sdk-node"
+
 // DB Types
 
 export type User = {
@@ -73,4 +75,27 @@ export interface DokkuResponse {
   success: boolean
   apps?: string[]
   message?: string
+}
+
+// Add Socket.IO type declarations
+declare module "socket.io" {
+  interface Socket {
+    auth?: {
+      userId: string
+      user: ClerkUser
+    }
+  }
+}
+export interface GitHubTokenResponse {
+  access_token: string
+}
+
+export interface UserData {
+  githubToken: string
+}
+export interface ApiResponse {
+  success: boolean
+  code: number
+  message: string
+  data: any
 }

@@ -14,17 +14,10 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Textarea } from "@/components/ui/textarea"
-import {
-  useCheckSandboxRepo,
-  useCreateCommit,
-  useCreateRepo,
-  useDeleteRepo,
-  useGithubLogin,
-  useGithubLogout,
-  useGithubUser,
-  type GithubUser,
-} from "@/hooks/use-github"
-import { cn } from "@/lib/utils"
+import { github } from "@/hooks/github"
+import { GithubUser } from "@/lib/actions"
+import { cn, createPopupTracker } from "@/lib/utils"
+import { useQueryClient } from "@tanstack/react-query"
 import {
   GitBranch,
   GithubIcon,
@@ -36,50 +29,113 @@ import {
 import * as React from "react"
 import { toast } from "sonner"
 
-export function GitHubSync() {
+const REDIRECT_URI = "/loading"
+
+export function GitHubSync({
+  sandboxId,
+  userId,
+}: {
+  sandboxId: string
+  userId: string
+}) {
   const [commitMessage, setCommitMessage] = React.useState("")
+  const queryClient = useQueryClient()
   const {
     mutate: handleGithubLogin,
     isPending: isLoggingIn,
-    data: githubLoginDetails,
     reset: resetGithubLogin,
-  } = useGithubLogin({
+  } = github.login.useMutation({
     onSuccess: () => {
-      refetchGithubUser()
+      return queryClient.invalidateQueries(
+        github.githubUser.getOptions({
+          userId,
+        })
+      )
     },
   })
-  const { data: githubUser, refetch: refetchGithubUser } = useGithubUser({
+  const { mutate: getAuthUrl, isPending: isGettingAuthUrl } =
+    github.gethAuthUrl.useMutation({
+      onSuccess({ auth_url }) {
+        const tracker = createPopupTracker()
+
+        return new Promise<{ code: string }>((resolve, reject) => {
+          tracker.openPopup(auth_url, {
+            onUrlChange(newUrl) {
+              if (newUrl.includes(REDIRECT_URI)) {
+                const urlParams = new URLSearchParams(new URL(newUrl).search)
+                const code = urlParams.get("code")
+                tracker.closePopup()
+
+                if (code) {
+                  resolve({ code })
+                } else {
+                  reject(new Error("No code received"))
+                }
+              }
+            },
+            onClose() {
+              reject(new Error("Authentication window closed"))
+            },
+          })
+        })
+          .then(({ code }) => {
+            handleGithubLogin({ code, userId })
+          })
+          .catch((error) => {
+            console.error("Error during authentication:", error)
+            toast.error("Authentication failed. Please try again.")
+          })
+      },
+    })
+  const { data: githubUser } = github.githubUser.useQuery({
     variables: {
-      code: githubLoginDetails?.code,
+      userId,
     },
   })
-  const { data: repoStatus, refetch: refetchCheckSandboxRepo } =
-    useCheckSandboxRepo()
+  const { data: repoStatus } = github.repoStatus.useQuery({
+    variables: {
+      projectId: sandboxId,
+    },
+  })
   const { mutate: syncToGithub, isPending: isSyncingToGithub } =
-    useCreateCommit({
+    github.createCommit.useMutation({
       onSuccess() {
         setCommitMessage("")
         toast.success("Commit created successfully")
       },
     })
-  const { mutate: deleteRepo, isPending: isDeletingRepo } = useDeleteRepo({
-    onSuccess() {
-      setCommitMessage("")
-      toast.success("Repository deleted successfully")
-      refetchCheckSandboxRepo()
-    },
-  })
+  const { mutate: deleteRepo, isPending: isDeletingRepo } =
+    github.removeRepo.useMutation({
+      onSuccess() {
+        return queryClient
+          .invalidateQueries(
+            github.repoStatus.getOptions({
+              projectId: sandboxId,
+            })
+          )
+          .then(() => {
+            setCommitMessage("")
+            toast.success("Repository deleted successfully")
+          })
+      },
+    })
   const hasRepo = repoStatus
     ? repoStatus.existsInDB && repoStatus.existsInGitHub
     : false
-  const { mutate: handleCreateRepo, isPending: isCreatingRepo } = useCreateRepo(
-    {
+  const { mutate: handleCreateRepo, isPending: isCreatingRepo } =
+    github.createRepo.useMutation({
       onSuccess() {
-        toast.success("Repository created successfully")
-        refetchCheckSandboxRepo()
+        return queryClient
+          .invalidateQueries(
+            github.repoStatus.getOptions({
+              projectId: sandboxId,
+            })
+          )
+          .then(() => {
+            toast.success("Repository created successfully")
+          })
       },
-    }
-  )
+    })
 
   const content = React.useMemo(() => {
     if (!githubUser) {
@@ -94,8 +150,8 @@ export function GitHubSync() {
             variant="secondary"
             size="xs"
             className="mt-4 w-full font-normal"
-            onClick={() => handleGithubLogin()}
-            disabled={isLoggingIn}
+            onClick={() => getAuthUrl()}
+            disabled={isGettingAuthUrl || isLoggingIn}
           >
             {isLoggingIn ? (
               <Loader2 className="animate-spin mr-2 size-3" />
@@ -116,12 +172,7 @@ export function GitHubSync() {
             </p>
             <div className="flex items-center justify-between bg-muted/50 px-2 py-1 rounded-sm">
               <div className="flex items-center gap-2">
-                <GithubUserButton
-                  onLogout={() => {
-                    refetchGithubUser()
-                  }}
-                  {...githubUser}
-                />
+                <GithubUserButton userId={userId} {...githubUser} />
                 <div>
                   <a
                     href={`${githubUser.html_url}/${repoStatus?.repo?.name}`}
@@ -149,7 +200,7 @@ export function GitHubSync() {
                       onSelect={(e) => {
                         e.preventDefault()
                         deleteRepo({
-                          repoId: repoStatus?.repo?.id ?? "",
+                          projectId: sandboxId,
                         })
                       }}
                     >
@@ -175,8 +226,7 @@ export function GitHubSync() {
                 className="w-full font-normal"
                 onClick={() =>
                   syncToGithub({
-                    repoId: repoStatus?.repo?.id!,
-                    repoName: repoStatus?.repo?.name!,
+                    projectId: sandboxId,
                     message: commitMessage,
                   })
                 }
@@ -199,19 +249,15 @@ export function GitHubSync() {
               You can create one to sync your code with GitHub.
             </p>
             <div className="flex gap-1 mt-4">
-              <GithubUserButton
-                onLogout={() => {
-                  refetchGithubUser()
-                }}
-                {...githubUser}
-                rounded="sm"
-              />
+              <GithubUserButton userId={userId} {...githubUser} rounded="sm" />
               <Button
                 variant="secondary"
                 size="xs"
                 className="w-full font-normal"
                 onClick={() => {
-                  handleCreateRepo()
+                  handleCreateRepo({
+                    projectId: sandboxId,
+                  })
                 }}
                 disabled={isCreatingRepo}
               >
@@ -240,7 +286,7 @@ export function GitHubSync() {
     handleCreateRepo,
     syncToGithub,
     deleteRepo,
-    refetchGithubUser,
+    getAuthUrl,
   ])
 
   React.useEffect(() => {
@@ -263,17 +309,22 @@ export function GitHubSync() {
 
 interface GithubUserButtonProps extends GithubUser {
   rounded?: "full" | "sm"
-  onLogout: () => void
+  userId: string
 }
 
 function GithubUserButton({
   rounded,
-  onLogout,
+  userId,
   ...githubUser
 }: GithubUserButtonProps) {
+  const queryClient = useQueryClient()
   const { mutate: handleGithubLogout, isPending: isLoggingOut } =
-    useGithubLogout({
-      onSuccess: onLogout,
+    github.logout.useMutation({
+      onSuccess: () => {
+        return queryClient.invalidateQueries(
+          github.githubUser.getOptions({ userId })
+        )
+      },
     })
 
   return (
@@ -309,7 +360,9 @@ function GithubUserButton({
               <DropdownMenuItem
                 onSelect={(e) => {
                   e.preventDefault()
-                  handleGithubLogout()
+                  handleGithubLogout({
+                    userId,
+                  })
                 }}
               >
                 {isLoggingOut && (
