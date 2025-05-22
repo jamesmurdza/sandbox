@@ -20,6 +20,7 @@ interface FileExplorerProps {
   sandboxData: Sandbox
   files: (TFile | TFolder)[]
   selectFile: (tab: TTab) => void
+  prefetchFile: (tab: TTab) => void
   handleRename: (
     id: string,
     newName: string,
@@ -38,6 +39,7 @@ export function FileExplorer({
   sandboxData,
   files,
   selectFile,
+  prefetchFile,
   handleRename,
   handleDeleteFile,
   handleDeleteFolder,
@@ -143,6 +145,7 @@ export function FileExplorer({
                     key={child.id}
                     data={child}
                     selectFile={selectFile}
+                    prefetchFile={prefetchFile}
                     handleRename={handleRename}
                     handleDeleteFile={handleDeleteFile}
                     movingId={movingId}
@@ -153,6 +156,7 @@ export function FileExplorer({
                     key={child.id}
                     data={child}
                     selectFile={selectFile}
+                    prefetchFile={prefetchFile}
                     handleRename={handleRename}
                     handleDeleteFile={handleDeleteFile}
                     handleDeleteFolder={handleDeleteFolder}

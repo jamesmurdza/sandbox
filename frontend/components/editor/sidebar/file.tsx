@@ -14,16 +14,19 @@ import { getIconForFile } from "vscode-icons-js"
 
 import { draggable } from "@atlaskit/pragmatic-drag-and-drop/element/adapter"
 
+const HOVER_PREFETCH_DELAY = 200
 export default function SidebarFile({
   data,
   selectFile,
   handleRename,
   handleDeleteFile,
+  prefetchFile,
   movingId,
   deletingFolderId,
 }: {
   data: TFile
   selectFile: (file: TTab) => void
+  prefetchFile: (file: TTab) => void
   handleRename: (
     id: string,
     newName: string,
@@ -46,6 +49,22 @@ export default function SidebarFile({
   const [editing, setEditing] = useState(false)
   const [pendingDelete, setPendingDelete] = useState(isDeleting)
 
+  const hoverTimeout = useRef<NodeJS.Timeout | null>(null)
+
+  const handleMouseEnter = () => {
+    if (!editing && !pendingDelete && !isMoving) {
+      hoverTimeout.current = setTimeout(() => {
+        prefetchFile({ ...data, saved: true })
+      }, HOVER_PREFETCH_DELAY)
+    }
+  }
+
+  const handleMouseLeave = () => {
+    if (hoverTimeout.current) {
+      clearTimeout(hoverTimeout.current)
+      hoverTimeout.current = null
+    }
+  }
   useEffect(() => {
     setPendingDelete(isDeleting)
   }, [isDeleting])
@@ -93,6 +112,8 @@ export default function SidebarFile({
         onDoubleClick={() => {
           setEditing(true)
         }}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
         className={`${
           dragging ? "opacity-50 hover:!bg-background" : ""
         } data-[state=open]:bg-secondary/50 w-full flex items-center h-7 px-1 hover:bg-secondary rounded-sm cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring`}

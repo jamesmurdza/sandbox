@@ -25,6 +25,7 @@ interface AppSidebarProps {
   sandboxData: Sandbox
   files: (TFile | TFolder)[]
   selectFile: (tab: TTab) => void
+  prefetchFile: (tab: TTab) => void
   handleRename: (
     id: string,
     newName: string,
@@ -43,6 +44,7 @@ export default function AppSidebar({
   sandboxData,
   files,
   selectFile,
+  prefetchFile,
   handleRename,
   handleDeleteFile,
   handleDeleteFolder,
@@ -73,6 +75,7 @@ export default function AppSidebar({
           deletingFolderId={deletingFolderId}
           toggleAIChat={toggleAIChat}
           isAIChatOpen={isAIChatOpen}
+          prefetchFile={prefetchFile}
         />
       </SidebarContent>
 
