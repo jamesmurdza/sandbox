@@ -6,12 +6,12 @@ import { toggleLike } from "@/lib/actions"
 import { projectTemplates } from "@/lib/data"
 import { Sandbox } from "@/lib/types"
 import { cn } from "@/lib/utils"
+import { useRouter } from "@bprogress/next/app"
 import { useUser } from "@clerk/nextjs"
 import { AnimatePresence, motion } from "framer-motion"
 import { Clock, Eye, Globe, Heart, Lock } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import {
   memo,
   MouseEventHandler,
