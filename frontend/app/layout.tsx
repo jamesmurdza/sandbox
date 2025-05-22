@@ -1,4 +1,3 @@
-import { auth } from "@clerk/nextjs"
 import { GeistMono } from "geist/font/mono"
 import { GeistSans } from "geist/font/sans"
 import type { Metadata } from "next"
@@ -31,12 +30,10 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
-  const token = await (await auth()).getToken()
-
   return (
     <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable}`}>
       <body>
-        <Providers authToken={token}>{children}</Providers>
+        <Providers>{children}</Providers>
       </body>
     </html>
   )
