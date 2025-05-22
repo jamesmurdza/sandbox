@@ -2,7 +2,6 @@ import dotenv from "dotenv"
 import { Request } from "express"
 import { Project } from "../Project"
 import { ApiResponse } from "../types"
-import { extractAuthToken } from "../utils/ExtractAuthToken"
 import { GitHubManager } from "./GitHubManager"
 
 dotenv.config()
@@ -52,7 +51,7 @@ export class GitHubApiService {
       const res = await this.githubManager.getGithubUser({
         code,
         userId,
-        authToken: extractAuthToken(req) ?? "",
+        authToken: req.authToken ?? "",
       })
       return {
         success: true,
@@ -77,7 +76,6 @@ export class GitHubApiService {
    */
   async authenticateUser(req: Request): Promise<ApiResponse> {
     try {
-      const authToken = extractAuthToken(req)
       const { code, userId } = req.body
       if (!userId) {
         return {
@@ -90,7 +88,7 @@ export class GitHubApiService {
       const auth = await this.githubManager.authenticate(
         code,
         userId,
-        authToken
+        req.authToken ?? null
       )
       return {
         success: true,
@@ -115,7 +113,6 @@ export class GitHubApiService {
    */
   async logoutUser(req: Request): Promise<ApiResponse> {
     try {
-      const authToken = extractAuthToken(req)
       const { userId } = req.body
       if (!userId) {
         return {
@@ -125,7 +122,7 @@ export class GitHubApiService {
           data: null,
         }
       }
-      await this.githubManager.logoutGithubUser(userId, authToken)
+      await this.githubManager.logoutGithubUser(userId, req.authToken ?? null)
       return {
         success: true,
         code: 200,
@@ -286,7 +283,6 @@ export class GitHubApiService {
    */
   async createCommit(req: Request): Promise<ApiResponse> {
     try {
-      const authToken = extractAuthToken(req)
       const { projectId, message } = req.body
 
       // 1. Validate project
@@ -310,7 +306,10 @@ export class GitHubApiService {
           data: null,
         }
       }
-      const projectData = await this.fetchSandboxData(projectId, authToken)
+      const projectData = await this.fetchSandboxData(
+        projectId,
+        req.authToken ?? null
+      )
       const repoId = projectData.repositoryId
       // 3. Validate repoId
       if (!repoId) {
@@ -325,7 +324,7 @@ export class GitHubApiService {
       // 4. Verify repository still exists
       const repoCheck = await this.githubManager.repoExistsByID(repoId)
       if (!repoCheck.exists) {
-        await this.removeRepoFromSandbox(projectId, authToken)
+        await this.removeRepoFromSandbox(projectId, req.authToken ?? null)
         return {
           success: false,
           code: 404,
@@ -383,7 +382,6 @@ export class GitHubApiService {
    */
   async createRepo(req: Request): Promise<ApiResponse> {
     try {
-      const authToken = extractAuthToken(req) ?? ""
       const { projectId, userId } = req.body
 
       // 1. Validate project
@@ -399,26 +397,33 @@ export class GitHubApiService {
       }
 
       // 3. Fetch sandbox data
-      const sandbox = await this.fetchSandboxData(projectId, authToken)
+      const sandbox = await this.fetchSandboxData(
+        projectId,
+        req.authToken ?? null
+      )
       let repoName = sandbox.name
 
       // 4. Check if repo exists and handle naming conflicts
       const { data: repoExists } = await this.checkRepoStatus(
         projectId,
-        authToken
+        req.authToken ?? null
       )
       repoName = await this.handleRepoScenariosAndUpdateName(
         repoExists,
         repoName,
         projectId,
-        authToken
+        req.authToken ?? null
       )
 
       // 5. Create the repository
       const { id } = await this.githubManager.createRepo(repoName)
 
       // 6. Update sandbox with repository ID
-      await this.updateSandboxWithRepoId(projectId, id.toString(), authToken)
+      await this.updateSandboxWithRepoId(
+        projectId,
+        id.toString(),
+        req.authToken ?? null
+      )
 
       // 7. Create initial commit
       const files = await this.collectFilesForCommit(project)

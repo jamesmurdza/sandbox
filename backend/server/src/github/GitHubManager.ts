@@ -2,7 +2,6 @@ import { type Octokit as OctokitType } from "@octokit/core"
 import { Request } from "express"
 import { createJiti } from "jiti"
 import { GitHubTokenResponse, UserData } from "../types"
-import { extractAuthToken } from "../utils/ExtractAuthToken"
 
 // Initialize jiti for dynamic imports
 const jiti = createJiti(__dirname)
@@ -49,7 +48,7 @@ export class GitHubManager {
         await this.updateUserToken(userId, accessToken, authToken)
       }
 
-      const userData = await this.fetchUserData(userId, authToken)
+      const userData = await this.fetchUserData(userId, authToken ?? null)
       accessToken = userData.githubToken
 
       if (!accessToken) {
@@ -162,12 +161,12 @@ export class GitHubManager {
   async initializeOctokit(req: Request) {
     try {
       const userId = req.auth?.userId
-      const authToken = extractAuthToken(req)
+      const authToken = req.authToken
       // Authenticate using stored token
       if (!userId) {
         throw new Error("User ID not found in request.")
       }
-      const user = await this.fetchUserData(userId, authToken)
+      const user = await this.fetchUserData(userId, authToken ?? null)
       if (!user?.githubToken) {
         throw new Error("GitHub authentication token not found for user.")
       }
@@ -210,10 +209,8 @@ export class GitHubManager {
     userId: string
   }) {
     try {
-      // Fetch and return user data
-      const { data } = await (
-        await this.ensureInitialized()
-      ).request("GET /user")
+      const octokit = await this.ensureInitialized()
+      const { data } = await octokit.request("GET /user")
       return data
     } catch (error) {
       throw error
@@ -227,9 +224,8 @@ export class GitHubManager {
    */
   async repoExistsByName(repoName: string): Promise<{ exists: boolean }> {
     try {
-      const repoData = await (
-        await this.ensureInitialized()
-      ).request("GET /repos/{owner}/{repo}", {
+      const octokit = await this.ensureInitialized()
+      const repoData = await octokit.request("GET /repos/{owner}/{repo}", {
         owner: this.username || "",
         repo: repoName,
       })
@@ -252,9 +248,8 @@ export class GitHubManager {
    * @returns Object containing the new repository's ID
    */
   async createRepo(repoName: string): Promise<{ id: string }> {
-    const { data } = await (
-      await this.ensureInitialized()
-    ).request("POST /user/repos", {
+    const octokit = await this.ensureInitialized()
+    const { data } = await octokit.request("POST /user/repos", {
       name: repoName,
       auto_init: true,
       private: false,
@@ -289,22 +284,25 @@ export class GitHubManager {
     }
     const repoName = repoInfo.repoName
 
+    const octokit = await this.ensureInitialized()
     // Get the current commit SHA
-    const { data: ref } = await (
-      await this.ensureInitialized()
-    ).request("GET /repos/{owner}/{repo}/git/ref/{ref}", {
-      owner: username,
-      repo: repoName,
-      ref: "heads/main",
-    })
+    const { data: ref } = await octokit.request(
+      "GET /repos/{owner}/{repo}/git/ref/{ref}",
+      {
+        owner: username,
+        repo: repoName,
+        ref: "heads/main",
+      }
+    )
 
-    const { data: baseTree } = await (
-      await this.ensureInitialized()
-    ).request("GET /repos/{owner}/{repo}/git/commits/{commit_sha}", {
-      owner: username,
-      repo: repoName,
-      commit_sha: ref.object.sha,
-    })
+    const { data: baseTree } = await octokit.request(
+      "GET /repos/{owner}/{repo}/git/commits/{commit_sha}",
+      {
+        owner: username,
+        repo: repoName,
+        commit_sha: ref.object.sha,
+      }
+    )
 
     // Create blobs for all files
     // Process files in batches with retry logic
@@ -322,14 +320,15 @@ export class GitHubManager {
       // Process each file in the batch sequentially
       for (const file of batch) {
         try {
-          const { data } = await (
-            await this.ensureInitialized()
-          ).request("POST /repos/{owner}/{repo}/git/blobs", {
-            owner: username,
-            repo: repoName,
-            content: file.data,
-            encoding: "utf-8",
-          })
+          const { data } = await octokit.request(
+            "POST /repos/{owner}/{repo}/git/blobs",
+            {
+              owner: username,
+              repo: repoName,
+              content: file.data,
+              encoding: "utf-8",
+            }
+          )
           blobs.push({
             path: file.id.replace(/^\/+/, "").replace(/^project\/+/, ""),
             mode: "100644",
@@ -351,30 +350,30 @@ export class GitHubManager {
     }
 
     // Create a new tree
-    const { data: tree } = await (
-      await this.ensureInitialized()
-    ).request("POST /repos/{owner}/{repo}/git/trees", {
-      owner: username,
-      repo: repoName,
-      base_tree: baseTree.tree.sha,
-      tree: blobs as any,
-    })
+    const { data: tree } = await octokit.request(
+      "POST /repos/{owner}/{repo}/git/trees",
+      {
+        owner: username,
+        repo: repoName,
+        base_tree: baseTree.tree.sha,
+        tree: blobs as any,
+      }
+    )
 
     // Create a new commit
-    const { data: newCommit } = await (
-      await this.ensureInitialized()
-    ).request("POST /repos/{owner}/{repo}/git/commits", {
-      owner: username,
-      repo: repoName,
-      message,
-      tree: tree.sha,
-      parents: [ref.object.sha],
-    })
+    const { data: newCommit } = await octokit.request(
+      "POST /repos/{owner}/{repo}/git/commits",
+      {
+        owner: username,
+        repo: repoName,
+        message,
+        tree: tree.sha,
+        parents: [ref.object.sha],
+      }
+    )
 
     // Update the reference
-    await (
-      await this.ensureInitialized()
-    ).request("PATCH /repos/{owner}/{repo}/git/refs/{ref}", {
+    await octokit.request("PATCH /repos/{owner}/{repo}/git/refs/{ref}", {
       owner: username,
       repo: repoName,
       ref: "heads/main",
@@ -398,11 +397,13 @@ export class GitHubManager {
     { exists: boolean; repoId: string; repoName: string } | { exists: false }
   > {
     try {
-      const { data: githubRepo } = await (
-        await this.ensureInitialized()
-      ).request("GET /repositories/:id", {
-        id: repoId,
-      })
+      const octokit = await this.ensureInitialized()
+      const { data: githubRepo } = await octokit.request(
+        "GET /repositories/:id",
+        {
+          id: repoId,
+        }
+      )
       return {
         exists: !!githubRepo,
         repoId: githubRepo?.id?.toString() || "",
