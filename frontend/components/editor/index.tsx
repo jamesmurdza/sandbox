@@ -1292,7 +1292,7 @@ export default function CodeEditor({
                 defaultSize={70}
                 ref={editorPanelRef}
               >
-                <div className="h-10 w-full flex gap-2 overflow-auto tab-scroll">
+                <div className="pb-2 w-full flex gap-2 overflow-x-auto tab-scroll">
                   {/* File tabs */}
                   {tabs.map((tab) => (
                     <Tab
