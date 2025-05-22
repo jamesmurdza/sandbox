@@ -21,6 +21,7 @@ import SidebarFile from "./file"
 export default function SidebarFolder({
   data,
   selectFile,
+  prefetchFile,
   handleRename,
   handleDeleteFile,
   handleDeleteFolder,
@@ -29,6 +30,7 @@ export default function SidebarFolder({
 }: {
   data: TFolder
   selectFile: (file: TTab) => void
+  prefetchFile: (file: TTab) => void
   handleRename: (
     id: string,
     newName: string,
@@ -190,9 +192,10 @@ export default function SidebarFolder({
                 {data.children.map((child) =>
                   child.type === "file" ? (
                     <SidebarFile
-                      key={child.id}
-                      data={child}
-                      selectFile={selectFile}
+                    key={child.id}
+                    data={child}
+                    selectFile={selectFile}
+                    prefetchFile={prefetchFile}
                       handleRename={handleRename}
                       handleDeleteFile={handleDeleteFile}
                       movingId={movingId}
@@ -200,9 +203,10 @@ export default function SidebarFolder({
                     />
                   ) : (
                     <SidebarFolder
-                      key={child.id}
-                      data={child}
-                      selectFile={selectFile}
+                    key={child.id}
+                    data={child}
+                    selectFile={selectFile}
+                    prefetchFile={prefetchFile}
                       handleRename={handleRename}
                       handleDeleteFile={handleDeleteFile}
                       handleDeleteFolder={handleDeleteFolder}

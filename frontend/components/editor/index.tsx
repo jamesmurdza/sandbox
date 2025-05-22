@@ -917,6 +917,7 @@ export default function CodeEditor({
     if (existingTab) {
       // If the tab exists, just make it active
       setActiveFileId(existingTab.id)
+      setEditorLanguage(processFileType(existingTab.name))
       // Only set content if it exists in fileContents
       if (fileContents[existingTab.id] !== undefined) {
         setActiveFileContent(fileContents[existingTab.id])
@@ -929,23 +930,34 @@ export default function CodeEditor({
       if (tab.id.includes("(new file)")) {
         setFileContents((prev) => ({ ...prev, [tab.id]: "" }))
         setActiveFileContent("")
+        setActiveFileId(tab.id)
+        setEditorLanguage(processFileType(tab.name))
       } else {
         // Fetch content if not cached
         if (!fileContents[tab.id]) {
           debouncedGetFile(tab.id, (response: string) => {
+            setActiveFileId(tab.id)
             setFileContents((prev) => ({ ...prev, [tab.id]: response }))
             setActiveFileContent(response)
+            setEditorLanguage(processFileType(tab.name))
           })
         } else {
+          setActiveFileId(tab.id)
           setActiveFileContent(fileContents[tab.id])
+          setEditorLanguage(processFileType(tab.name))
         }
       }
     }
-
-    // Set the editor language based on the file type
-    setEditorLanguage(processFileType(tab.name))
-    // Set the active file ID
-    setActiveFileId(existingTab ? existingTab.id : tab.id)
+  }
+  /**
+   * The `prefetchFile` function checks if the file content for a tab is already loaded and if not,
+   * fetches it using a debounced function.
+   */
+  const prefetchFile = (tab: TTab) => {
+    if (fileContents[tab.id]) return
+    debouncedGetFile(tab.id, (response: string) => {
+      setFileContents((prev) => ({ ...prev, [tab.id]: response }))
+    })
   }
 
   // Added this effect to update fileContents when the editor content changes
@@ -1255,6 +1267,7 @@ export default function CodeEditor({
           sandboxData={sandboxData}
           files={files}
           selectFile={selectFile}
+          prefetchFile={prefetchFile}
           handleRename={handleRename}
           handleDeleteFile={handleDeleteFile}
           handleDeleteFolder={handleDeleteFolder}
@@ -1318,6 +1331,7 @@ export default function CodeEditor({
                         language={editorLanguage}
                         beforeMount={handleEditorWillMount}
                         onMount={handleEditorMount}
+                        path={activeFileId}
                         onChange={(value) => {
                           // If the new content is different from the cached content, update it
                           if (value !== fileContents[activeFileId]) {
