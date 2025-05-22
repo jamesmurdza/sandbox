@@ -224,11 +224,14 @@ export class GitHubManager {
    */
   async repoExistsByName(repoName: string): Promise<{ exists: boolean }> {
     try {
-       await this.ensureInitialized()
-      const repoData = await this.octokit?.request("GET /repos/{owner}/{repo}", {
-        owner: this.username || "",
-        repo: repoName,
-      })
+      await this.ensureInitialized()
+      const repoData = await this.octokit?.request(
+        "GET /repos/{owner}/{repo}",
+        {
+          owner: this.username || "",
+          repo: repoName,
+        }
+      )
       return {
         exists: !!repoData,
       }
@@ -248,7 +251,7 @@ export class GitHubManager {
    * @returns Object containing the new repository's ID
    */
   async createRepo(repoName: string): Promise<{ id: string }> {
-     await this.ensureInitialized()
+    await this.ensureInitialized()
     const response = await this.octokit?.request("POST /user/repos", {
       name: repoName,
       auto_init: true,
@@ -293,11 +296,11 @@ export class GitHubManager {
         repo: repoName,
         ref: "heads/main",
       }
-    );
+    )
     if (!refResponse) {
-      throw new Error("Failed to fetch ref from GitHub.");
+      throw new Error("Failed to fetch ref from GitHub.")
     }
-    const ref = refResponse.data;
+    const ref = refResponse.data
 
     const baseTreeResponse = await this.octokit?.request(
       "GET /repos/{owner}/{repo}/git/commits/{commit_sha}",
@@ -306,11 +309,11 @@ export class GitHubManager {
         repo: repoName,
         commit_sha: ref.object.sha,
       }
-    );
+    )
     if (!baseTreeResponse) {
-      throw new Error("Failed to fetch base tree from GitHub.");
+      throw new Error("Failed to fetch base tree from GitHub.")
     }
-    const baseTree = baseTreeResponse.data;
+    const baseTree = baseTreeResponse.data
 
     // Create blobs for all files
     // Process files in batches with retry logic
@@ -336,9 +339,9 @@ export class GitHubManager {
               content: file.data,
               encoding: "utf-8",
             }
-          );
+          )
           if (!blobResponse) {
-            throw new Error(`Failed to create blob for file: ${file.id}`);
+            throw new Error(`Failed to create blob for file: ${file.id}`)
           }
           blobs.push({
             path: file.id.replace(/^\/+/, "").replace(/^project\/+/, ""),
@@ -369,11 +372,11 @@ export class GitHubManager {
         base_tree: baseTree.tree.sha,
         tree: blobs as any,
       }
-    );
+    )
     if (!treeResponse) {
-      throw new Error("Failed to create tree on GitHub.");
+      throw new Error("Failed to create tree on GitHub.")
     }
-    const tree = treeResponse.data;
+    const tree = treeResponse.data
 
     // Create a new commit
     const newCommitResponse = await this.octokit?.request(
@@ -385,11 +388,11 @@ export class GitHubManager {
         tree: tree.sha,
         parents: [ref.object.sha],
       }
-    );
+    )
     if (!newCommitResponse) {
-      throw new Error("Failed to create commit on GitHub.");
+      throw new Error("Failed to create commit on GitHub.")
     }
-    const newCommit = newCommitResponse.data;
+    const newCommit = newCommitResponse.data
 
     // Update the reference
     await this.octokit?.request("PATCH /repos/{owner}/{repo}/git/refs/{ref}", {
@@ -397,7 +400,7 @@ export class GitHubManager {
       repo: repoName,
       ref: "heads/main",
       sha: newCommit.sha,
-    });
+    })
     return { repoName }
   }
 
@@ -416,13 +419,10 @@ export class GitHubManager {
     { exists: boolean; repoId: string; repoName: string } | { exists: false }
   > {
     try {
-     await this.ensureInitialized()
-      const response = await this.octokit?.request(
-        "GET /repositories/:id",
-        {
-          id: repoId,
-        }
-      )
+      await this.ensureInitialized()
+      const response = await this.octokit?.request("GET /repositories/:id", {
+        id: repoId,
+      })
       const githubRepo = response?.data
       return {
         exists: !!githubRepo,
