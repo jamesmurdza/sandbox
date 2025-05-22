@@ -18,9 +18,9 @@ export function attachAuthToken(req: Request, _: Response, next: NextFunction) {
   const authHeader = req.headers.authorization // Get the Authorization header
   if (!authHeader) {
     req.authToken = null // If missing, set authToken to null
-    return next() // Continue to next middleware
+    return next()
   }
   const parts = authHeader.split(" ") // Split the header (expected: "Bearer <token>")
   req.authToken = parts[1] ?? null // Assign the token part, or null if missing
-  next() // Continue to next middleware
+  next()
 }
