@@ -19,7 +19,7 @@ import {
 import Link from "next/link"
 
 import { TIERS } from "@/lib/tiers"
-import { useRouter } from "next/navigation"
+import { useRouter } from "@bprogress/next/app"
 import { useState } from "react"
 import Avatar from "./avatar"
 import { Button } from "./button"

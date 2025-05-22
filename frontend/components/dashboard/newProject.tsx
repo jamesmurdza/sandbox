@@ -31,9 +31,9 @@ import {
 } from "@/components/ui/select"
 import { createSandbox } from "@/lib/actions"
 import { projectTemplates } from "@/lib/data"
+import { useRouter } from "@bprogress/next/app"
 import { useUser } from "@clerk/nextjs"
 import { ChevronLeft, ChevronRight, Loader2, Search } from "lucide-react"
-import { useRouter } from "next/navigation"
 import { Button } from "../ui/button"
 
 import { cn } from "@/lib/utils"

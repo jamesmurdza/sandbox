@@ -29,8 +29,8 @@ import {
 } from "@/components/ui/select"
 import { deleteSandbox, updateSandbox } from "@/lib/actions"
 import { Sandbox } from "@/lib/types"
+import { useRouter } from "@bprogress/next/app"
 import { Loader2 } from "lucide-react"
-import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { toast } from "sonner"
 

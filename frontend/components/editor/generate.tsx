@@ -1,10 +1,11 @@
 "use client"
 
 import { User } from "@/lib/types"
+import { useRouter } from "@bprogress/next/app"
 import { Editor } from "@monaco-editor/react"
 import { Check, Loader2, RotateCw, Sparkles, X } from "lucide-react"
 import { useTheme } from "next-themes"
-import { usePathname, useRouter } from "next/navigation"
+import { usePathname } from "next/navigation"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import { Button } from "../ui/button"

@@ -1,8 +1,11 @@
+"use client"
+
 import { QueryClientProvider } from "@/components/query-client"
 import { Toaster } from "@/components/ui/sonner"
 import { ThemeProvider } from "@/components/ui/theme-provider"
 import { PreviewProvider } from "@/context/PreviewContext"
 import { SocketProvider } from "@/context/SocketContext"
+import { AppProgressProvider as ProgressProvider } from "@bprogress/next"
 import { ClerkProvider } from "@clerk/nextjs"
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools"
 import { Analytics } from "@vercel/analytics/react"
@@ -23,11 +26,19 @@ export function Providers({
           defaultTheme="system"
           disableTransitionOnChange
         >
-          <SocketProvider token={authToken}>
-            <PreviewProvider>{children}</PreviewProvider>
-            <Analytics />
-            <Toaster position="bottom-left" richColors />
-          </SocketProvider>
+          <ProgressProvider
+            height="4px"
+            delay={500}
+            color="hsl(var(--foreground))"
+            options={{ showSpinner: false }}
+            shallowRouting
+          >
+            <SocketProvider token={authToken}>
+              <PreviewProvider>{children}</PreviewProvider>
+              <Analytics />
+              <Toaster position="bottom-left" richColors />
+            </SocketProvider>
+          </ProgressProvider>
         </ThemeProvider>
       </ClerkProvider>
       <ReactQueryDevtools />
