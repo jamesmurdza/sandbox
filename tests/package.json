@@ -5,9 +5,8 @@
   "main": "dist/index.js",
   "type": "module",
   "scripts": {
-    "build": "tsc",
-    "start": "npm run build && node dist/index.js",
-    "test": "vitest"
+    "dev": "vitest dev",
+    "test": "vitest run"
   },
   "author": "Your Name",
   "license": "ISC",
