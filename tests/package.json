@@ -1,24 +1,28 @@
 {
-    "name": "socket-io-test",
-    "version": "1.0.0",
-    "description": "A test script for socket.io-client using ES6 modules and TypeScript",
-    "main": "dist/index.js",
-    "type": "module",
-    "scripts": {
-        "build": "tsc",
-        "start": "npm run build && node dist/index.js"
-    },
-    "author": "Your Name",
-    "license": "ISC",
-    "dependencies": {
-        "axios": "^1.9.0",
-        "dotenv": "^16.4.5",
-        "socket.io-client": "^4.7.5",
-        "supertest": "^7.1.1"
-    },
-    "devDependencies": {
-        "@types/supertest": "^6.0.3",
-        "ts-node": "^10.9.2",
-        "typescript": "^5.0.0"
-    }
+  "name": "socket-io-test",
+  "version": "1.0.0",
+  "description": "A test script for socket.io-client using ES6 modules and TypeScript",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "npm run build && node dist/index.js",
+    "test": "vitest"
+  },
+  "author": "Your Name",
+  "license": "ISC",
+  "dependencies": {
+    "@t3-oss/env-core": "^0.13.4",
+    "axios": "^1.9.0",
+    "dotenv": "^16.4.5",
+    "socket.io-client": "^4.7.5",
+    "supertest": "^7.1.1",
+    "zod": "^3.25.24"
+  },
+  "devDependencies": {
+    "@types/supertest": "^6.0.3",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.0.0",
+    "vitest": "^3.1.4"
+  }
 }
