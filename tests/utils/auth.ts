@@ -1,5 +1,6 @@
 import axios, { AxiosError } from "axios"
 import dotenv from "dotenv"
+import { env } from "./env"
 
 // Load environment variables from .env file
 dotenv.config()
@@ -11,25 +12,25 @@ const CLERK_API_URL = "https://api.clerk.com/v1/sessions"
  * Response interface for Clerk session creation
  */
 export interface CreateSessionResponse {
-  id: string           // Unique session identifier
-  object: string       // Object type
-  status: string       // Session status
+  id: string // Unique session identifier
+  object: string // Object type
+  status: string // Session status
   last_active_at: number // Timestamp of last activity
-  expire_at: number    // Session expiration timestamp
+  expire_at: number // Session expiration timestamp
 }
 
 /**
  * Response interface for session token
  */
 interface SessionTokenResponse {
-  jwt: string  // JSON Web Token for authentication
+  jwt: string // JSON Web Token for authentication
 }
 
 /**
  * Class for handling Clerk authentication operations
  */
 export class ClerkAuth {
-  private readonly secretKey: string  // Clerk API secret key
+  private readonly secretKey: string // Clerk API secret key
 
   /**
    * Initialize ClerkAuth with a secret key
@@ -103,4 +104,12 @@ export class ClerkAuth {
       )
     }
   }
+}
+
+export const getJwtToken = async () => {
+  // Since the token expires in 60 seconds, we need to create a new one for each test
+  const auth = new ClerkAuth()
+  const session = await auth.createTestSession(env.CLERK_TEST_USER_ID!)
+  const jwt = await auth.getSessionToken(session.id)
+  return jwt
 }
