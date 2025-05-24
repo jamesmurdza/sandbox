@@ -1,7 +1,6 @@
 import express, { Request, Response } from "express"
 import { requireGithubAuth } from "../middleware/GitHubAuthUsers"
 import { Project } from "../Project"
-import { extractAuthToken } from "../utils/ExtractAuthToken"
 import { GitHubApiService } from "./GitHubApiService"
 
 export class GitHubApiRoutes {
@@ -73,7 +72,7 @@ export class GitHubApiRoutes {
       this.handleRoute(req, res, (service) =>
         service.checkRepoStatus(
           req.query.projectId as string,
-          extractAuthToken(req)
+          req.authToken ?? null
         )
       )
     )
@@ -88,7 +87,7 @@ export class GitHubApiRoutes {
 
     this.router.post("/repo/remove", requireGithubAuth, (req, res) =>
       this.handleRoute(req, res, (service) =>
-        service.removeRepoFromSandbox(req.body.projectId, extractAuthToken(req))
+        service.removeRepoFromSandbox(req.body.projectId, req.authToken ?? null)
       )
     )
   }

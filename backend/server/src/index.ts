@@ -9,6 +9,7 @@ import { GitHubApiRoutes } from "./github/GitHubApiRoutes"
 
 import { ConnectionManager } from "./ConnectionManager"
 import { DokkuClient } from "./DokkuClient"
+import { attachAuthToken } from "./middleware/attachAuthToken"
 import { requireAuth } from "./middleware/clerkAuth"
 import { Project } from "./Project"
 import { SecureGitClient } from "./SecureGitClient"
@@ -45,8 +46,8 @@ const app: Express = express()
 const port = process.env.PORT || 4000
 app.use(cors())
 
-// Apply Clerk authentication middleware to all API routes
-app.use("/api", requireAuth)
+// Apply Clerk authentication middleware and attach auth token middleware to all API routes
+app.use("/api", requireAuth, attachAuthToken)
 
 const httpServer = createServer(app)
 const io = new Server(httpServer, {
