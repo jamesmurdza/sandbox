@@ -525,7 +525,7 @@ export default {
       const schema = z.object({
         userId: z.string(),
         tier: z.enum(["FREE", "PRO", "ENTERPRISE"]),
-        tierExpiresAt: z.date(),
+        tierExpiresAt: z.coerce.date(),
       })
 
       const { userId, tier, tierExpiresAt } = schema.parse(request.body)
