@@ -1,12 +1,14 @@
 // import { Room } from "@/components/editor/live/room"
 import Loading from "@/components/editor/loading"
 import Navbar from "@/components/editor/navbar"
+import { PreviewProvider } from "@/context/PreviewContext"
+import { SocketProvider } from "@/context/SocketContext"
 import { TerminalProvider } from "@/context/TerminalContext"
 import { github } from "@/hooks/github"
 import { getQueryClient } from "@/lib/get-query-client"
 import { Sandbox, User, UsersToSandboxes } from "@/lib/types"
 import { fetchWithAuth } from "@/lib/utils"
-import { currentUser } from "@clerk/nextjs"
+import { auth, currentUser } from "@clerk/nextjs"
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query"
 import dynamic from "next/dynamic"
 import { notFound, redirect } from "next/navigation"
@@ -57,7 +59,11 @@ const CodeEditor = dynamic(() => import("@/components/editor"), {
 })
 
 export default async function CodePage({ params }: { params: { id: string } }) {
-  const user = await currentUser()
+  const [user, authToken] = await Promise.all([
+    currentUser(),
+    (async () => (await auth()).getToken())(),
+  ])
+
   const sandboxId = params.id
   const queryClient = getQueryClient()
   if (!user) {
@@ -95,19 +101,25 @@ export default async function CodePage({ params }: { params: { id: string } }) {
   }
 
   return (
-    <TerminalProvider>
-      {/* <Room id={sandboxId}> */}
-      <div className="overflow-hidden overscroll-none w-screen h-screen grid [grid-template-rows:3.5rem_auto] bg-background">
-        <Navbar
-          userData={userData}
-          sandboxData={sandboxData}
-          shared={shared as { id: string; name: string; avatarUrl: string }[]}
-        />
-        <HydrationBoundary state={dehydrate(queryClient)}>
-          <CodeEditor userData={userData} sandboxData={sandboxData} />
-        </HydrationBoundary>
-      </div>
-      {/* </Room> */}
-    </TerminalProvider>
+    <PreviewProvider>
+      <SocketProvider token={authToken}>
+        <TerminalProvider>
+          {/* <Room id={sandboxId}> */}
+          <div className="overflow-hidden overscroll-none w-screen h-screen grid [grid-template-rows:3.5rem_auto] bg-background">
+            <Navbar
+              userData={userData}
+              sandboxData={sandboxData}
+              shared={
+                shared as { id: string; name: string; avatarUrl: string }[]
+              }
+            />
+            <HydrationBoundary state={dehydrate(queryClient)}>
+              <CodeEditor userData={userData} sandboxData={sandboxData} />
+            </HydrationBoundary>
+          </div>
+          {/* </Room> */}
+        </TerminalProvider>
+      </SocketProvider>
+    </PreviewProvider>
   )
 }

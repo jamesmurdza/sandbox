@@ -1,7 +1,7 @@
 "use client"
 
+import { useRouter } from "@bprogress/next/app"
 import { Search } from "lucide-react"
-import { useRouter } from "next/navigation"
 import { Input } from "../../ui/input"
 
 export default function DashboardNavbarSearch() {

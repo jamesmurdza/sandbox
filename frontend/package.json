@@ -12,6 +12,7 @@
     "@anthropic-ai/sdk": "^0.32.1",
     "@atlaskit/pragmatic-drag-and-drop": "^1.1.7",
     "@aws-sdk/client-bedrock-runtime": "^3.758.0",
+    "@bprogress/next": "^3.2.12",
     "@clerk/nextjs": "^4.31.6",
     "@clerk/themes": "^1.7.12",
     "@codemirror/lang-javascript": "^6.2.2",

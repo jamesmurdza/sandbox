@@ -7,8 +7,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 
+import { useRouter } from "@bprogress/next/app"
 import { Loader2 } from "lucide-react"
-import { useRouter } from "next/navigation"
 import { useEffect } from "react"
 
 export default function DisableAccessModal({

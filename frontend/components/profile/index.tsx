@@ -36,6 +36,7 @@ import { editUserSchema, EditUserSchema } from "@/lib/schema"
 import { TIERS } from "@/lib/tiers"
 import { SandboxWithLiked, User, UserLink } from "@/lib/types"
 import { cn, parseSocialLink } from "@/lib/utils"
+import { useRouter } from "@bprogress/next/app"
 import { useUser } from "@clerk/nextjs"
 import { zodResolver } from "@hookform/resolvers/zod"
 import {
@@ -51,7 +52,6 @@ import {
   Trash2,
   X,
 } from "lucide-react"
-import { useRouter } from "next/navigation"
 import {
   Fragment,
   useCallback,
@@ -243,7 +243,8 @@ function ProfileCard({
                 <CardDescription className="text-center">{`@${username}`}</CardDescription>
               </div>
               {bio && <p className="text-sm text-center">{bio}</p>}
-              {(Array.isArray(socialLinks) && socialLinks.length > 0 || personalWebsite) && (
+              {((Array.isArray(socialLinks) && socialLinks.length > 0) ||
+                personalWebsite) && (
                 <div className="flex gap-2 justify-center">
                   {personalWebsite && (
                     <Button variant="secondary" size="smIcon" asChild>
@@ -257,26 +258,27 @@ function ProfileCard({
                       </a>
                     </Button>
                   )}
-                  {Array.isArray(socialLinks) && socialLinks.map((link, index) => {
-                    const Icon = socialIcons[link.platform]
-                    return (
-                      <Button
-                        key={index}
-                        variant="secondary"
-                        size="smIcon"
-                        asChild
-                      >
-                        <a
-                          href={link.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                  {Array.isArray(socialLinks) &&
+                    socialLinks.map((link, index) => {
+                      const Icon = socialIcons[link.platform]
+                      return (
+                        <Button
+                          key={index}
+                          variant="secondary"
+                          size="smIcon"
+                          asChild
                         >
-                          <Icon className="size-4" />
-                          <span className="sr-only">{link.platform}</span>
-                        </a>
-                      </Button>
-                    )
-                  })}
+                          <a
+                            href={link.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <Icon className="size-4" />
+                            <span className="sr-only">{link.platform}</span>
+                          </a>
+                        </Button>
+                      )
+                    })}
                 </div>
               )}
             </div>
