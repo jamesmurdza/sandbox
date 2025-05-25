@@ -56,7 +56,6 @@ describe("PUT /api/sandbox", () => {
 
     expect(response.status).toBe(200)
     const id = await response.text()
-    console.log("Created sandbox ID:", id)
     createdSandboxId = id as string
   })
 })

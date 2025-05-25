@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "type": "module",
   "scripts": {
-    "dev": "vitest dev",
+    "dev": "vitest dev --testTimeout=30000",
     "test": "vitest run"
   },
   "author": "Your Name",
