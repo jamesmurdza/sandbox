@@ -1,13 +1,11 @@
 import { useSocket } from "@/context/SocketContext"
 import { TTab } from "@/lib/types"
+import hljs from "highlight.js"
+import "highlight.js/styles/github.css"
+import "highlight.js/styles/vs2015.css"
 import { Check, CornerUpLeft, FileText, X } from "lucide-react"
 import monaco from "monaco-editor"
 import { Components } from "react-markdown"
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter"
-import {
-  oneLight,
-  vscDarkPlus,
-} from "react-syntax-highlighter/dist/esm/styles/prism"
 import { Button } from "../../../ui/button"
 import ApplyButton from "../ApplyButton"
 import { isFilePath, stringifyContent } from "./chatUtils"
@@ -39,6 +37,21 @@ export const createMarkdownComponents = (
     [key: string]: any
   }) => {
     const match = /language-(\w+)/.exec(className || "")
+    const stringifiedChildren = stringifyContent(children)
+
+    let highlightedCode = stringifiedChildren
+    if (match && match[1]) {
+      try {
+        highlightedCode = hljs.highlight(stringifiedChildren, {
+          language: match[1],
+          ignoreIllegals: true,
+        }).value
+      } catch (error) {
+        console.error("Error highlighting code:", error)
+        // Fallback to non-highlighted code in case of error
+        highlightedCode = stringifiedChildren
+      }
+    }
 
     return match ? (
       <div className="relative border border-input rounded-md mt-8 my-2 translate-y-[-1rem]">
@@ -47,11 +60,11 @@ export const createMarkdownComponents = (
         </div>
         <div className="sticky top-0 right-0 flex justify-end z-10">
           <div className="flex border border-input shadow-lg bg-background rounded-md">
-            {renderCopyButton(children)}
+            {renderCopyButton(stringifiedChildren)}
             <div className="w-px bg-input"></div>
             {!mergeDecorationsCollection ? (
               <ApplyButton
-                code={String(children)}
+                code={stringifiedChildren}
                 activeFileName={activeFileName}
                 activeFileContent={activeFileContent}
                 editorRef={editorRef}
@@ -130,7 +143,7 @@ export const createMarkdownComponents = (
               onClick={(e) => {
                 e.preventDefault()
                 e.stopPropagation()
-                askAboutCode(children)
+                askAboutCode(stringifiedChildren)
               }}
               size="sm"
               variant="ghost"
@@ -140,18 +153,20 @@ export const createMarkdownComponents = (
             </Button>
           </div>
         </div>
-        <SyntaxHighlighter
-          style={theme === "light" ? oneLight : vscDarkPlus}
-          language={match[1]}
-          PreTag="div"
-          customStyle={{
+        <pre
+          className={`hljs ${theme === "light" ? "hljs-light" : "hljs-dark"}`}
+          style={{
             margin: 0,
             padding: "0.5rem",
             fontSize: "0.875rem",
+            background: "transparent",
           }}
         >
-          {stringifyContent(children)}
-        </SyntaxHighlighter>
+          <code
+            className={`language-${match[1]}`}
+            dangerouslySetInnerHTML={{ __html: highlightedCode }}
+          />
+        </pre>
       </div>
     ) : (
       <code className={className} {...props}>

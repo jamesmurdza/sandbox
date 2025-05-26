@@ -1,6 +1,6 @@
 import { createClient } from "@liveblocks/client"
 import { createLiveblocksContext, createRoomContext } from "@liveblocks/react"
-import YLiveblocksProvider from "@liveblocks/yjs"
+import { LiveblocksYjsProvider } from "@liveblocks/yjs"
 import { colors } from "./lib/colors"
 
 const client = createClient({
@@ -153,9 +153,4 @@ export const {
   useUnreadInboxNotificationsCount,
 } = createLiveblocksContext<UserMeta, ThreadMetadata>(client)
 
-export type TypedLiveblocksProvider = YLiveblocksProvider<
-  Presence,
-  Storage,
-  UserMeta,
-  RoomEvent
->
+export type TypedLiveblocksProvider = LiveblocksYjsProvider

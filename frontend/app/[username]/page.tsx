@@ -1,15 +1,16 @@
 import ProfilePage from "@/components/profile"
 import ProfileNavbar from "@/components/profile/navbar"
+import { fetchWithAuth } from "@/lib/server-utils"
 import { SandboxWithLiked, User } from "@/lib/types"
-import { fetchWithAuth } from "@/lib/utils"
-import { currentUser } from "@clerk/nextjs"
+import { currentUser } from "@clerk/nextjs/server"
 import { notFound } from "next/navigation"
 
 export default async function Page({
-  params: { username: rawUsername },
+  params,
 }: {
-  params: { username: string }
+  params: Promise<{ username: string }>
 }) {
+  const { username: rawUsername } = await params
   const username = decodeURIComponent(rawUsername).replace("@", "")
   const loggedInClerkUser = await currentUser()
 

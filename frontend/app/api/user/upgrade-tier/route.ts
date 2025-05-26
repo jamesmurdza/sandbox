@@ -1,5 +1,5 @@
-import { fetchWithAuth } from "@/lib/utils"
-import { currentUser } from "@clerk/nextjs"
+import { fetchWithAuth } from "@/lib/server-utils"
+import { currentUser } from "@clerk/nextjs/server"
 
 export async function POST(request: Request) {
   try {

@@ -5,13 +5,13 @@ import {
 import { templateConfigs } from "@/lib/templates"
 import { TIERS } from "@/lib/tiers"
 import { TFile, TFolder } from "@/lib/types"
-import { fetchWithAuth } from "@/lib/utils"
+import { fetchWithAuth } from "@/lib/server-utils"
 import { Anthropic } from "@anthropic-ai/sdk"
 import {
   BedrockRuntimeClient,
   InvokeModelWithResponseStreamCommand,
 } from "@aws-sdk/client-bedrock-runtime"
-import { currentUser } from "@clerk/nextjs"
+import { currentUser } from "@clerk/nextjs/server"
 
 // Initialize clients based on available credentials
 const useBedrockClient = !!(

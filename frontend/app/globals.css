@@ -276,3 +276,18 @@
     --scrollbar-thumb-hover: hsl(var(--foreground));
   }
 }
+
+.hljs-light {
+  background: #f8f8f8 !important;
+  color: #333 !important;
+}
+
+.hljs-dark {
+  background: #1e1e1e !important;
+  color: #d4d4d4 !important;
+}
+
+.hljs {
+  border-radius: 0.375rem;
+  overflow-x: auto;
+}
