@@ -425,262 +425,246 @@ export default function CodeEditor({
     [editorRef]
   )
 
-  // Improved diff algorithm using Myers' diff algorithm concepts
+  // FIXED: Proper chunking of consecutive changes
   const calculateDiffChunks = useCallback((original: string, target: string): ChangeChunk[] => {
     const originalLines = original.split('\n')
     const targetLines = target.split('\n')
-    
-    // Use a simple LCS-based approach to find differences
     const chunks: ChangeChunk[] = []
     let chunkId = 0
     
-    // Create a simple diff using dynamic programming
-    const lcs = (a: string[], b: string[]) => {
-      const m = a.length
-      const n = b.length
-      const dp: number[][] = Array(m + 1).fill(null).map(() => Array(n + 1).fill(0))
+    // First, find all the differences
+    const maxLines = Math.max(originalLines.length, targetLines.length)
+    const differences: Array<{ index: number, original: string, target: string }> = []
+    
+    for (let i = 0; i < maxLines; i++) {
+      const originalLine = originalLines[i] || ''
+      const targetLine = targetLines[i] || ''
       
-      for (let i = 1; i <= m; i++) {
-        for (let j = 1; j <= n; j++) {
-          if (a[i - 1] === b[j - 1]) {
-            dp[i][j] = dp[i - 1][j - 1] + 1
-          } else {
-            dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1])
-          }
-        }
+      if (originalLine !== targetLine) {
+        differences.push({ index: i, original: originalLine, target: targetLine })
       }
-      
-      // Backtrack to find the actual diff
-      const diff: Array<{ type: 'equal' | 'delete' | 'insert', line: string, originalIndex?: number, targetIndex?: number }> = []
-      let i = m, j = n
-      
-      while (i > 0 || j > 0) {
-        if (i > 0 && j > 0 && a[i - 1] === b[j - 1]) {
-          diff.unshift({ type: 'equal', line: a[i - 1], originalIndex: i - 1, targetIndex: j - 1 })
-          i--
-          j--
-        } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
-          diff.unshift({ type: 'insert', line: b[j - 1], targetIndex: j - 1 })
-          j--
-        } else {
-          diff.unshift({ type: 'delete', line: a[i - 1], originalIndex: i - 1 })
-          i--
-        }
-      }
-      
-      return diff
     }
     
-    const diff = lcs(originalLines, targetLines)
+    if (differences.length === 0) return chunks
     
-    // Group consecutive changes into chunks
-    let currentChunk: ChangeChunk | null = null
-    let lineNumber = 1
+    // Group consecutive differences into chunks
+    let currentChunk: {
+      startIndex: number
+      endIndex: number
+      originalLines: string[]
+      targetLines: string[]
+    } | null = null
     
-    for (let i = 0; i < diff.length; i++) {
-      const item = diff[i]
+    for (let i = 0; i < differences.length; i++) {
+      const diff = differences[i]
+      const nextDiff = differences[i + 1]
       
-      if (item.type === 'equal') {
-        // End current chunk if exists
-        if (currentChunk) {
-          chunks.push(currentChunk)
-          currentChunk = null
+      if (!currentChunk) {
+        // Start new chunk
+        currentChunk = {
+          startIndex: diff.index,
+          endIndex: diff.index,
+          originalLines: [diff.original],
+          targetLines: [diff.target]
         }
-        lineNumber++
       } else {
-        // Start new chunk or continue existing one
-        if (!currentChunk) {
+        // Check if this difference is consecutive to the current chunk
+        if (diff.index === currentChunk.endIndex + 1) {
+          // Extend current chunk
+          currentChunk.endIndex = diff.index
+          currentChunk.originalLines.push(diff.original)
+          currentChunk.targetLines.push(diff.target)
+        } else {
+          // Gap found, finish current chunk and start new one
+          chunks.push(createChunkFromGroup(currentChunk, chunkId++))
           currentChunk = {
-            id: `chunk-${chunkId++}`,
-            type: 'modification', // Will be updated based on content
-            startLine: lineNumber,
-            endLine: lineNumber,
-            originalLines: [],
-            targetLines: [],
+            startIndex: diff.index,
+            endIndex: diff.index,
+            originalLines: [diff.original],
+            targetLines: [diff.target]
           }
         }
-        
-        if (item.type === 'delete') {
-          currentChunk.originalLines.push(item.line)
-        } else if (item.type === 'insert') {
-          currentChunk.targetLines.push(item.line)
-        }
-        
-        // Update chunk type
-        if (currentChunk.originalLines.length > 0 && currentChunk.targetLines.length === 0) {
-          currentChunk.type = 'deletion'
-        } else if (currentChunk.originalLines.length === 0 && currentChunk.targetLines.length > 0) {
-          currentChunk.type = 'addition'
-        } else {
-          currentChunk.type = 'modification'
-        }
-        
-        currentChunk.endLine = lineNumber + currentChunk.originalLines.length + currentChunk.targetLines.length - 1
       }
-    }
-    
-    // Don't forget the last chunk
-    if (currentChunk) {
-      chunks.push(currentChunk)
+      
+      // If this is the last difference or next difference is not consecutive, finish chunk
+      if (!nextDiff || nextDiff.index !== diff.index + 1) {
+        chunks.push(createChunkFromGroup(currentChunk, chunkId++))
+        currentChunk = null
+      }
     }
     
     return chunks
   }, [])
 
-  // Calculate display lines and decorations based on chunks
+  // Helper function to create chunk from grouped differences
+  const createChunkFromGroup = (group: {
+    startIndex: number
+    endIndex: number
+    originalLines: string[]
+    targetLines: string[]
+  }, chunkId: number): ChangeChunk => {
+    // Filter out empty lines to determine chunk type
+    const nonEmptyOriginal = group.originalLines.filter(line => line.trim() !== '')
+    const nonEmptyTarget = group.targetLines.filter(line => line.trim() !== '')
+    
+    let chunkType: 'addition' | 'deletion' | 'modification'
+    
+    if (nonEmptyOriginal.length === 0) {
+      chunkType = 'addition'
+    } else if (nonEmptyTarget.length === 0) {
+      chunkType = 'deletion'
+    } else {
+      chunkType = 'modification'
+    }
+    
+    return {
+      id: `chunk-${chunkId}`,
+      type: chunkType,
+      startLine: group.startIndex,
+      endLine: group.endIndex,
+      originalLines: group.originalLines,
+      targetLines: group.targetLines,
+    }
+  }
+
+  // FIX: Remove the huge gaps in display
   const applyChunksToDisplay = useCallback((
     original: string,
     chunks: ChangeChunk[],
     appliedChunks: Set<string>
   ) => {
-    console.log(`=== applyChunksToDisplay ===`)
-    console.log('Original lines count:', original.split('\n').length)
-    console.log('Chunks:', chunks)
-    console.log('Applied chunks:', appliedChunks)
-    
     const originalLines = original.split('\n')
     const displayLines: string[] = []
     const decorations: monaco.editor.IModelDeltaDecoration[] = []
-    const lineToChunkMap = new Map<number, string>() // Map display line number to chunk ID
+    const lineToChunkMap = new Map<number, string>()
     
-    let originalIndex = 0
     let displayLineNumber = 1
+    let originalIndex = 0
     
-    // Process each chunk in order
-    for (const chunk of chunks) {
-      console.log(`Processing chunk ${chunk.id}:`, chunk)
+    // Sort chunks by start line
+    const sortedChunks = [...chunks].sort((a, b) => a.startLine - b.startLine)
+    let chunkIndex = 0
+    
+    while (originalIndex < originalLines.length || chunkIndex < sortedChunks.length) {
+      const currentChunk = sortedChunks[chunkIndex]
       
-      // Add unchanged lines before this chunk
-      const chunkStartIndex = originalLines.findIndex((line, idx) => 
-        idx >= originalIndex && chunk.originalLines.includes(line)
-      )
-      
-      console.log(`Chunk ${chunk.id}: chunkStartIndex=${chunkStartIndex}, originalIndex=${originalIndex}`)
-      
-      if (chunkStartIndex === -1 && chunk.type !== 'addition') {
-        console.log(`Skipping chunk ${chunk.id}: no start index found`)
-        continue
-      }
-      
-      // Add unchanged lines before the chunk
-      if (chunk.type !== 'addition') {
-        while (originalIndex < chunkStartIndex) {
-          displayLines.push(originalLines[originalIndex])
-          console.log(`Added unchanged line ${displayLineNumber}: ${originalLines[originalIndex]}`)
+      // If no more chunks or we haven't reached the next chunk yet
+      if (!currentChunk || originalIndex < currentChunk.startLine) {
+        // Add original line (but skip empty lines that might cause gaps)
+        if (originalIndex < originalLines.length) {
+          const line = originalLines[originalIndex]
+          displayLines.push(line)
           originalIndex++
           displayLineNumber++
-        }
-      }
-      
-      const isApplied = appliedChunks.has(chunk.id)
-      console.log(`Chunk ${chunk.id} isApplied: ${isApplied}`)
-      
-      if (chunk.type === 'deletion') {
-        if (!isApplied) {
-          // Show deleted lines with strike-through
-          for (const line of chunk.originalLines) {
-            displayLines.push(line)
-            lineToChunkMap.set(displayLineNumber, chunk.id)
-            console.log(`Added deletion line ${displayLineNumber} for chunk ${chunk.id}: ${line}`)
-            decorations.push({
-              range: new monaco.Range(displayLineNumber, 1, displayLineNumber, 1),
-              options: {
-                isWholeLine: true,
-                className: "removed-line-decoration",
-                glyphMarginClassName: "removed-line-glyph",
-                linesDecorationsClassName: "removed-line-number",
-                minimap: { color: "rgb(255, 0, 0, 0.2)", position: 2 },
-              },
-            })
-            displayLineNumber++
-          }
-        }
-        originalIndex += chunk.originalLines.length
-      } else if (chunk.type === 'addition') {
-        if (!isApplied) {
-          // Show added lines with green background
-          for (const line of chunk.targetLines) {
-            displayLines.push(line)
-            lineToChunkMap.set(displayLineNumber, chunk.id)
-            console.log(`Added addition line ${displayLineNumber} for chunk ${chunk.id}: ${line}`)
-            decorations.push({
-              range: new monaco.Range(displayLineNumber, 1, displayLineNumber, 1),
-              options: {
-                isWholeLine: true,
-                className: "added-line-decoration",
-                glyphMarginClassName: "added-line-glyph",
-                linesDecorationsClassName: "added-line-number",
-                minimap: { color: "rgb(0, 255, 0, 0.2)", position: 2 },
-              },
-            })
-            displayLineNumber++
-          }
         } else {
-          // If accepted, show without decoration
-          for (const line of chunk.targetLines) {
-            displayLines.push(line)
-            console.log(`Added accepted addition line ${displayLineNumber}: ${line}`)
-            displayLineNumber++
+          break
+        }
+      } else {
+        // We're at a chunk
+        const isApplied = appliedChunks.has(currentChunk.id)
+        
+        if (currentChunk.type === 'deletion') {
+          if (isApplied) {
+            // Skip deleted lines completely - don't add empty space
+            originalIndex += currentChunk.originalLines.length
+          } else {
+            // Show lines to be deleted with decoration
+            for (const line of currentChunk.originalLines) {
+              displayLines.push(line)
+              lineToChunkMap.set(displayLineNumber, currentChunk.id)
+              decorations.push({
+                range: new monaco.Range(displayLineNumber, 1, displayLineNumber, 1),
+                options: {
+                  isWholeLine: true,
+                  className: "removed-line-decoration",
+                  glyphMarginClassName: "removed-line-glyph",
+                  linesDecorationsClassName: "removed-line-number",
+                  minimap: { color: "rgb(255, 0, 0, 0.2)", position: 2 },
+                },
+              })
+              displayLineNumber++
+            }
+            originalIndex += currentChunk.originalLines.length
+          }
+        } else if (currentChunk.type === 'addition') {
+          if (isApplied) {
+            // Add the new lines
+            for (const line of currentChunk.targetLines) {
+              displayLines.push(line)
+              displayLineNumber++
+            }
+          } else {
+            // Show lines to be added with decoration
+            for (const line of currentChunk.targetLines) {
+              displayLines.push(line)
+              lineToChunkMap.set(displayLineNumber, currentChunk.id)
+              decorations.push({
+                range: new monaco.Range(displayLineNumber, 1, displayLineNumber, 1),
+                options: {
+                  isWholeLine: true,
+                  className: "added-line-decoration",
+                  glyphMarginClassName: "added-line-glyph",
+                  linesDecorationsClassName: "added-line-number",
+                  minimap: { color: "rgb(0, 255, 0, 0.2)", position: 2 },
+                },
+              })
+              displayLineNumber++
+            }
+          }
+          // DON'T increment originalIndex for additions since they don't replace original lines
+        } else if (currentChunk.type === 'modification') {
+          if (isApplied) {
+            // Show only new lines
+            for (const line of currentChunk.targetLines) {
+              displayLines.push(line)
+              displayLineNumber++
+            }
+            originalIndex += currentChunk.originalLines.length
+          } else {
+            // Show old lines with deletion decoration
+            for (const line of currentChunk.originalLines) {
+              displayLines.push(line)
+              lineToChunkMap.set(displayLineNumber, currentChunk.id)
+              decorations.push({
+                range: new monaco.Range(displayLineNumber, 1, displayLineNumber, 1),
+                options: {
+                  isWholeLine: true,
+                  className: "removed-line-decoration",
+                  glyphMarginClassName: "removed-line-glyph",
+                  linesDecorationsClassName: "removed-line-number",
+                  minimap: { color: "rgb(255, 0, 0, 0.2)", position: 2 },
+                },
+              })
+              displayLineNumber++
+            }
+            // Show new lines with addition decoration
+            for (const line of currentChunk.targetLines) {
+              displayLines.push(line)
+              lineToChunkMap.set(displayLineNumber, currentChunk.id)
+              decorations.push({
+                range: new monaco.Range(displayLineNumber, 1, displayLineNumber, 1),
+                options: {
+                  isWholeLine: true,
+                  className: "added-line-decoration",
+                  glyphMarginClassName: "added-line-glyph",
+                  linesDecorationsClassName: "added-line-number",
+                  minimap: { color: "rgb(0, 255, 0, 0.2)", position: 2 },
+                },
+              })
+              displayLineNumber++
+            }
+            originalIndex += currentChunk.originalLines.length
           }
         }
-      } else if (chunk.type === 'modification') {
-        if (!isApplied) {
-          // Show both old and new lines
-          for (const line of chunk.originalLines) {
-            displayLines.push(line)
-            lineToChunkMap.set(displayLineNumber, chunk.id)
-            console.log(`Added modification removal line ${displayLineNumber} for chunk ${chunk.id}: ${line}`)
-            decorations.push({
-              range: new monaco.Range(displayLineNumber, 1, displayLineNumber, 1),
-              options: {
-                isWholeLine: true,
-                className: "removed-line-decoration",
-                glyphMarginClassName: "removed-line-glyph",
-                linesDecorationsClassName: "removed-line-number",
-                minimap: { color: "rgb(255, 0, 0, 0.2)", position: 2 },
-              },
-            })
-            displayLineNumber++
-          }
-          for (const line of chunk.targetLines) {
-            displayLines.push(line)
-            lineToChunkMap.set(displayLineNumber, chunk.id)
-            console.log(`Added modification addition line ${displayLineNumber} for chunk ${chunk.id}: ${line}`)
-            decorations.push({
-              range: new monaco.Range(displayLineNumber, 1, displayLineNumber, 1),
-              options: {
-                isWholeLine: true,
-                className: "added-line-decoration",
-                glyphMarginClassName: "added-line-glyph",
-                linesDecorationsClassName: "added-line-number",
-                minimap: { color: "rgb(0, 255, 0, 0.2)", position: 2 },
-              },
-            })
-            displayLineNumber++
-          }
-        } else {
-          // If accepted, only show new lines
-          for (const line of chunk.targetLines) {
-            displayLines.push(line)
-            console.log(`Added accepted modification line ${displayLineNumber}: ${line}`)
-            displayLineNumber++
-          }
-        }
-        originalIndex += chunk.originalLines.length
+        
+        chunkIndex++
       }
     }
     
-    // Add remaining unchanged lines
-    while (originalIndex < originalLines.length) {
-      displayLines.push(originalLines[originalIndex])
-      console.log(`Added remaining unchanged line ${displayLineNumber}: ${originalLines[originalIndex]}`)
-      originalIndex++
-      displayLineNumber++
+    // Remove any trailing empty lines that might cause gaps
+    while (displayLines.length > 0 && displayLines[displayLines.length - 1].trim() === '') {
+      displayLines.pop()
     }
-    
-    console.log(`Final lineToChunkMap:`, Array.from(lineToChunkMap.entries()))
-    console.log(`Total display lines: ${displayLines.length}`)
-    console.log(`Total decorations: ${decorations.length}`)
     
     return { displayLines, decorations, lineToChunkMap }
   }, [])
