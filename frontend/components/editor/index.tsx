@@ -54,6 +54,7 @@ import Tab from "../ui/tab"
 import AIChat from "./AIChat"
 import GenerateInput from "./generate"
 // import { Cursors } from "./live/cursors"
+import DiffLineControls from "./AIChat/DiffLineControls"
 import ChangesAlert, { AlertState } from "./changes-alert"
 import DisableAccessModal from "./live/disableModal"
 import Loading from "./loading"
@@ -133,6 +134,25 @@ export default function CodeEditor({
   >([])
   const [mergeDecorationsCollection, setMergeDecorationsCollection] =
     useState<monaco.editor.IEditorDecorationsCollection>()
+
+  // State for tracking applied changes - REPLACED WITH IMPROVED CHUNK SYSTEM
+  const [originalCode, setOriginalCode] = useState<string>("")
+  const [targetCode, setTargetCode] = useState<string>("")
+
+  // Define a type for change chunks
+  interface ChangeChunk {
+    id: string
+    type: 'addition' | 'deletion' | 'modification'
+    startLine: number
+    endLine: number
+    originalLines: string[]
+    targetLines: string[]
+    decorationIds?: string[]
+  }
+
+  // State for tracking chunks
+  const [changeChunks, setChangeChunks] = useState<ChangeChunk[]>([])
+  const [appliedChunks, setAppliedChunks] = useState<Set<string>>(new Set())
 
   // Editor state
   const [editorLanguage, setEditorLanguage] = useState("plaintext")
@@ -405,132 +425,362 @@ export default function CodeEditor({
     [editorRef]
   )
 
-  // handle apply code
+  // Improved diff algorithm using Myers' diff algorithm concepts
+  const calculateDiffChunks = useCallback((original: string, target: string): ChangeChunk[] => {
+    const originalLines = original.split('\n')
+    const targetLines = target.split('\n')
+    
+    // Use a simple LCS-based approach to find differences
+    const chunks: ChangeChunk[] = []
+    let chunkId = 0
+    
+    // Create a simple diff using dynamic programming
+    const lcs = (a: string[], b: string[]) => {
+      const m = a.length
+      const n = b.length
+      const dp: number[][] = Array(m + 1).fill(null).map(() => Array(n + 1).fill(0))
+      
+      for (let i = 1; i <= m; i++) {
+        for (let j = 1; j <= n; j++) {
+          if (a[i - 1] === b[j - 1]) {
+            dp[i][j] = dp[i - 1][j - 1] + 1
+          } else {
+            dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1])
+          }
+        }
+      }
+      
+      // Backtrack to find the actual diff
+      const diff: Array<{ type: 'equal' | 'delete' | 'insert', line: string, originalIndex?: number, targetIndex?: number }> = []
+      let i = m, j = n
+      
+      while (i > 0 || j > 0) {
+        if (i > 0 && j > 0 && a[i - 1] === b[j - 1]) {
+          diff.unshift({ type: 'equal', line: a[i - 1], originalIndex: i - 1, targetIndex: j - 1 })
+          i--
+          j--
+        } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
+          diff.unshift({ type: 'insert', line: b[j - 1], targetIndex: j - 1 })
+          j--
+        } else {
+          diff.unshift({ type: 'delete', line: a[i - 1], originalIndex: i - 1 })
+          i--
+        }
+      }
+      
+      return diff
+    }
+    
+    const diff = lcs(originalLines, targetLines)
+    
+    // Group consecutive changes into chunks
+    let currentChunk: ChangeChunk | null = null
+    let lineNumber = 1
+    
+    for (let i = 0; i < diff.length; i++) {
+      const item = diff[i]
+      
+      if (item.type === 'equal') {
+        // End current chunk if exists
+        if (currentChunk) {
+          chunks.push(currentChunk)
+          currentChunk = null
+        }
+        lineNumber++
+      } else {
+        // Start new chunk or continue existing one
+        if (!currentChunk) {
+          currentChunk = {
+            id: `chunk-${chunkId++}`,
+            type: 'modification', // Will be updated based on content
+            startLine: lineNumber,
+            endLine: lineNumber,
+            originalLines: [],
+            targetLines: [],
+          }
+        }
+        
+        if (item.type === 'delete') {
+          currentChunk.originalLines.push(item.line)
+        } else if (item.type === 'insert') {
+          currentChunk.targetLines.push(item.line)
+        }
+        
+        // Update chunk type
+        if (currentChunk.originalLines.length > 0 && currentChunk.targetLines.length === 0) {
+          currentChunk.type = 'deletion'
+        } else if (currentChunk.originalLines.length === 0 && currentChunk.targetLines.length > 0) {
+          currentChunk.type = 'addition'
+        } else {
+          currentChunk.type = 'modification'
+        }
+        
+        currentChunk.endLine = lineNumber + currentChunk.originalLines.length + currentChunk.targetLines.length - 1
+      }
+    }
+    
+    // Don't forget the last chunk
+    if (currentChunk) {
+      chunks.push(currentChunk)
+    }
+    
+    return chunks
+  }, [])
+
+  // Calculate display lines and decorations based on chunks
+  const applyChunksToDisplay = useCallback((
+    original: string,
+    chunks: ChangeChunk[],
+    appliedChunks: Set<string>
+  ) => {
+    console.log(`=== applyChunksToDisplay ===`)
+    console.log('Original lines count:', original.split('\n').length)
+    console.log('Chunks:', chunks)
+    console.log('Applied chunks:', appliedChunks)
+    
+    const originalLines = original.split('\n')
+    const displayLines: string[] = []
+    const decorations: monaco.editor.IModelDeltaDecoration[] = []
+    const lineToChunkMap = new Map<number, string>() // Map display line number to chunk ID
+    
+    let originalIndex = 0
+    let displayLineNumber = 1
+    
+    // Process each chunk in order
+    for (const chunk of chunks) {
+      console.log(`Processing chunk ${chunk.id}:`, chunk)
+      
+      // Add unchanged lines before this chunk
+      const chunkStartIndex = originalLines.findIndex((line, idx) => 
+        idx >= originalIndex && chunk.originalLines.includes(line)
+      )
+      
+      console.log(`Chunk ${chunk.id}: chunkStartIndex=${chunkStartIndex}, originalIndex=${originalIndex}`)
+      
+      if (chunkStartIndex === -1 && chunk.type !== 'addition') {
+        console.log(`Skipping chunk ${chunk.id}: no start index found`)
+        continue
+      }
+      
+      // Add unchanged lines before the chunk
+      if (chunk.type !== 'addition') {
+        while (originalIndex < chunkStartIndex) {
+          displayLines.push(originalLines[originalIndex])
+          console.log(`Added unchanged line ${displayLineNumber}: ${originalLines[originalIndex]}`)
+          originalIndex++
+          displayLineNumber++
+        }
+      }
+      
+      const isApplied = appliedChunks.has(chunk.id)
+      console.log(`Chunk ${chunk.id} isApplied: ${isApplied}`)
+      
+      if (chunk.type === 'deletion') {
+        if (!isApplied) {
+          // Show deleted lines with strike-through
+          for (const line of chunk.originalLines) {
+            displayLines.push(line)
+            lineToChunkMap.set(displayLineNumber, chunk.id)
+            console.log(`Added deletion line ${displayLineNumber} for chunk ${chunk.id}: ${line}`)
+            decorations.push({
+              range: new monaco.Range(displayLineNumber, 1, displayLineNumber, 1),
+              options: {
+                isWholeLine: true,
+                className: "removed-line-decoration",
+                glyphMarginClassName: "removed-line-glyph",
+                linesDecorationsClassName: "removed-line-number",
+                minimap: { color: "rgb(255, 0, 0, 0.2)", position: 2 },
+              },
+            })
+            displayLineNumber++
+          }
+        }
+        originalIndex += chunk.originalLines.length
+      } else if (chunk.type === 'addition') {
+        if (!isApplied) {
+          // Show added lines with green background
+          for (const line of chunk.targetLines) {
+            displayLines.push(line)
+            lineToChunkMap.set(displayLineNumber, chunk.id)
+            console.log(`Added addition line ${displayLineNumber} for chunk ${chunk.id}: ${line}`)
+            decorations.push({
+              range: new monaco.Range(displayLineNumber, 1, displayLineNumber, 1),
+              options: {
+                isWholeLine: true,
+                className: "added-line-decoration",
+                glyphMarginClassName: "added-line-glyph",
+                linesDecorationsClassName: "added-line-number",
+                minimap: { color: "rgb(0, 255, 0, 0.2)", position: 2 },
+              },
+            })
+            displayLineNumber++
+          }
+        } else {
+          // If accepted, show without decoration
+          for (const line of chunk.targetLines) {
+            displayLines.push(line)
+            console.log(`Added accepted addition line ${displayLineNumber}: ${line}`)
+            displayLineNumber++
+          }
+        }
+      } else if (chunk.type === 'modification') {
+        if (!isApplied) {
+          // Show both old and new lines
+          for (const line of chunk.originalLines) {
+            displayLines.push(line)
+            lineToChunkMap.set(displayLineNumber, chunk.id)
+            console.log(`Added modification removal line ${displayLineNumber} for chunk ${chunk.id}: ${line}`)
+            decorations.push({
+              range: new monaco.Range(displayLineNumber, 1, displayLineNumber, 1),
+              options: {
+                isWholeLine: true,
+                className: "removed-line-decoration",
+                glyphMarginClassName: "removed-line-glyph",
+                linesDecorationsClassName: "removed-line-number",
+                minimap: { color: "rgb(255, 0, 0, 0.2)", position: 2 },
+              },
+            })
+            displayLineNumber++
+          }
+          for (const line of chunk.targetLines) {
+            displayLines.push(line)
+            lineToChunkMap.set(displayLineNumber, chunk.id)
+            console.log(`Added modification addition line ${displayLineNumber} for chunk ${chunk.id}: ${line}`)
+            decorations.push({
+              range: new monaco.Range(displayLineNumber, 1, displayLineNumber, 1),
+              options: {
+                isWholeLine: true,
+                className: "added-line-decoration",
+                glyphMarginClassName: "added-line-glyph",
+                linesDecorationsClassName: "added-line-number",
+                minimap: { color: "rgb(0, 255, 0, 0.2)", position: 2 },
+              },
+            })
+            displayLineNumber++
+          }
+        } else {
+          // If accepted, only show new lines
+          for (const line of chunk.targetLines) {
+            displayLines.push(line)
+            console.log(`Added accepted modification line ${displayLineNumber}: ${line}`)
+            displayLineNumber++
+          }
+        }
+        originalIndex += chunk.originalLines.length
+      }
+    }
+    
+    // Add remaining unchanged lines
+    while (originalIndex < originalLines.length) {
+      displayLines.push(originalLines[originalIndex])
+      console.log(`Added remaining unchanged line ${displayLineNumber}: ${originalLines[originalIndex]}`)
+      originalIndex++
+      displayLineNumber++
+    }
+    
+    console.log(`Final lineToChunkMap:`, Array.from(lineToChunkMap.entries()))
+    console.log(`Total display lines: ${displayLines.length}`)
+    console.log(`Total decorations: ${decorations.length}`)
+    
+    return { displayLines, decorations, lineToChunkMap }
+  }, [])
+
+  // Updated handleApplyCode
   const handleApplyCode = useCallback(
     (mergedCode: string, originalCode: string) => {
-      if (!editorRef) return
+      console.log('=== handleApplyCode called ===')
+      console.log('editorRef:', !!editorRef)
+      console.log('mergedCode length:', mergedCode.length)
+      console.log('originalCode length:', originalCode.length)
+      
+      if (!editorRef) {
+        console.error('handleApplyCode failed: editorRef is null')
+        return
+      }
+      
       const model = editorRef.getModel()
-      if (!model) return
+      console.log('model:', !!model)
+      
+      if (!model) {
+        console.error('handleApplyCode failed: model is null')
+        return
+      }
+
+      console.log('handleApplyCode proceeding with merge...')
+      
+      // Store the original and target code
+      setOriginalCode(originalCode)
+      setTargetCode(mergedCode)
+      
+      // Calculate chunks
+      const chunks = calculateDiffChunks(originalCode, mergedCode)
+      console.log('calculated chunks:', chunks.length)
+      setChangeChunks(chunks)
+      setAppliedChunks(new Set()) // Reset applied chunks
+      
+      // Store original content on the model for reset functionality
       ;(model as any).originalContent = originalCode
-
-      const originalLines = originalCode.split("\n")
-      const mergedLines = mergedCode.split("\n")
-      const decorations: monaco.editor.IModelDeltaDecoration[] = []
-      const combinedLines: string[] = []
-
-      let i = 0
-      let inDiffBlock = false
-      let diffBlockStart = 0
-      let originalBlock: string[] = []
-      let mergedBlock: string[] = []
-
-      while (i < Math.max(originalLines.length, mergedLines.length)) {
-        if (originalLines[i] !== mergedLines[i]) {
-          if (!inDiffBlock) {
-            inDiffBlock = true
-            diffBlockStart = combinedLines.length
-            originalBlock = []
-            mergedBlock = []
-          }
-
-          if (i < originalLines.length) originalBlock.push(originalLines[i])
-          if (i < mergedLines.length) mergedBlock.push(mergedLines[i])
-        } else {
-          if (inDiffBlock) {
-            // Add the entire original block with deletion decoration
-            originalBlock.forEach((line) => {
-              combinedLines.push(line)
-              decorations.push({
-                range: new monaco.Range(
-                  combinedLines.length,
-                  1,
-                  combinedLines.length,
-                  1
-                ),
-                options: {
-                  isWholeLine: true,
-                  className: "removed-line-decoration",
-                  glyphMarginClassName: "removed-line-glyph",
-                  linesDecorationsClassName: "removed-line-number",
-                  minimap: { color: "rgb(255, 0, 0, 0.2)", position: 2 },
-                },
-              })
-            })
-
-            // Add the entire merged block with addition decoration
-            mergedBlock.forEach((line) => {
-              combinedLines.push(line)
-              decorations.push({
-                range: new monaco.Range(
-                  combinedLines.length,
-                  1,
-                  combinedLines.length,
-                  1
-                ),
-                options: {
-                  isWholeLine: true,
-                  className: "added-line-decoration",
-                  glyphMarginClassName: "added-line-glyph",
-                  linesDecorationsClassName: "added-line-number",
-                  minimap: { color: "rgb(0, 255, 0, 0.2)", position: 2 },
-                },
-              })
-            })
-
-            inDiffBlock = false
-          }
-
-          combinedLines.push(originalLines[i])
-        }
-        i++
-      }
-
-      // Handle any remaining diff block at the end
-      if (inDiffBlock) {
-        originalBlock.forEach((line) => {
-          combinedLines.push(line)
-          decorations.push({
-            range: new monaco.Range(
-              combinedLines.length,
-              1,
-              combinedLines.length,
-              1
-            ),
-            options: {
-              isWholeLine: true,
-              className: "removed-line-decoration",
-              glyphMarginClassName: "removed-line-glyph",
-              linesDecorationsClassName: "removed-line-number",
-              minimap: { color: "rgb(255, 0, 0, 0.2)", position: 2 },
-            },
-          })
-        })
-
-        mergedBlock.forEach((line) => {
-          combinedLines.push(line)
-          decorations.push({
-            range: new monaco.Range(
-              combinedLines.length,
-              1,
-              combinedLines.length,
-              1
-            ),
-            options: {
-              isWholeLine: true,
-              className: "added-line-decoration",
-              glyphMarginClassName: "added-line-glyph",
-              linesDecorationsClassName: "added-line-number",
-              minimap: { color: "rgb(0, 255, 0, 0.2)", position: 2 },
-            },
-          })
-        })
-      }
-
-      model.setValue(combinedLines.join("\n"))
+      
+      // Calculate initial display
+      const result = applyChunksToDisplay(originalCode, chunks, new Set())
+      const { displayLines, decorations, lineToChunkMap } = result
+      
+      model.setValue(displayLines.join("\n"))
       const newDecorations = editorRef.createDecorationsCollection(decorations)
       setMergeDecorationsCollection(newDecorations)
+      setMergeDecorations(decorations)
+      
+      console.log('handleApplyCode completed successfully')
     },
-    [editorRef]
+    [editorRef, calculateDiffChunks, applyChunksToDisplay]
+  )
+
+  // Function to handle accepting/rejecting chunks
+  const handleChunkAction = useCallback(
+    (chunkId: string, action: 'accept' | 'reject') => {
+      console.log(`=== handleChunkAction ===`)
+      console.log(`Action: ${action}, ChunkId: ${chunkId}`)
+      console.log('Current appliedChunks:', appliedChunks)
+      console.log('Current changeChunks:', changeChunks)
+      
+      const newAppliedChunks = new Set(appliedChunks)
+      
+      if (action === 'accept') {
+        newAppliedChunks.add(chunkId)
+      } else {
+        newAppliedChunks.delete(chunkId)
+      }
+      
+      console.log('New appliedChunks:', newAppliedChunks)
+      setAppliedChunks(newAppliedChunks)
+      
+      // Recalculate display
+      const result = applyChunksToDisplay(
+        originalCode,
+        changeChunks,
+        newAppliedChunks
+      )
+      const { displayLines, decorations, lineToChunkMap } = result
+      
+      console.log('Recalculated lineToChunkMap:', Array.from(lineToChunkMap.entries()))
+      
+      const model = editorRef?.getModel()
+      if (model && mergeDecorationsCollection && editorRef) {
+        model.setValue(displayLines.join("\n"))
+        mergeDecorationsCollection.clear()
+        const newDecorations = editorRef.createDecorationsCollection(decorations)
+        setMergeDecorationsCollection(newDecorations)
+        setMergeDecorations(decorations)
+        console.log('Editor updated with new decorations')
+      } else {
+        console.error('Missing dependencies for editor update:', {
+          model: !!model,
+          mergeDecorationsCollection: !!mergeDecorationsCollection,
+          editorRef: !!editorRef
+        })
+      }
+    },
+    [editorRef, mergeDecorationsCollection, changeChunks, appliedChunks, originalCode, applyChunksToDisplay]
   )
 
   useEffect(() => {
@@ -1357,6 +1607,17 @@ export default function CodeEditor({
                         }}
                         value={activeFileContent}
                       />
+                      {/* Individual diff line controls */}
+                      {editorRef && (
+                        <DiffLineControls
+                          editorRef={editorRef}
+                          changeChunks={changeChunks}
+                          appliedChunks={appliedChunks}
+                          lineToChunkMap={applyChunksToDisplay(originalCode, changeChunks, appliedChunks).lineToChunkMap}
+                          onAcceptChunk={(chunkId) => handleChunkAction(chunkId, 'accept')}
+                          onRejectChunk={(chunkId) => handleChunkAction(chunkId, 'reject')}
+                        />
+                      )}
                     </>
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-xl font-medium text-muted-foreground/50 select-none">
@@ -1461,6 +1722,14 @@ export default function CodeEditor({
                   setMergeDecorationsCollection={setMergeDecorationsCollection}
                   selectFile={selectFile}
                   tabs={tabs}
+                  changeChunks={changeChunks}
+                  appliedChunks={appliedChunks}
+                  originalCode={originalCode}
+                  applyChunksToDisplay={applyChunksToDisplay}
+                  setChangeChunks={setChangeChunks}
+                  setAppliedChunks={setAppliedChunks}
+                  setOriginalCode={setOriginalCode}
+                  setTargetCode={setTargetCode}
                 />
               </ResizablePanel>
             </>

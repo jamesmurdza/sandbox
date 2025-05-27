@@ -23,7 +23,15 @@ export default function AIChat({
   mergeDecorationsCollection,
   setMergeDecorationsCollection,
   projectName,
-  tabs
+  tabs,
+  changeChunks,
+  appliedChunks,
+  originalCode,
+  applyChunksToDisplay,
+  setChangeChunks,
+  setAppliedChunks,
+  setOriginalCode,
+  setTargetCode,
 }: AIChatProps) {
   // Initialize socket and messages
   const { socket } = useSocket()
@@ -227,6 +235,14 @@ export default function AIChat({
             setMergeDecorationsCollection={setMergeDecorationsCollection}
             selectFile={selectFile}
             tabs={tabs}
+            changeChunks={changeChunks}
+            appliedChunks={appliedChunks}
+            originalCode={originalCode}
+            applyChunksToDisplay={applyChunksToDisplay}
+            setChangeChunks={setChangeChunks}
+            setAppliedChunks={setAppliedChunks}
+            setOriginalCode={setOriginalCode}
+            setTargetCode={setTargetCode}
           />
         ))}
         {isLoading && <LoadingDots />}

@@ -22,6 +22,14 @@ export default function ChatMessage({
   setMergeDecorationsCollection,
   selectFile,
   tabs,
+  changeChunks,
+  appliedChunks,
+  originalCode,
+  applyChunksToDisplay,
+  setChangeChunks,
+  setAppliedChunks,
+  setOriginalCode,
+  setTargetCode,
 }: MessageProps) {
   const { resolvedTheme: theme } = useTheme()
   // State for expanded message index
@@ -123,7 +131,15 @@ export default function ChatMessage({
     selectFile,
     tabs,
     mergeDecorationsCollection,
-    setMergeDecorationsCollection
+    setMergeDecorationsCollection,
+    changeChunks,
+    appliedChunks,
+    originalCode,
+    applyChunksToDisplay,
+    setChangeChunks,
+    setAppliedChunks,
+    setOriginalCode,
+    setTargetCode
   )
 
   return (

@@ -48,6 +48,7 @@ export default function ApplyButton({
           mergedCode += decoder.decode(value, { stream: true })
         }
       }
+      
       onApply(mergedCode.trim(), activeFileContent)
     } catch (error) {
       console.error("Error applying code:", error)

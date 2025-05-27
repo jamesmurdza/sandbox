@@ -238,6 +238,85 @@
   color: #28a745 !important;
 }
 
+/* New decoration styles for accepted/rejected individual lines */
+.accepted-addition-decoration {
+  background-color: rgba(0, 255, 0, 0.2);
+  position: relative;
+  opacity: 0.8;
+}
+
+.accepted-addition-decoration::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  border-right: 2px solid rgba(0, 255, 0, 0.6);
+}
+
+.accepted-removal-decoration {
+  background-color: rgba(255, 0, 0, 0.2);
+  text-decoration: line-through;
+  opacity: 0.8;
+  position: relative;
+}
+
+.accepted-removal-decoration::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  border-right: 2px solid rgba(255, 0, 0, 0.6);
+}
+
+.rejected-addition-decoration {
+  background-color: rgba(128, 128, 128, 0.2);
+  text-decoration: line-through;
+  opacity: 0.5;
+  position: relative;
+}
+
+.rejected-addition-decoration::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  border-right: 2px solid rgba(128, 128, 128, 0.6);
+}
+
+.rejected-removal-decoration {
+  background-color: rgba(128, 128, 128, 0.2);
+  opacity: 0.5;
+  position: relative;
+}
+
+.rejected-removal-decoration::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  border-right: 2px solid rgba(128, 128, 128, 0.6);
+}
+
+.diff-line-hover-controls {
+  transition: opacity 0.2s ease-in-out;
+}
+
+.diff-line-hover-controls button {
+  transition: all 0.2s ease-in-out;
+}
+
+.diff-line-hover-controls button:hover {
+  transform: scale(1.1);
+}
+
 .styled-scrollbar {
   --scrollbar-bg: hsl(var(--background));
   --scrollbar-thumb: hsl(var(--muted-foreground));

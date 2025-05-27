@@ -12,6 +12,16 @@ import { Button } from "../../../ui/button"
 import ApplyButton from "../ApplyButton"
 import { isFilePath, stringifyContent } from "./chatUtils"
 
+// Define ChangeChunk interface
+interface ChangeChunk {
+  id: string
+  type: 'addition' | 'deletion' | 'modification'
+  startLine: number
+  endLine: number
+  originalLines: string[]
+  targetLines: string[]
+}
+
 // Create markdown components for chat message component
 export const createMarkdownComponents = (
   theme: string,
@@ -25,7 +35,15 @@ export const createMarkdownComponents = (
   selectFile: (tab: TTab) => void,
   tabs: TTab[],
   mergeDecorationsCollection?: monaco.editor.IEditorDecorationsCollection,
-  setMergeDecorationsCollection?: (collection: undefined) => void
+  setMergeDecorationsCollection?: (collection: undefined) => void,
+  changeChunks?: ChangeChunk[],
+  appliedChunks?: Set<string>,
+  originalCode?: string,
+  applyChunksToDisplay?: (original: string, chunks: ChangeChunk[], applied: Set<string>) => { displayLines: string[], decorations: monaco.editor.IModelDeltaDecoration[] },
+  setChangeChunks?: React.Dispatch<React.SetStateAction<ChangeChunk[]>>,
+  setAppliedChunks?: React.Dispatch<React.SetStateAction<Set<string>>>,
+  setOriginalCode?: React.Dispatch<React.SetStateAction<string>>,
+  setTargetCode?: React.Dispatch<React.SetStateAction<string>>
 ): Components => ({
   code: ({
     node,
@@ -49,56 +67,44 @@ export const createMarkdownComponents = (
           <div className="flex border border-input shadow-lg bg-background rounded-md">
             {renderCopyButton(children)}
             <div className="w-px bg-input"></div>
-            {!mergeDecorationsCollection ? (
-              <ApplyButton
-                code={String(children)}
-                activeFileName={activeFileName}
-                activeFileContent={activeFileContent}
-                editorRef={editorRef}
-                onApply={handleApplyCode}
-              />
-            ) : (
+            {mergeDecorationsCollection ? (
               <>
                 <Button
                   onClick={() => {
                     if (
                       setMergeDecorationsCollection &&
                       mergeDecorationsCollection &&
-                      editorRef?.current
+                      editorRef?.current &&
+                      changeChunks &&
+                      originalCode &&
+                      applyChunksToDisplay
                     ) {
                       const model = editorRef.current.getModel()
                       if (model) {
-                        const lines = model.getValue().split("\n")
-                        const removedLines = new Set()
-
-                        // Get decorations line by line
-                        for (let i = 1; i <= lines.length; i++) {
-                          const lineDecorations = model.getLineDecorations(i)
-                          if (
-                            lineDecorations?.some(
-                              (d: any) =>
-                                d.options.className ===
-                                "removed-line-decoration"
-                            )
-                          ) {
-                            removedLines.add(i)
-                          }
-                        }
-
-                        const finalLines = lines.filter(
-                          (_: string, index: number) =>
-                            !removedLines.has(index + 1)
+                        // Accept all chunks
+                        const allChunkIds = changeChunks.map(chunk => chunk.id)
+                        const { displayLines } = applyChunksToDisplay(
+                          originalCode,
+                          changeChunks,
+                          new Set(allChunkIds)
                         )
-                        model.setValue(finalLines.join("\n"))
+                        
+                        model.setValue(displayLines.join("\n"))
+                        mergeDecorationsCollection.clear()
+                        setMergeDecorationsCollection(undefined)
+                        
+                        // Reset states
+                        if (setChangeChunks) setChangeChunks([])
+                        if (setAppliedChunks) setAppliedChunks(new Set())
+                        if (setOriginalCode) setOriginalCode("")
+                        if (setTargetCode) setTargetCode("")
                       }
-                      mergeDecorationsCollection.clear()
-                      setMergeDecorationsCollection(undefined)
                     }
                   }}
                   size="sm"
                   variant="ghost"
                   className="p-1 h-6"
-                  title="Accept Changes"
+                  title="Accept All Changes"
                 >
                   <Check className="w-4 h-4 text-green-500" />
                 </Button>
@@ -108,22 +114,35 @@ export const createMarkdownComponents = (
                     if (editorRef?.current && mergeDecorationsCollection) {
                       const model = editorRef.current.getModel()
                       if (model && (model as any).originalContent) {
-                        editorRef.current?.setValue(
-                          (model as any).originalContent
-                        )
+                        // Reject all changes - restore original
+                        model.setValue((model as any).originalContent)
                         mergeDecorationsCollection.clear()
                         setMergeDecorationsCollection?.(undefined)
+                        
+                        // Reset states
+                        if (setChangeChunks) setChangeChunks([])
+                        if (setAppliedChunks) setAppliedChunks(new Set())
+                        if (setOriginalCode) setOriginalCode("")
+                        if (setTargetCode) setTargetCode("")
                       }
                     }
                   }}
                   size="sm"
                   variant="ghost"
                   className="p-1 h-6"
-                  title="Discard Changes"
+                  title="Reject All Changes"
                 >
                   <X className="w-4 h-4 text-red-500" />
                 </Button>
               </>
+            ) : (
+              <ApplyButton
+                code={String(children)}
+                activeFileName={activeFileName}
+                activeFileContent={activeFileContent}
+                editorRef={editorRef}
+                onApply={handleApplyCode}
+              />
             )}
             <div className="w-px bg-input"></div>
             <Button

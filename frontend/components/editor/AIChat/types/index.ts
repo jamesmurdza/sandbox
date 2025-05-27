@@ -41,6 +41,16 @@ export interface ContextTab {
   lineRange?: { start: number; end: number }
 }
 
+// Define ChangeChunk interface
+interface ChangeChunk {
+  id: string
+  type: 'addition' | 'deletion' | 'modification'
+  startLine: number
+  endLine: number
+  originalLines: string[]
+  targetLines: string[]
+}
+
 // AIChat props interface
 export interface AIChatProps {
   activeFileContent: string
@@ -62,6 +72,14 @@ export interface AIChatProps {
   setMergeDecorationsCollection?: (collection: undefined) => void
   selectFile: (tab: TTab) => void
   tabs: TTab[]
+  changeChunks?: ChangeChunk[]
+  appliedChunks?: Set<string>
+  originalCode?: string
+  applyChunksToDisplay?: (original: string, chunks: ChangeChunk[], applied: Set<string>) => { displayLines: string[], decorations: monaco.editor.IModelDeltaDecoration[] }
+  setChangeChunks?: React.Dispatch<React.SetStateAction<ChangeChunk[]>>
+  setAppliedChunks?: React.Dispatch<React.SetStateAction<Set<string>>>
+  setOriginalCode?: React.Dispatch<React.SetStateAction<string>>
+  setTargetCode?: React.Dispatch<React.SetStateAction<string>>
 }
 
 // Chat input props interface
@@ -119,6 +137,14 @@ export interface MessageProps {
   setMergeDecorationsCollection?: (collection: undefined) => void
   selectFile: (tab: TTab) => void
   tabs: TTab[]
+  changeChunks?: ChangeChunk[]
+  appliedChunks?: Set<string>
+  originalCode?: string
+  applyChunksToDisplay?: (original: string, chunks: ChangeChunk[], applied: Set<string>) => { displayLines: string[], decorations: monaco.editor.IModelDeltaDecoration[] }
+  setChangeChunks?: React.Dispatch<React.SetStateAction<ChangeChunk[]>>
+  setAppliedChunks?: React.Dispatch<React.SetStateAction<Set<string>>>
+  setOriginalCode?: React.Dispatch<React.SetStateAction<string>>
+  setTargetCode?: React.Dispatch<React.SetStateAction<string>>
 }
 
 // Context tabs props interface
