@@ -81,7 +81,6 @@ export const createMarkdownComponents = (
                     ) {
                       const model = editorRef.current.getModel()
                       if (model) {
-                        // Accept all chunks
                         const allChunkIds = changeChunks.map(chunk => chunk.id)
                         const { displayLines } = applyChunksToDisplay(
                           originalCode,
@@ -93,7 +92,9 @@ export const createMarkdownComponents = (
                         mergeDecorationsCollection.clear()
                         setMergeDecorationsCollection(undefined)
                         
-                        // Reset states
+                        // Clean up model reference
+                        delete (model as any).originalContent
+                        
                         if (setChangeChunks) setChangeChunks([])
                         if (setAppliedChunks) setAppliedChunks(new Set())
                         if (setOriginalCode) setOriginalCode("")
@@ -114,12 +115,13 @@ export const createMarkdownComponents = (
                     if (editorRef?.current && mergeDecorationsCollection) {
                       const model = editorRef.current.getModel()
                       if (model && (model as any).originalContent) {
-                        // Reject all changes - restore original
                         model.setValue((model as any).originalContent)
                         mergeDecorationsCollection.clear()
                         setMergeDecorationsCollection?.(undefined)
                         
-                        // Reset states
+                        // Clean up model reference
+                        delete (model as any).originalContent
+                        
                         if (setChangeChunks) setChangeChunks([])
                         if (setAppliedChunks) setAppliedChunks(new Set())
                         if (setOriginalCode) setOriginalCode("")

@@ -1153,6 +1153,17 @@ export default function CodeEditor({
 
     setGenerate((prev) => ({ ...prev, show: false }))
 
+    // **ADD THIS: Reset diff state when switching files**
+    if (mergeDecorationsCollection) {
+      mergeDecorationsCollection.clear()
+      setMergeDecorationsCollection(undefined)
+    }
+    setChangeChunks([])
+    setAppliedChunks(new Set())
+    setOriginalCode("")
+    setTargetCode("")
+    setMergeDecorations([])
+
     // Normalize the file path and name for comparison
     const normalizedId = tab.id.replace(/^\/+/, "") // Remove leading slashes
     const fileName = tab.name.split("/").pop() || ""
