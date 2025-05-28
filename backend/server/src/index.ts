@@ -99,13 +99,7 @@ io.on("connection", async (socket) => {
     }
 
     // Register the connection
-    connections.addConnectionForProject(socket, data.projectId, data.isOwner)
-
-    // Disable access unless the project owner is connected
-    if (!data.isOwner && !connections.ownerIsConnected(data.projectId)) {
-      socket.emit("disableAccess", "The project owner is not connected.")
-      return
-    }
+    connections.addConnectionForProject(socket, data.projectId)
 
     try {
       // This callback recieves an update when the file list changes, and notifies all relevant connections.
@@ -158,21 +152,7 @@ io.on("connection", async (socket) => {
       socket.on("disconnect", async () => {
         try {
           // Deregister the connection
-          connections.removeConnectionForProject(
-            socket,
-            data.projectId,
-            data.isOwner
-          )
-
-          // If the owner has disconnected from all sockets, close open terminals and file watchers.o
-          // The project itself will timeout after the heartbeat stops.
-          if (data.isOwner && !connections.ownerIsConnected(data.projectId)) {
-            await project.disconnect()
-            socket.broadcast.emit(
-              "disableAccess",
-              "The project owner has disconnected."
-            )
-          }
+          connections.removeConnectionForProject(socket, data.projectId)
         } catch (e: any) {
           handleErrors("Error disconnecting:", e, socket)
         }
