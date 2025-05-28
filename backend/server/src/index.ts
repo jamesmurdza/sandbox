@@ -108,9 +108,6 @@ io.on("connection", async (socket) => {
     }
 
     try {
-      // Create or retrieve the project manager for the given project ID
-      const project = new Project(data.projectId, data.type, data.containerId)
-
       // This callback recieves an update when the file list changes, and notifies all relevant connections.
       const sendFileNotifications = (files: (TFolder | TFile)[]) => {
         connections
@@ -120,9 +117,10 @@ io.on("connection", async (socket) => {
           })
       }
 
-      // Initialize the project container
-      // The file manager and terminal managers will be set up if they have been closed
-      await project.initialize(sendFileNotifications)
+      // Create or retrieve the project container for the given project ID
+      const project = new Project(data.projectId, data.type, data.containerId)
+      await project.initialize()
+      await project.fileManager?.startWatching(sendFileNotifications)
       socket.emit("loaded", await project.fileManager?.getFileTree())
 
       // Register event handlers for the project

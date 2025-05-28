@@ -12,7 +12,6 @@ import {
 } from "./ratelimit"
 import { SecureGitClient } from "./SecureGitClient"
 import { TerminalManager } from "./TerminalManager"
-import { TFile, TFolder } from "./types"
 import { LockManager } from "./utils"
 
 import { eq } from "drizzle-orm"
@@ -56,8 +55,7 @@ export class Project {
     this.containerId = containerId
   }
 
-  // Initializes the project and the "container," which is an E2B sandbox
-  async initialize(fileWatchCallback?: (files: (TFolder | TFile)[]) => void) {
+  async initialize() {
     // Acquire a lock to ensure exclusive access to the container
     await lockManager.acquireLock(this.projectId, async () => {
       // If we have already initialized the container, connect to it.
@@ -107,12 +105,7 @@ export class Project {
 
     // Initialize the file manager if it hasn't been set up yet
     if (!this.fileManager) {
-      this.fileManager = new FileManager(
-        this.container,
-        fileWatchCallback ?? null
-      )
-      // Initialize the file manager and emit the initial files
-      await this.fileManager.initialize()
+      this.fileManager = new FileManager(this.container)
     }
   }
 
@@ -123,7 +116,7 @@ export class Project {
     // This way the terminal manager will be set up again if we reconnect
     this.terminalManager = null
     // Close all file watchers managed by the file manager
-    await this.fileManager?.closeWatchers()
+    await this.fileManager?.stopWatching()
     // This way the file manager will be set up again if we reconnect
     this.fileManager = null
   }

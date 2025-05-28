@@ -13,15 +13,14 @@ export class FileManager {
   private container: Container
   private fileWatchers: WatchHandle[] = []
   private dirName = "/home/user/project"
-  private refreshFileList: ((files: (TFolder | TFile)[]) => void) | null
+  private fileWatchCallback: ((files: (TFolder | TFile)[]) => void) | null =
+    null
 
   // Constructor to initialize the FileManager
-  constructor(
-    container: Container,
-    refreshFileList: ((files: (TFolder | TFile)[]) => void) | null
-  ) {
+  constructor(container: Container) {
     this.container = container
-    this.refreshFileList = refreshFileList
+    // Make the logged in user the owner of all project files
+    this.fixPermissions()
   }
 
   async getFileTree(): Promise<(TFolder | TFile)[]> {
@@ -76,12 +75,12 @@ export class FileManager {
     return root.children
   }
 
-  // Initialize the FileManager
-  async initialize() {
-    // Make the logged in user the owner of all project files
-    this.fixPermissions()
+  // Start watching the filesystem for changes
+  async startWatching(callback: (files: (TFolder | TFile)[]) => void) {
+    // Set the refresh callback
+    this.fileWatchCallback = callback
 
-    // Only watch the directories and subdirectories of the project directory
+    // Watch the directories and subdirectories of the project directory
     await this.watchDirectory(this.dirName)
     await this.watchSubdirectories(this.dirName)
   }
@@ -108,7 +107,7 @@ export class FileManager {
               event.type === FilesystemEventType.REMOVE ||
               event.type === FilesystemEventType.RENAME
             ) {
-              this.refreshFileList?.(await this.getFileTree())
+              this.fileWatchCallback?.(await this.getFileTree())
             }
           } catch (error) {
             console.error(
@@ -167,7 +166,7 @@ export class FileManager {
     await this.container.files.write(filePath, body)
 
     // Refresh the file tree in case saving creates a new file
-    this.refreshFileList?.(await this.getFileTree())
+    this.fileWatchCallback?.(await this.getFileTree())
     this.fixPermissions()
   }
 
@@ -252,7 +251,7 @@ export class FileManager {
   }
 
   // Close all file watchers
-  async closeWatchers() {
+  async stopWatching() {
     await Promise.all(
       this.fileWatchers.map(async (handle: WatchHandle) => {
         await handle.stop()
