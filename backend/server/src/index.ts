@@ -36,7 +36,6 @@ process.on("unhandledRejection", (reason, promise) => {
 
 // Initialize containers and managers
 const connections = new ConnectionManager()
-const projects: Record<string, Project> = {}
 
 // Load environment variables
 dotenv.config()
@@ -110,19 +109,7 @@ io.on("connection", async (socket) => {
 
     try {
       // Create or retrieve the project manager for the given project ID
-      const project =
-        projects[data.projectId] ??
-        new Project(
-          socket.handshake.auth.token,
-          data.projectId,
-          data.type,
-          data.containerId,
-          {
-            dokkuClient,
-            gitClient,
-          }
-        )
-      projects[data.projectId] = project
+      const project = new Project(data.projectId, data.type, data.containerId)
 
       // This callback recieves an update when the file list changes, and notifies all relevant connections.
       const sendFileNotifications = (files: (TFolder | TFile)[]) => {
@@ -142,11 +129,17 @@ io.on("connection", async (socket) => {
       // For each event handler, listen on the socket for that event
       // Pass connection-specific information to the handlers
       Object.entries(
-        project.handlers({
-          userId: data.userId,
-          isOwner: data.isOwner,
-          socket,
-        })
+        project.handlers(
+          {
+            userId: data.userId,
+            isOwner: data.isOwner,
+            socket,
+          },
+          {
+            dokkuClient,
+            gitClient,
+          }
+        )
       ).forEach(([event, handler]) => {
         socket.on(
           event,
@@ -194,7 +187,7 @@ io.on("connection", async (socket) => {
   }
 })
 app.use(express.json())
-const githubApi = new GitHubApiRoutes(projects)
+const githubApi = new GitHubApiRoutes()
 app.use("/api/github", githubApi.router)
 // Use the API routes
 app.use(async (req: any, res) => {

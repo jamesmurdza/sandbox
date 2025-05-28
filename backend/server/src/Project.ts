@@ -41,8 +41,6 @@ type ServerContext = {
 }
 
 export class Project {
-  // User authentication token
-  authToken: string | null
   // Project properties:
   projectId: string
   type: string
@@ -50,19 +48,8 @@ export class Project {
   terminalManager: TerminalManager | null
   container: Container | null
   containerId: string | null
-  // Server context:
-  dokkuClient: DokkuClient | null
-  gitClient: SecureGitClient | null
 
-  constructor(
-    authToken: string | null,
-    projectId: string,
-    type: string,
-    containerId: string,
-    { dokkuClient, gitClient }: ServerContext
-  ) {
-    // User authentication token
-    this.authToken = authToken
+  constructor(projectId: string, type: string, containerId: string) {
     // Project properties:
     this.projectId = projectId
     this.type = type
@@ -70,15 +57,10 @@ export class Project {
     this.terminalManager = null
     this.container = null
     this.containerId = containerId
-    // Server context:
-    this.dokkuClient = dokkuClient
-    this.gitClient = gitClient
   }
 
   // Initializes the project and the "container," which is an E2B sandbox
-  async initialize(
-    fileWatchCallback: ((files: (TFolder | TFile)[]) => void) | undefined
-  ) {
+  async initialize(fileWatchCallback?: (files: (TFolder | TFile)[]) => void) {
     // Acquire a lock to ensure exclusive access to the container
     await lockManager.acquireLock(this.projectId, async () => {
       // If we have already initialized the container, connect to it.
@@ -149,7 +131,10 @@ export class Project {
     this.fileManager = null
   }
 
-  handlers(connection: { userId: string; isOwner: boolean; socket: Socket }) {
+  handlers(
+    connection: { userId: string; isOwner: boolean; socket: Socket },
+    { dokkuClient, gitClient }: ServerContext
+  ) {
     // Handle heartbeat from a socket connection
     const handleHeartbeat: SocketHandler = async (_: any) => {
       // Only keep the container alive if the owner is still connected
@@ -188,32 +173,32 @@ export class Project {
 
     // Handle listing apps
     const handleListApps: SocketHandler = async (_: any) => {
-      if (!this.dokkuClient)
+      if (!dokkuClient)
         throw Error("Failed to retrieve apps list: No Dokku client")
-      return { success: true, apps: await this.dokkuClient.listApps() }
+      return { success: true, apps: await dokkuClient.listApps() }
     }
 
     // Handle getting app creation timestamp
     const handleGetAppCreatedAt: SocketHandler = async ({ appName }) => {
-      if (!this.dokkuClient)
+      if (!dokkuClient)
         throw new Error(
           "Failed to retrieve app creation timestamp: No Dokku client"
         )
       return {
         success: true,
-        createdAt: await this.dokkuClient.getAppCreatedAt(appName),
+        createdAt: await dokkuClient.getAppCreatedAt(appName),
       }
     }
 
     // Handle checking if an app exists
     const handleAppExists: SocketHandler = async ({ appName }) => {
-      if (!this.dokkuClient) {
+      if (!dokkuClient) {
         console.log("Failed to check app existence: No Dokku client")
         return {
           success: false,
         }
       }
-      if (!this.dokkuClient.isConnected) {
+      if (!dokkuClient.isConnected) {
         console.log(
           "Failed to check app existence: The Dokku client is not connected"
         )
@@ -223,17 +208,17 @@ export class Project {
       }
       return {
         success: true,
-        exists: await this.dokkuClient.appExists(appName),
+        exists: await dokkuClient.appExists(appName),
       }
     }
 
     // Handle deploying code
     const handleDeploy: SocketHandler = async (_: any) => {
-      if (!this.gitClient) throw Error("No git client")
+      if (!gitClient) throw Error("No git client")
       if (!this.fileManager) throw Error("No file manager")
       // TODO: Get files from E2B and deploy them
       const tarBase64 = await this.fileManager.getFilesForDownload()
-      await this.gitClient.pushFiles(tarBase64, this.projectId)
+      await gitClient.pushFiles(tarBase64, this.projectId)
       return { success: true }
     }
 
