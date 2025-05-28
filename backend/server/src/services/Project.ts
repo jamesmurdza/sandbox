@@ -1,6 +1,7 @@
 import { Sandbox as Container } from "e2b"
 import { Socket } from "socket.io"
 import { CONTAINER_TIMEOUT } from "../utils/constants"
+import { LockManager } from "../utils/lock"
 import {
   createFileRL,
   createFolderRL,
@@ -8,7 +9,6 @@ import {
   renameFileRL,
   saveFileRL,
 } from "../utils/ratelimit"
-import { LockManager } from "../utils/utils"
 import { DokkuClient } from "./DokkuClient"
 import { FileManager } from "./FileManager"
 import { SecureGitClient } from "./SecureGitClient"
@@ -17,6 +17,9 @@ import { TerminalManager } from "./TerminalManager"
 import { eq } from "drizzle-orm"
 import { drizzle } from "drizzle-orm/node-postgres"
 import * as schema from "../db/schema"
+
+// Load the database credentials
+import "dotenv/config"
 
 const lockManager = new LockManager()
 
