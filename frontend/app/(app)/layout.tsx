@@ -1,7 +1,7 @@
+import { fetchWithAuth } from "@/lib/server-utils"
 import { User } from "@/lib/types"
 import { generateUniqueUsername } from "@/lib/username-generator"
-import { fetchWithAuth } from "@/lib/utils"
-import { currentUser } from "@clerk/nextjs"
+import { currentUser } from "@clerk/nextjs/server"
 import { redirect } from "next/navigation"
 
 export default async function AppAuthLayout({

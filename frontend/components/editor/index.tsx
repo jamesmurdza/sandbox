@@ -1503,7 +1503,6 @@ export default function CodeEditor({
     </div>
   )
 }
-
 /**
  * Configure the typescript compiler to detect JSX and load type definitions
  */

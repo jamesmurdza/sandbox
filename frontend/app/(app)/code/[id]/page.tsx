@@ -1,16 +1,15 @@
 // import { Room } from "@/components/editor/live/room"
-import Loading from "@/components/editor/loading"
+import CodeEditor from "@/components/editor/CodeEditorWrapper"
 import Navbar from "@/components/editor/navbar"
 import { PreviewProvider } from "@/context/PreviewContext"
 import { SocketProvider } from "@/context/SocketContext"
 import { TerminalProvider } from "@/context/TerminalContext"
 import { github } from "@/hooks/github"
 import { getQueryClient } from "@/lib/get-query-client"
+import { fetchWithAuth } from "@/lib/server-utils"
 import { Sandbox, User, UsersToSandboxes } from "@/lib/types"
-import { fetchWithAuth } from "@/lib/utils"
-import { auth, currentUser } from "@clerk/nextjs"
+import { auth, currentUser } from "@clerk/nextjs/server"
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query"
-import dynamic from "next/dynamic"
 import { notFound, redirect } from "next/navigation"
 
 export const revalidate = 0
@@ -53,18 +52,17 @@ const getSharedUsers = async (usersToSandboxes: UsersToSandboxes[]) => {
   return shared
 }
 
-const CodeEditor = dynamic(() => import("@/components/editor"), {
-  ssr: false,
-  loading: () => <Loading />,
-})
-
-export default async function CodePage({ params }: { params: { id: string } }) {
+export default async function CodePage({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
   const [user, authToken] = await Promise.all([
     currentUser(),
     (async () => (await auth()).getToken())(),
   ])
 
-  const sandboxId = params.id
+  const sandboxId = (await params).id
   const queryClient = getQueryClient()
   if (!user) {
     redirect("/")

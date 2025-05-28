@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { editUserSchema } from "./schema"
 import { UserLink } from "./types"
-import { fetchWithAuth, parseSocialLink } from "./utils"
+import { fetchWithAuth } from "./server-utils"
+import { parseSocialLink } from "./utils"
 
 export async function createSandbox(body: {
   type: string

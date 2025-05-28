@@ -1,8 +1,8 @@
 import Dashboard from "@/components/dashboard"
 import Navbar from "@/components/dashboard/navbar"
+import { fetchWithAuth } from "@/lib/server-utils"
 import { User } from "@/lib/types"
-import { fetchWithAuth } from "@/lib/utils"
-import { currentUser } from "@clerk/nextjs"
+import { currentUser } from "@clerk/nextjs/server"
 import { redirect } from "next/navigation"
 
 export default async function DashboardPage() {
