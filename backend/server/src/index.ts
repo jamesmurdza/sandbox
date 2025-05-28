@@ -5,7 +5,8 @@ import fs from "fs"
 import { createServer } from "http"
 import { Server, Socket } from "socket.io"
 import { GitHubApiRoutes } from "./routes/GitHubApiRoutes"
-import api from "./routes/api"
+import sandboxRoutes from "./routes/sandbox"
+import userRoutes from "./routes/user"
 
 import { attachAuthToken } from "./middleware/attachAuthToken"
 import { requireAuth } from "./middleware/clerkAuth"
@@ -164,23 +165,13 @@ io.on("connection", async (socket) => {
     handleErrors("Error connecting:", e, socket)
   }
 })
+
+// REST API routes:
 app.use(express.json())
 const githubApi = new GitHubApiRoutes()
 app.use("/api/github", githubApi.router)
-// Use the API routes
-app.use(async (req: any, res) => {
-  try {
-    // The API router returns a Node.js response, but we need to send an Express.js response
-    const response = await api.fetch(req)
-    const reader = response.body?.getReader()
-    const value = await reader?.read()
-    const responseText = new TextDecoder().decode(value?.value)
-    res.status(response.status).send(responseText)
-  } catch (error) {
-    console.error("Error processing API request:", error)
-    res.status(500).send("Internal Server Error")
-  }
-})
+app.use("/api/sandbox", sandboxRoutes)
+app.use("/api/user", userRoutes)
 
 // Start the server
 httpServer.listen(port, () => {
