@@ -1,8 +1,8 @@
 import dotenv from "dotenv"
 import { Request } from "express"
-import { Project } from "../Project"
-import { ApiResponse } from "../types"
-import { GitHubManager } from "./GitHubManager"
+import { GitHubManager } from "../services/GitHubManager"
+import { Project } from "../services/Project"
+import { ApiResponse } from "../utils/types"
 
 dotenv.config()
 
@@ -11,13 +11,9 @@ export class GitHubApiService {
 
   /**
    * Initializes a new instance of GitHubApiService
-   * @param projects - Map of project IDs to Project instances
    * @param req - Express request object
    */
-  constructor(
-    private readonly projects: Record<string, Project>,
-    req: Request
-  ) {
+  constructor(req: Request) {
     this.githubManager = new GitHubManager(req)
   }
 
@@ -285,18 +281,7 @@ export class GitHubApiService {
     try {
       const { projectId, message } = req.body
 
-      // 1. Validate project
-      const project = this.projects[projectId]
-      if (!project) {
-        return {
-          success: false,
-          code: 404,
-          message: "Project not found",
-          data: null,
-        }
-      }
-
-      // 2. Validate GitHub authentication
+      // Validate GitHub authentication
       const username = this.githubManager.getUsername()
       if (!this.githubManager?.octokit || !username) {
         return {
@@ -311,7 +296,7 @@ export class GitHubApiService {
         req.authToken ?? null
       )
       const repoId = projectData.repositoryId
-      // 3. Validate repoId
+      // Validate repoId
       if (!repoId) {
         return {
           success: false,
@@ -321,7 +306,7 @@ export class GitHubApiService {
         }
       }
 
-      // 4. Verify repository still exists
+      // Verify repository still exists
       const repoCheck = await this.githubManager.repoExistsByID(repoId)
       if (!repoCheck.exists) {
         await this.removeRepoFromSandbox(projectId, req.authToken ?? null)
@@ -336,7 +321,13 @@ export class GitHubApiService {
         }
       }
 
-      // 5. Get and prepare files
+      // Get and prepare files
+      const project = new Project(
+        projectId,
+        projectData.type,
+        projectData.containerId
+      )
+      await project.initialize()
       const files = await this.collectFilesForCommit(project)
       if (files.length === 0) {
         return {
@@ -347,7 +338,7 @@ export class GitHubApiService {
         }
       }
 
-      // 6. Create the commit
+      // Create the commit
       const commitMessage = message || "initial commit from GitWit"
       const repo = await this.githubManager.createCommit(
         repoId,
@@ -384,26 +375,14 @@ export class GitHubApiService {
     try {
       const { projectId, userId } = req.body
 
-      // 1. Validate project
-      const project = this.projects[projectId]
-
-      if (!project) {
-        return {
-          success: false,
-          code: 404,
-          message: "Project not found",
-          data: null,
-        }
-      }
-
-      // 3. Fetch sandbox data
+      // Fetch sandbox data
       const sandbox = await this.fetchSandboxData(
         projectId,
         req.authToken ?? null
       )
       let repoName = sandbox.name
 
-      // 4. Check if repo exists and handle naming conflicts
+      // Check if repo exists and handle naming conflicts
       const { data: repoExists } = await this.checkRepoStatus(
         projectId,
         req.authToken ?? null
@@ -415,17 +394,19 @@ export class GitHubApiService {
         req.authToken ?? null
       )
 
-      // 5. Create the repository
+      // Create the repository
       const { id } = await this.githubManager.createRepo(repoName)
 
-      // 6. Update sandbox with repository ID
+      // Update sandbox with repository ID
       await this.updateSandboxWithRepoId(
         projectId,
         id.toString(),
         req.authToken ?? null
       )
 
-      // 7. Create initial commit
+      // Create initial commit
+      const project = new Project(projectId, sandbox.type, sandbox.containerId)
+      await project.initialize()
       const files = await this.collectFilesForCommit(project)
       if (files.length === 0) {
         return {

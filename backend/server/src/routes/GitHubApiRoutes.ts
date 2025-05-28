@@ -1,6 +1,5 @@
 import express, { Request, Response } from "express"
 import { requireGithubAuth } from "../middleware/GitHubAuthUsers"
-import { Project } from "../Project"
 import { GitHubApiService } from "./GitHubApiService"
 
 export class GitHubApiRoutes {
@@ -9,9 +8,8 @@ export class GitHubApiRoutes {
 
   /**
    * Initializes a new instance of GitHubApiRoutes
-   * @param projects - Map of project IDs to Project instances
    */
-  constructor(private readonly projects: Record<string, Project>) {
+  constructor() {
     this.service = null
     this.initializeRoutes()
   }
@@ -23,7 +21,7 @@ export class GitHubApiRoutes {
    */
   private ensureServiceInitialized(req: Request): GitHubApiService {
     if (!this.service) {
-      this.service = new GitHubApiService(this.projects, req)
+      this.service = new GitHubApiService(req)
     }
     return this.service
   }

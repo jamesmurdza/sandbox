@@ -1,21 +1,30 @@
 import { Sandbox as Container } from "e2b"
 import { Socket } from "socket.io"
-import { CONTAINER_PAUSE, CONTAINER_TIMEOUT } from "./constants"
-import { DokkuClient } from "./DokkuClient"
-import { FileManager } from "./FileManager"
+import { CONTAINER_TIMEOUT } from "../utils/constants"
+import { LockManager } from "../utils/lock"
 import {
   createFileRL,
   createFolderRL,
   deleteFileRL,
   renameFileRL,
   saveFileRL,
-} from "./ratelimit"
+} from "../utils/ratelimit"
+import { DokkuClient } from "./DokkuClient"
+import { FileManager } from "./FileManager"
 import { SecureGitClient } from "./SecureGitClient"
 import { TerminalManager } from "./TerminalManager"
-import { TFile, TFolder } from "./types"
-import { LockManager } from "./utils"
+
+import { eq } from "drizzle-orm"
+import { drizzle } from "drizzle-orm/node-postgres"
+import * as schema from "../db/schema"
+
+// Load the database credentials
+import "dotenv/config"
 
 const lockManager = new LockManager()
+
+// Initialize database
+const db = drizzle(process.env.DATABASE_URL as string, { schema })
 
 // Define a type for SocketHandler functions
 type SocketHandler<T = Record<string, any>> = (args: T) => any
@@ -34,68 +43,35 @@ type ServerContext = {
 }
 
 export class Project {
-  // User authentication token
-  authToken: string | null
   // Project properties:
   projectId: string
   type: string
-  fileManager: FileManager | null
-  terminalManager: TerminalManager | null
-  container: Container | null
-  containerId: string | null
-  // Server context:
-  dokkuClient: DokkuClient | null
-  gitClient: SecureGitClient | null
-  pauseTimeout: NodeJS.Timeout | null = null // Store the timeout ID
+  fileManager: FileManager | null = null
+  terminalManager: TerminalManager | null = null
+  container: Container | null = null
+  containerId: string | null = null
 
-  constructor(
-    authToken: string | null,
-    projectId: string,
-    type: string,
-    containerId: string,
-    { dokkuClient, gitClient }: ServerContext
-  ) {
-    // User authentication token
-    this.authToken = authToken
+  constructor(projectId: string, type: string, containerId: string) {
     // Project properties:
     this.projectId = projectId
     this.type = type
-    this.fileManager = null
-    this.terminalManager = null
-    this.container = null
     this.containerId = containerId
-    // Server context:
-    this.dokkuClient = dokkuClient
-    this.gitClient = gitClient
-    this.pauseTimeout = null
   }
 
-  // Initializes the project and the "container," which is an E2B sandbox
-  async initialize(
-    fileWatchCallback: ((files: (TFolder | TFile)[]) => void) | undefined
-  ) {
+  async initialize() {
     // Acquire a lock to ensure exclusive access to the container
     await lockManager.acquireLock(this.projectId, async () => {
-      // Discard the current container if it has timed out
-      if (this.container) {
-        if (await this.container.isRunning()) {
-          console.log(`Found running container ${this.container.sandboxId}`)
-        } else {
-          console.log("Found a timed out container")
-          this.container = null
-        }
-      }
-
-      // If there's no running container, check for a paused container.
-      if (!this.container && this.containerId) {
-        console.log(`Resuming paused container ${this.containerId}`)
-        this.container = await Container.resume(this.containerId, {
+      // If we have already initialized the container, connect to it.
+      if (this.containerId) {
+        console.log(`Connecting to container ${this.containerId}`)
+        this.container = await Container.connect(this.containerId, {
           timeoutMs: CONTAINER_TIMEOUT,
+          autoPause: true,
         })
       }
 
-      // If there's no container, create a new one from the template.
-      if (!this.container) {
+      // If we don't have a container, create a new container from the template.
+      if (!this.container || !(await this.container.isRunning())) {
         console.log("Creating container for ", this.projectId)
         const templateTypes = [
           "vanillajs",
@@ -109,14 +85,20 @@ export class Project {
           : `base`
         this.container = await Container.create(template, {
           timeoutMs: CONTAINER_TIMEOUT,
+          autoPause: true,
         })
-        console.log("Created container ", this.container.sandboxId)
+        this.containerId = this.container.sandboxId
+        console.log("Created container ", this.containerId)
+
+        // Save the container ID for this project so it can be accessed later
+        await db
+          .update(schema.sandbox)
+          .set({ containerId: this.containerId })
+          .where(eq(schema.sandbox.id, this.projectId))
       }
     })
     // Ensure a container was successfully created
     if (!this.container) throw new Error("Failed to create container")
-
-    this.createPauseTimer()
 
     // Initialize the terminal manager if it hasn't been set up yet
     if (!this.terminalManager) {
@@ -126,12 +108,7 @@ export class Project {
 
     // Initialize the file manager if it hasn't been set up yet
     if (!this.fileManager) {
-      this.fileManager = new FileManager(
-        this.container,
-        fileWatchCallback ?? null
-      )
-      // Initialize the file manager and emit the initial files
-      await this.fileManager.initialize()
+      this.fileManager = new FileManager(this.container)
     }
   }
 
@@ -142,40 +119,15 @@ export class Project {
     // This way the terminal manager will be set up again if we reconnect
     this.terminalManager = null
     // Close all file watchers managed by the file manager
-    await this.fileManager?.closeWatchers()
+    await this.fileManager?.stopWatching()
     // This way the file manager will be set up again if we reconnect
     this.fileManager = null
   }
 
-  createPauseTimer() {
-    // Clear the existing timeout if it exists
-    if (this.pauseTimeout) {
-      clearTimeout(this.pauseTimeout)
-    }
-
-    // Set a new timer to pause the container one second before timeout
-    this.pauseTimeout = setTimeout(async () => {
-      console.log("Pausing container...")
-      this.containerId = (await this.container?.pause()) ?? null
-
-      // Save the container ID for this project so it can be resumed later
-      await fetch(`${process.env.SERVER_URL}/api/sandbox`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${this.authToken}`,
-        },
-        body: JSON.stringify({
-          id: this.projectId,
-          containerId: this.containerId,
-        }),
-      })
-
-      console.log(`Paused container ${this.containerId}`)
-    }, CONTAINER_PAUSE)
-  }
-
-  handlers(connection: { userId: string; isOwner: boolean; socket: Socket }) {
+  handlers(
+    connection: { userId: string; isOwner: boolean; socket: Socket },
+    { dokkuClient, gitClient }: ServerContext
+  ) {
     // Handle heartbeat from a socket connection
     const handleHeartbeat: SocketHandler = async (_: any) => {
       // Only keep the container alive if the owner is still connected
@@ -186,9 +138,6 @@ export class Project {
           console.error("Failed to set container timeout:", error)
           return false
         }
-
-        // Set a new timer to pause the container one second before timeout
-        this.createPauseTimer()
       }
 
       return true
@@ -217,32 +166,32 @@ export class Project {
 
     // Handle listing apps
     const handleListApps: SocketHandler = async (_: any) => {
-      if (!this.dokkuClient)
+      if (!dokkuClient)
         throw Error("Failed to retrieve apps list: No Dokku client")
-      return { success: true, apps: await this.dokkuClient.listApps() }
+      return { success: true, apps: await dokkuClient.listApps() }
     }
 
     // Handle getting app creation timestamp
     const handleGetAppCreatedAt: SocketHandler = async ({ appName }) => {
-      if (!this.dokkuClient)
+      if (!dokkuClient)
         throw new Error(
           "Failed to retrieve app creation timestamp: No Dokku client"
         )
       return {
         success: true,
-        createdAt: await this.dokkuClient.getAppCreatedAt(appName),
+        createdAt: await dokkuClient.getAppCreatedAt(appName),
       }
     }
 
     // Handle checking if an app exists
     const handleAppExists: SocketHandler = async ({ appName }) => {
-      if (!this.dokkuClient) {
+      if (!dokkuClient) {
         console.log("Failed to check app existence: No Dokku client")
         return {
           success: false,
         }
       }
-      if (!this.dokkuClient.isConnected) {
+      if (!dokkuClient.isConnected) {
         console.log(
           "Failed to check app existence: The Dokku client is not connected"
         )
@@ -252,17 +201,17 @@ export class Project {
       }
       return {
         success: true,
-        exists: await this.dokkuClient.appExists(appName),
+        exists: await dokkuClient.appExists(appName),
       }
     }
 
     // Handle deploying code
     const handleDeploy: SocketHandler = async (_: any) => {
-      if (!this.gitClient) throw Error("No git client")
+      if (!gitClient) throw Error("No git client")
       if (!this.fileManager) throw Error("No file manager")
       // TODO: Get files from E2B and deploy them
       const tarBase64 = await this.fileManager.getFilesForDownload()
-      await this.gitClient.pushFiles(tarBase64, this.projectId)
+      await gitClient.pushFiles(tarBase64, this.projectId)
       return { success: true }
     }
 

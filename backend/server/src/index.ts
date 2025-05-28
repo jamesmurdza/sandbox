@@ -4,17 +4,18 @@ import express, { Express } from "express"
 import fs from "fs"
 import { createServer } from "http"
 import { Server, Socket } from "socket.io"
-import api from "./api"
-import { GitHubApiRoutes } from "./github/GitHubApiRoutes"
+import { GitHubApiRoutes } from "./routes/GitHubApiRoutes"
+import sandboxRoutes from "./routes/sandbox"
+import userRoutes from "./routes/user"
 
-import { ConnectionManager } from "./ConnectionManager"
-import { DokkuClient } from "./DokkuClient"
 import { attachAuthToken } from "./middleware/attachAuthToken"
 import { requireAuth } from "./middleware/clerkAuth"
-import { Project } from "./Project"
-import { SecureGitClient } from "./SecureGitClient"
-import { socketAuth } from "./socketAuth" // Import the new socketAuth middleware
-import { TFile, TFolder } from "./types"
+import { socketAuth } from "./middleware/socketAuth" // Import the new socketAuth middleware
+import { ConnectionManager } from "./services/ConnectionManager"
+import { DokkuClient } from "./services/DokkuClient"
+import { Project } from "./services/Project"
+import { SecureGitClient } from "./services/SecureGitClient"
+import { TFile, TFolder } from "./utils/types"
 
 // Log errors and send a notification to the client
 export const handleErrors = (message: string, error: any, socket: Socket) => {
@@ -36,7 +37,6 @@ process.on("unhandledRejection", (reason, promise) => {
 
 // Initialize containers and managers
 const connections = new ConnectionManager()
-const projects: Record<string, Project> = {}
 
 // Load environment variables
 dotenv.config()
@@ -100,30 +100,9 @@ io.on("connection", async (socket) => {
     }
 
     // Register the connection
-    connections.addConnectionForProject(socket, data.projectId, data.isOwner)
-
-    // Disable access unless the project owner is connected
-    if (!data.isOwner && !connections.ownerIsConnected(data.projectId)) {
-      socket.emit("disableAccess", "The project owner is not connected.")
-      return
-    }
+    connections.addConnectionForProject(socket, data.projectId)
 
     try {
-      // Create or retrieve the project manager for the given project ID
-      const project =
-        projects[data.projectId] ??
-        new Project(
-          socket.handshake.auth.token,
-          data.projectId,
-          data.type,
-          data.containerId,
-          {
-            dokkuClient,
-            gitClient,
-          }
-        )
-      projects[data.projectId] = project
-
       // This callback recieves an update when the file list changes, and notifies all relevant connections.
       const sendFileNotifications = (files: (TFolder | TFile)[]) => {
         connections
@@ -133,20 +112,27 @@ io.on("connection", async (socket) => {
           })
       }
 
-      // Initialize the project container
-      // The file manager and terminal managers will be set up if they have been closed
-      await project.initialize(sendFileNotifications)
+      // Create or retrieve the project container for the given project ID
+      const project = new Project(data.projectId, data.type, data.containerId)
+      await project.initialize()
+      await project.fileManager?.startWatching(sendFileNotifications)
       socket.emit("loaded", await project.fileManager?.getFileTree())
 
       // Register event handlers for the project
       // For each event handler, listen on the socket for that event
       // Pass connection-specific information to the handlers
       Object.entries(
-        project.handlers({
-          userId: data.userId,
-          isOwner: data.isOwner,
-          socket,
-        })
+        project.handlers(
+          {
+            userId: data.userId,
+            isOwner: data.isOwner,
+            socket,
+          },
+          {
+            dokkuClient,
+            gitClient,
+          }
+        )
       ).forEach(([event, handler]) => {
         socket.on(
           event,
@@ -167,21 +153,7 @@ io.on("connection", async (socket) => {
       socket.on("disconnect", async () => {
         try {
           // Deregister the connection
-          connections.removeConnectionForProject(
-            socket,
-            data.projectId,
-            data.isOwner
-          )
-
-          // If the owner has disconnected from all sockets, close open terminals and file watchers.o
-          // The project itself will timeout after the heartbeat stops.
-          if (data.isOwner && !connections.ownerIsConnected(data.projectId)) {
-            await project.disconnect()
-            socket.broadcast.emit(
-              "disableAccess",
-              "The project owner has disconnected."
-            )
-          }
+          connections.removeConnectionForProject(socket, data.projectId)
         } catch (e: any) {
           handleErrors("Error disconnecting:", e, socket)
         }
@@ -193,23 +165,13 @@ io.on("connection", async (socket) => {
     handleErrors("Error connecting:", e, socket)
   }
 })
+
+// REST API routes:
 app.use(express.json())
-const githubApi = new GitHubApiRoutes(projects)
+const githubApi = new GitHubApiRoutes()
 app.use("/api/github", githubApi.router)
-// Use the API routes
-app.use(async (req: any, res) => {
-  try {
-    // The API router returns a Node.js response, but we need to send an Express.js response
-    const response = await api.fetch(req)
-    const reader = response.body?.getReader()
-    const value = await reader?.read()
-    const responseText = new TextDecoder().decode(value?.value)
-    res.status(response.status).send(responseText)
-  } catch (error) {
-    console.error("Error processing API request:", error)
-    res.status(500).send("Internal Server Error")
-  }
-})
+app.use("/api/sandbox", sandboxRoutes)
+app.use("/api/user", userRoutes)
 
 // Start the server
 httpServer.listen(port, () => {
