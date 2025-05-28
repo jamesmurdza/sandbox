@@ -44,18 +44,15 @@ export class Project {
   // Project properties:
   projectId: string
   type: string
-  fileManager: FileManager | null
-  terminalManager: TerminalManager | null
-  container: Container | null
-  containerId: string | null
+  fileManager: FileManager | null = null
+  terminalManager: TerminalManager | null = null
+  container: Container | null = null
+  containerId: string | null = null
 
   constructor(projectId: string, type: string, containerId: string) {
     // Project properties:
     this.projectId = projectId
     this.type = type
-    this.fileManager = null
-    this.terminalManager = null
-    this.container = null
     this.containerId = containerId
   }
 
