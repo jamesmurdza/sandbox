@@ -1,6 +1,6 @@
 import { Sandbox as Container } from "e2b"
 import { Socket } from "socket.io"
-import { CONTAINER_PAUSE, CONTAINER_TIMEOUT } from "./constants"
+import { CONTAINER_TIMEOUT } from "./constants"
 import { DokkuClient } from "./DokkuClient"
 import { FileManager } from "./FileManager"
 import {
@@ -46,7 +46,6 @@ export class Project {
   // Server context:
   dokkuClient: DokkuClient | null
   gitClient: SecureGitClient | null
-  pauseTimeout: NodeJS.Timeout | null = null // Store the timeout ID
 
   constructor(
     authToken: string | null,
@@ -67,7 +66,6 @@ export class Project {
     // Server context:
     this.dokkuClient = dokkuClient
     this.gitClient = gitClient
-    this.pauseTimeout = null
   }
 
   // Initializes the project and the "container," which is an E2B sandbox
@@ -76,26 +74,17 @@ export class Project {
   ) {
     // Acquire a lock to ensure exclusive access to the container
     await lockManager.acquireLock(this.projectId, async () => {
-      // Discard the current container if it has timed out
-      if (this.container) {
-        if (await this.container.isRunning()) {
-          console.log(`Found running container ${this.container.sandboxId}`)
-        } else {
-          console.log("Found a timed out container")
-          this.container = null
-        }
-      }
-
-      // If there's no running container, check for a paused container.
-      if (!this.container && this.containerId) {
-        console.log(`Resuming paused container ${this.containerId}`)
-        this.container = await Container.resume(this.containerId, {
+      // If we have already initialized the container, connect to it.
+      if (this.containerId) {
+        console.log(`Connecting to container ${this.containerId}`)
+        this.container = await Container.connect(this.containerId, {
           timeoutMs: CONTAINER_TIMEOUT,
+          autoPause: true,
         })
       }
 
-      // If there's no container, create a new one from the template.
-      if (!this.container) {
+      // If we don't have a container, create a new container from the template.
+      if (!this.container || !(await this.container.isRunning())) {
         console.log("Creating container for ", this.projectId)
         const templateTypes = [
           "vanillajs",
@@ -109,14 +98,27 @@ export class Project {
           : `base`
         this.container = await Container.create(template, {
           timeoutMs: CONTAINER_TIMEOUT,
+          autoPause: true,
         })
-        console.log("Created container ", this.container.sandboxId)
+        this.containerId = this.container.sandboxId
+        console.log("Created container ", this.containerId)
+
+        // Save the container ID for this project so it can be accessed later
+        await fetch(`${process.env.SERVER_URL}/api/sandbox`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${this.authToken}`,
+          },
+          body: JSON.stringify({
+            id: this.projectId,
+            containerId: this.containerId,
+          }),
+        })
       }
     })
     // Ensure a container was successfully created
     if (!this.container) throw new Error("Failed to create container")
-
-    this.createPauseTimer()
 
     // Initialize the terminal manager if it hasn't been set up yet
     if (!this.terminalManager) {
@@ -147,34 +149,6 @@ export class Project {
     this.fileManager = null
   }
 
-  createPauseTimer() {
-    // Clear the existing timeout if it exists
-    if (this.pauseTimeout) {
-      clearTimeout(this.pauseTimeout)
-    }
-
-    // Set a new timer to pause the container one second before timeout
-    this.pauseTimeout = setTimeout(async () => {
-      console.log("Pausing container...")
-      this.containerId = (await this.container?.pause()) ?? null
-
-      // Save the container ID for this project so it can be resumed later
-      await fetch(`${process.env.SERVER_URL}/api/sandbox`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${this.authToken}`,
-        },
-        body: JSON.stringify({
-          id: this.projectId,
-          containerId: this.containerId,
-        }),
-      })
-
-      console.log(`Paused container ${this.containerId}`)
-    }, CONTAINER_PAUSE)
-  }
-
   handlers(connection: { userId: string; isOwner: boolean; socket: Socket }) {
     // Handle heartbeat from a socket connection
     const handleHeartbeat: SocketHandler = async (_: any) => {
@@ -186,9 +160,6 @@ export class Project {
           console.error("Failed to set container timeout:", error)
           return false
         }
-
-        // Set a new timer to pause the container one second before timeout
-        this.createPauseTimer()
       }
 
       return true
