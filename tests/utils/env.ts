@@ -9,6 +9,7 @@ export const env = createEnv({
     CLERK_SECRET_KEY: z.string().min(1),
     CLERK_TEST_USER_ID: z.string().min(1),
     BACKEND_URL: z.string().min(1).default("http://localhost:4000"),
+    GITHUB_PAT: z.string().min(1),
   },
   runtimeEnv: process.env,
   emptyStringAsUndefined: true,
