@@ -5,8 +5,8 @@ import {
   WatchHandle,
 } from "e2b"
 import path from "path"
-import { MAX_BODY_SIZE } from "./ratelimit"
-import { TFile, TFolder } from "./types"
+import { MAX_BODY_SIZE } from "../utils/ratelimit"
+import { TFile, TFolder } from "../utils/types"
 
 // FileManager class to handle file operations in a container
 export class FileManager {

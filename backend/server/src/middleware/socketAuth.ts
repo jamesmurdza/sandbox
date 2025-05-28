@@ -1,7 +1,7 @@
 import { Socket } from "socket.io"
 import { z } from "zod"
-import { Project, User } from "./types"
-import { isClerkConfigured, verifyClerkToken } from "./utils"
+import { Project, User } from "../utils/types"
+import { isClerkConfigured, verifyClerkToken } from "../utils/utils"
 
 // Middleware for socket authentication
 export const socketAuth = async (socket: Socket, next: Function) => {

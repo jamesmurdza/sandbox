@@ -4,17 +4,17 @@ import express, { Express } from "express"
 import fs from "fs"
 import { createServer } from "http"
 import { Server, Socket } from "socket.io"
-import api from "./api"
-import { GitHubApiRoutes } from "./github/GitHubApiRoutes"
+import { GitHubApiRoutes } from "./routes/GitHubApiRoutes"
+import api from "./routes/api"
 
-import { ConnectionManager } from "./ConnectionManager"
-import { DokkuClient } from "./DokkuClient"
 import { attachAuthToken } from "./middleware/attachAuthToken"
 import { requireAuth } from "./middleware/clerkAuth"
-import { Project } from "./Project"
-import { SecureGitClient } from "./SecureGitClient"
-import { socketAuth } from "./socketAuth" // Import the new socketAuth middleware
-import { TFile, TFolder } from "./types"
+import { socketAuth } from "./middleware/socketAuth" // Import the new socketAuth middleware
+import { ConnectionManager } from "./services/ConnectionManager"
+import { DokkuClient } from "./services/DokkuClient"
+import { Project } from "./services/Project"
+import { SecureGitClient } from "./services/SecureGitClient"
+import { TFile, TFolder } from "./utils/types"
 
 // Log errors and send a notification to the client
 export const handleErrors = (message: string, error: any, socket: Socket) => {

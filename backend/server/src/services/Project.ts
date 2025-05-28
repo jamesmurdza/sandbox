@@ -1,22 +1,22 @@
 import { Sandbox as Container } from "e2b"
 import { Socket } from "socket.io"
-import { CONTAINER_TIMEOUT } from "./constants"
-import { DokkuClient } from "./DokkuClient"
-import { FileManager } from "./FileManager"
+import { CONTAINER_TIMEOUT } from "../utils/constants"
 import {
   createFileRL,
   createFolderRL,
   deleteFileRL,
   renameFileRL,
   saveFileRL,
-} from "./ratelimit"
+} from "../utils/ratelimit"
+import { LockManager } from "../utils/utils"
+import { DokkuClient } from "./DokkuClient"
+import { FileManager } from "./FileManager"
 import { SecureGitClient } from "./SecureGitClient"
 import { TerminalManager } from "./TerminalManager"
-import { LockManager } from "./utils"
 
 import { eq } from "drizzle-orm"
 import { drizzle } from "drizzle-orm/node-postgres"
-import * as schema from "./schema"
+import * as schema from "../db/schema"
 
 const lockManager = new LockManager()
 

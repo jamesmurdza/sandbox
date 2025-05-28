@@ -3,14 +3,14 @@ import { json } from "itty-router-extras"
 import { z } from "zod"
 
 import { and, eq, sql } from "drizzle-orm"
-import * as schema from "./schema"
+import * as schema from "../db/schema"
 import {
   Sandbox,
   sandbox,
   sandboxLikes,
   user,
   usersToSandboxes,
-} from "./schema"
+} from "../db/schema"
 
 // Add dotenv configuration
 import dotenv from "dotenv"

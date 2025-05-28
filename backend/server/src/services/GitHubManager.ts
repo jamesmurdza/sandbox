@@ -1,7 +1,7 @@
 import { type Octokit as OctokitType } from "@octokit/core"
 import { Request } from "express"
 import { createJiti } from "jiti"
-import { GitHubTokenResponse, UserData } from "../types"
+import { GitHubTokenResponse, UserData } from "../utils/types"
 
 // Initialize jiti for dynamic imports
 const jiti = createJiti(__dirname)
@@ -209,7 +209,7 @@ export class GitHubManager {
     userId: string
   }) {
     try {
-     await this.ensureInitialized()
+      await this.ensureInitialized()
       const response = await this.octokit?.request("GET /user")
       return response?.data
     } catch (error) {
@@ -224,11 +224,14 @@ export class GitHubManager {
    */
   async repoExistsByName(repoName: string): Promise<{ exists: boolean }> {
     try {
-       await this.ensureInitialized()
-      const repoData = await this.octokit?.request("GET /repos/{owner}/{repo}", {
-        owner: this.username || "",
-        repo: repoName,
-      })
+      await this.ensureInitialized()
+      const repoData = await this.octokit?.request(
+        "GET /repos/{owner}/{repo}",
+        {
+          owner: this.username || "",
+          repo: repoName,
+        }
+      )
       return {
         exists: !!repoData,
       }
@@ -284,7 +287,7 @@ export class GitHubManager {
     }
     const repoName = repoInfo.repoName
 
-     await this.ensureInitialized()
+    await this.ensureInitialized()
     // Get the current commit SHA
     const refResponse = await this.octokit?.request(
       "GET /repos/{owner}/{repo}/git/ref/{ref}",
@@ -297,7 +300,7 @@ export class GitHubManager {
     const ref = refResponse?.data
 
     if (!ref || !ref.object?.sha) {
-      throw new Error("Failed to fetch reference for the main branch.");
+      throw new Error("Failed to fetch reference for the main branch.")
     }
 
     const baseTreeResponse = await this.octokit?.request(
@@ -309,9 +312,9 @@ export class GitHubManager {
       }
     )
     if (!baseTreeResponse) {
-      throw new Error("Failed to fetch base tree for commit.");
+      throw new Error("Failed to fetch base tree for commit.")
     }
-    const baseTree = baseTreeResponse.data;
+    const baseTree = baseTreeResponse.data
 
     // Create blobs for all files
     // Process files in batches with retry logic
@@ -372,9 +375,9 @@ export class GitHubManager {
       }
     )
     if (!treeResponse) {
-      throw new Error("Failed to create tree for commit.");
+      throw new Error("Failed to create tree for commit.")
     }
-    const tree = treeResponse.data;
+    const tree = treeResponse.data
 
     // Create a new commit
     const newCommitResponse = await this.octokit?.request(
@@ -388,9 +391,9 @@ export class GitHubManager {
       }
     )
     if (!newCommitResponse) {
-      throw new Error("Failed to create new commit.");
+      throw new Error("Failed to create new commit.")
     }
-    const newCommit = newCommitResponse.data;
+    const newCommit = newCommitResponse.data
 
     // Update the reference
     await this.octokit?.request("PATCH /repos/{owner}/{repo}/git/refs/{ref}", {
@@ -418,12 +421,9 @@ export class GitHubManager {
   > {
     try {
       await this.ensureInitialized()
-      const response = await this.octokit?.request(
-        "GET /repositories/:id",
-        {
-          id: repoId,
-        }
-      )
+      const response = await this.octokit?.request("GET /repositories/:id", {
+        id: repoId,
+      })
       const githubRepo = response?.data
       return {
         exists: !!githubRepo,

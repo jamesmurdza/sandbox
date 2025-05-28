@@ -1,8 +1,8 @@
 import dotenv from "dotenv"
 import { Request } from "express"
-import { Project } from "../Project"
-import { ApiResponse } from "../types"
-import { GitHubManager } from "./GitHubManager"
+import { GitHubManager } from "../services/GitHubManager"
+import { Project } from "../services/Project"
+import { ApiResponse } from "../utils/types"
 
 dotenv.config()
 
