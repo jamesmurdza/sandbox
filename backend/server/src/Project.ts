@@ -15,7 +15,14 @@ import { TerminalManager } from "./TerminalManager"
 import { TFile, TFolder } from "./types"
 import { LockManager } from "./utils"
 
+import { eq } from "drizzle-orm"
+import { drizzle } from "drizzle-orm/node-postgres"
+import * as schema from "./schema"
+
 const lockManager = new LockManager()
+
+// Initialize database
+const db = drizzle(process.env.DATABASE_URL as string, { schema })
 
 // Define a type for SocketHandler functions
 type SocketHandler<T = Record<string, any>> = (args: T) => any
@@ -104,17 +111,10 @@ export class Project {
         console.log("Created container ", this.containerId)
 
         // Save the container ID for this project so it can be accessed later
-        await fetch(`${process.env.SERVER_URL}/api/sandbox`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${this.authToken}`,
-          },
-          body: JSON.stringify({
-            id: this.projectId,
-            containerId: this.containerId,
-          }),
-        })
+        await db
+          .update(schema.sandbox)
+          .set({ containerId: this.containerId })
+          .where(eq(schema.sandbox.id, this.projectId))
       }
     })
     // Ensure a container was successfully created
