@@ -158,7 +158,7 @@ export class GitHubManager {
    * Initializes the Octokit instance with stored GitHub token
    * @param req - Express request object
    */
-  async initializeOctokit(req: Request) {
+  async initializeOctokitAndGitHubUser(req: Request) {
     try {
       const userId = req.auth?.userId
       const authToken = req.authToken
@@ -171,6 +171,14 @@ export class GitHubManager {
         throw new Error("GitHub authentication token not found for user.")
       }
       this.octokit = new Octokit({ auth: user.githubToken })
+      // Fetch user data to set username
+      const res = await this.octokit?.request("GET /user")
+      // Check if user data not found
+      if (!res?.data) {
+        throw new Error("Failed to fetch user data from GitHub.")
+      }
+      // Set the username from the fetched user data
+      this.username = res.data.login
     } catch (error) {
       console.error("Error initializing Octokit:", error)
       // throw error
@@ -184,7 +192,7 @@ export class GitHubManager {
    */
   private async ensureInitialized(): Promise<OctokitType> {
     if (!this.octokit) {
-      await this.initializeOctokit(this.request)
+      await this.initializeOctokitAndGitHubUser(this.request)
       if (!this.octokit) {
         throw new Error("Octokit initialization failed.")
       }

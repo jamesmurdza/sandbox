@@ -1,6 +1,6 @@
 import express, { Request, Response } from "express"
 import { requireGithubAuth } from "../middleware/GitHubAuthUsers"
-import { GitHubApiService } from "./GitHubApiService"
+import { GitHubApiService } from "../services/GitHubApiService"
 
 export class GitHubApiRoutes {
   public router = express.Router()
