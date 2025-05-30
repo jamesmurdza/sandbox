@@ -1,5 +1,9 @@
 import dotenv from "dotenv"
+import { eq } from "drizzle-orm"
+import { drizzle } from "drizzle-orm/node-postgres"
 import { Request } from "express"
+import * as schema from "../db/schema"
+import { sandbox } from "../db/schema"
 import { GitHubManager } from "../services/GitHubManager"
 import { Project } from "../services/Project"
 import { ApiResponse } from "../utils/types"
@@ -37,18 +41,9 @@ export class GitHubApiService {
    * @param req - Express request containing code and userId
    * @returns Promise containing user data from GitHub
    */
-  async getUserData(req: Request): Promise<ApiResponse> {
-    //  read from query params
-    const { code, userId } = req.query as {
-      code: string
-      userId: string
-    }
+  async getUserData(_: Request): Promise<ApiResponse> {
     try {
-      const res = await this.githubManager.getGithubUser({
-        code,
-        userId,
-        authToken: req.authToken ?? "",
-      })
+      const res = await this.githubManager.getGithubUser()
       return {
         success: true,
         code: 200,
@@ -81,11 +76,7 @@ export class GitHubApiService {
           data: null,
         }
       }
-      const auth = await this.githubManager.authenticate(
-        code,
-        userId,
-        req.authToken ?? null
-      )
+      const auth = await this.githubManager.authenticate(code, userId)
       return {
         success: true,
         code: 200,
@@ -118,7 +109,7 @@ export class GitHubApiService {
           data: null,
         }
       }
-      await this.githubManager.logoutGithubUser(userId, req.authToken ?? null)
+      await this.githubManager.logoutGithubUser(userId)
       return {
         success: true,
         code: 200,
@@ -138,13 +129,9 @@ export class GitHubApiService {
   /**
    * Checks if a repository exists in both GitHub and local database
    * @param projectId - ID of the project to check
-   * @param authToken - Authentication token for API requests
    * @returns Promise containing repository status in both GitHub and DB
    */
-  async checkRepoStatus(
-    projectId: string,
-    authToken: string | null
-  ): Promise<ApiResponse> {
+  async checkRepoStatus(projectId: string): Promise<ApiResponse> {
     try {
       if (!projectId) {
         return {
@@ -154,22 +141,12 @@ export class GitHubApiService {
           data: null,
         }
       }
+      const sandboxData = await this.fetchSandboxData(projectId)
+      const repoName = sandboxData.name
 
-      const dbResponse = await fetch(
-        `${process.env.SERVER_URL}/api/sandbox?id=${projectId}`,
-        {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${authToken}`,
-          },
-        }
-      )
-      const sandbox = await dbResponse.json()
-      const repoName = sandbox.name
-
-      if (sandbox && sandbox.repositoryId) {
+      if (sandboxData && sandboxData.repositoryId) {
         const repoExists = await this.githubManager.repoExistsByID(
-          sandbox.repositoryId
+          sandboxData.repositoryId
         )
         if (repoExists.exists) {
           return {
@@ -226,13 +203,9 @@ export class GitHubApiService {
   /**
    * Removes repository connection from sandbox project
    * @param projectId - ID of the project to remove repo from
-   * @param authToken - Authentication token for API requests
    * @returns Promise containing removal operation result
    */
-  async removeRepoFromSandbox(
-    projectId: string,
-    authToken: string | null
-  ): Promise<ApiResponse> {
+  async removeRepoFromSandbox(projectId: string): Promise<ApiResponse> {
     try {
       if (!projectId) {
         return {
@@ -242,18 +215,12 @@ export class GitHubApiService {
           data: null,
         }
       }
+      const db = drizzle(process.env.DATABASE_URL as string, { schema })
 
-      await fetch(`${process.env.SERVER_URL}/api/sandbox`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${authToken}`,
-        },
-        body: JSON.stringify({
-          id: projectId.toString(),
-          repositoryId: null,
-        }),
-      })
+      await db
+        .update(sandbox)
+        .set({ repositoryId: null })
+        .where(eq(sandbox.id, projectId))
 
       return {
         success: true,
@@ -291,10 +258,7 @@ export class GitHubApiService {
           data: null,
         }
       }
-      const projectData = await this.fetchSandboxData(
-        projectId,
-        req.authToken ?? null
-      )
+      const projectData = await this.fetchSandboxData(projectId)
       const repoId = projectData.repositoryId
       // Validate repoId
       if (!repoId) {
@@ -309,7 +273,7 @@ export class GitHubApiService {
       // Verify repository still exists
       const repoCheck = await this.githubManager.repoExistsByID(repoId)
       if (!repoCheck.exists) {
-        await this.removeRepoFromSandbox(projectId, req.authToken ?? null)
+        await this.removeRepoFromSandbox(projectId)
         return {
           success: false,
           code: 404,
@@ -325,7 +289,7 @@ export class GitHubApiService {
       const project = new Project(
         projectId,
         projectData.type,
-        projectData.containerId
+        projectData.containerId || ""
       )
       await project.initialize()
       const files = await this.collectFilesForCommit(project)
@@ -373,39 +337,32 @@ export class GitHubApiService {
    */
   async createRepo(req: Request): Promise<ApiResponse> {
     try {
-      const { projectId, userId } = req.body
+      const { projectId } = req.body
 
       // Fetch sandbox data
-      const sandbox = await this.fetchSandboxData(
-        projectId,
-        req.authToken ?? null
-      )
+      const sandbox = await this.fetchSandboxData(projectId)
       let repoName = sandbox.name
 
       // Check if repo exists and handle naming conflicts
-      const { data: repoExists } = await this.checkRepoStatus(
-        projectId,
-        req.authToken ?? null
-      )
+      const { data: repoExists } = await this.checkRepoStatus(projectId)
       repoName = await this.handleRepoScenariosAndUpdateName(
         repoExists,
         repoName,
-        projectId,
-        req.authToken ?? null
+        projectId
       )
 
       // Create the repository
       const { id } = await this.githubManager.createRepo(repoName)
 
       // Update sandbox with repository ID
-      await this.updateSandboxWithRepoId(
-        projectId,
-        id.toString(),
-        req.authToken ?? null
-      )
+      await this.updateSandboxWithRepoId(projectId, id.toString())
 
       // Create initial commit
-      const project = new Project(projectId, sandbox.type, sandbox.containerId)
+      const project = new Project(
+        projectId,
+        sandbox.type,
+        sandbox.containerId || ""
+      )
       await project.initialize()
       const files = await this.collectFilesForCommit(project)
       if (files.length === 0) {
@@ -482,43 +439,36 @@ export class GitHubApiService {
 
     return files
   }
+  private async fetchSandboxData(projectId: string) {
+    const db = drizzle(process.env.DATABASE_URL as string, { schema })
 
-  private async fetchSandboxData(projectId: string, authToken: string | null) {
-    const dbResponse = await fetch(
-      `${process.env.SERVER_URL}/api/sandbox?id=${projectId}`,
-      {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-        },
-      }
-    )
-    return await dbResponse.json()
+    const sandboxData = await db
+      .select()
+      .from(sandbox)
+      .where(eq(sandbox.id, projectId))
+      .limit(1)
+
+    if (!sandboxData || sandboxData.length === 0) {
+      throw new Error(`Sandbox not found with ID: ${projectId}`)
+    }
+
+    return sandboxData[0]
   }
-
   /**
    * Updates sandbox with repository ID
    * @param projectId - ID of the project
    * @param repoId - ID of the repository
-   * @param authToken - Authentication token for API requests
    * @returns Promise containing update result
    */
-  private async updateSandboxWithRepoId(
-    projectId: string,
-    repoId: string,
-    authToken: string | null
-  ) {
-    return await fetch(`${process.env.SERVER_URL}/api/sandbox`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${authToken}`,
-      },
-      body: JSON.stringify({
-        id: projectId.toString(),
-        repositoryId: repoId,
-      }),
-    })
+  private async updateSandboxWithRepoId(projectId: string, repoId: string) {
+    const db = drizzle(process.env.DATABASE_URL as string, { schema })
+
+    await db
+      .update(sandbox)
+      .set({ repositoryId: repoId })
+      .where(eq(sandbox.id, projectId))
+
+    return { success: true }
   }
 
   /**
@@ -526,14 +476,12 @@ export class GitHubApiService {
    * @param repoExists - Object containing repository existence status in both GitHub and DB
    * @param repoName - Name of the repository
    * @param projectId - ID of the project
-   * @param authToken - Authentication token for API requests
    * @returns Updated repository name
    */
   private async handleRepoScenariosAndUpdateName(
     repoExists: { existsInDB: any; existsInGitHub: any },
     repoName: string,
-    projectId: string,
-    authToken: string | null
+    projectId: string
   ) {
     if (!repoExists.existsInDB && repoExists.existsInGitHub) {
       let newRepoName = `${repoName}-gitwit`
@@ -542,7 +490,7 @@ export class GitHubApiService {
     }
 
     if (repoExists.existsInDB && !repoExists.existsInGitHub) {
-      await this.removeRepoFromSandbox(projectId, authToken)
+      await this.removeRepoFromSandbox(projectId)
     } else if (repoExists.existsInDB && repoExists.existsInGitHub) {
       throw new Error("Repository already exists")
     }

@@ -1,6 +1,10 @@
 import { type Octokit as OctokitType } from "@octokit/core"
+import { eq } from "drizzle-orm"
+import { drizzle } from "drizzle-orm/node-postgres"
 import { Request } from "express"
 import { createJiti } from "jiti"
+import * as schema from "../db/schema"
+import { user } from "../db/schema"
 import { GitHubTokenResponse, UserData } from "../utils/types"
 
 // Initialize jiti for dynamic imports
@@ -33,22 +37,17 @@ export class GitHubManager {
    * Authenticates a user with GitHub
    * @param code - GitHub OAuth code (optional)
    * @param userId - User's ID in the system
-   * @param authToken - Authentication token (optional)
    * @returns GitHub user data or null if authentication fails
    */
-  async authenticate(
-    code: string | null,
-    userId: string,
-    authToken: string | null
-  ) {
+  async authenticate(code: string | null, userId: string) {
     try {
       let accessToken = code ? await this.getAccessToken(code) : ""
 
       if (accessToken) {
-        await this.updateUserToken(userId, accessToken, authToken)
+        await this.updateUserToken(userId, accessToken)
       }
 
-      const userData = await this.fetchUserData(userId, authToken ?? null)
+      const userData = await this.fetchUserData(userId)
       accessToken = userData.githubToken
 
       if (!accessToken) {
@@ -74,45 +73,31 @@ export class GitHubManager {
    * Updates the user's GitHub token in the database
    * @param userId - User's ID
    * @param token - New GitHub token
-   * @param authToken - Authentication token
    */
-  private async updateUserToken(
-    userId: string,
-    token: string,
-    authToken: string | null
-  ): Promise<void> {
-    await fetch(`${process.env.SERVER_URL}/api/user`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${authToken}`,
-      },
-      body: JSON.stringify({
-        id: userId,
-        githubToken: token,
-      }),
-    })
-  }
+  private async updateUserToken(userId: string, token: string): Promise<void> {
+    const db = drizzle(process.env.DATABASE_URL as string, { schema })
 
+    await db.update(user).set({ githubToken: token }).where(eq(user.id, userId))
+  }
   /**
    * Fetches user data from the database
    * @param userId - User's ID
-   * @param authToken - Authentication token
    * @returns User data including GitHub token
    */
-  private async fetchUserData(
-    userId: string,
-    authToken: string | null
-  ): Promise<UserData> {
-    const response = await fetch(
-      `${process.env.SERVER_URL}/api/user?id=${userId}`,
-      {
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-        },
-      }
-    )
-    return response.json()
+  private async fetchUserData(userId: string): Promise<UserData> {
+    const db = drizzle(process.env.DATABASE_URL as string, { schema })
+
+    const userData = await db
+      .select()
+      .from(user)
+      .where(eq(user.id, userId))
+      .limit(1)
+
+    if (!userData || userData.length === 0) {
+      throw new Error(`User not found with ID: ${userId}`)
+    }
+
+    return userData[0] as UserData
   }
 
   /**
@@ -161,12 +146,11 @@ export class GitHubManager {
   async initializeOctokitAndGitHubUser(req: Request) {
     try {
       const userId = req.auth?.userId
-      const authToken = req.authToken
       // Authenticate using stored token
       if (!userId) {
         throw new Error("User ID not found in request.")
       }
-      const user = await this.fetchUserData(userId, authToken ?? null)
+      const user = await this.fetchUserData(userId)
       if (!user?.githubToken) {
         throw new Error("GitHub authentication token not found for user.")
       }
@@ -202,20 +186,9 @@ export class GitHubManager {
 
   /**
    * Fetches GitHub user data for the authenticated user
-   * @param params.code - Optional GitHub OAuth code
-   * @param params.authToken - Authentication token
-   * @param params.userId - User's ID
    * @returns GitHub user data
    */
-  async getGithubUser({
-    code,
-    authToken,
-    userId,
-  }: {
-    code?: string
-    authToken: string
-    userId: string
-  }) {
+  async getGithubUser() {
     try {
       await this.ensureInitialized()
       const response = await this.octokit?.request("GET /user")
@@ -453,23 +426,15 @@ export class GitHubManager {
   /**
    * Logs out a user from GitHub by clearing their GitHub token
    * @param userId - ID of the user to log out
-   * @param authToken - Authentication token for the API request
    * @returns Object indicating success of the logout operation
    */
-  async logoutGithubUser(userId: string, authToken: string | null) {
+  async logoutGithubUser(userId: string) {
     this.octokit = null
     // Update user's GitHub token in database
-    await fetch(`${process.env.SERVER_URL}/api/user`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${authToken}`,
-      },
-      body: JSON.stringify({
-        id: userId,
-        githubToken: "",
-      }),
-    })
+    const db = drizzle(process.env.DATABASE_URL as string, { schema })
+
+    await db.update(user).set({ githubToken: "" }).where(eq(user.id, userId))
+
     return { success: true }
   }
 }

@@ -68,10 +68,7 @@ export class GitHubApiRoutes {
 
     this.router.get("/repo/status", requireGithubAuth, (req, res) =>
       this.handleRoute(req, res, (service) =>
-        service.checkRepoStatus(
-          req.query.projectId as string,
-          req.authToken ?? null
-        )
+        service.checkRepoStatus(req.query.projectId as string)
       )
     )
 
@@ -85,7 +82,7 @@ export class GitHubApiRoutes {
 
     this.router.post("/repo/remove", requireGithubAuth, (req, res) =>
       this.handleRoute(req, res, (service) =>
-        service.removeRepoFromSandbox(req.body.projectId, req.authToken ?? null)
+        service.removeRepoFromSandbox(req.body.projectId)
       )
     )
   }
