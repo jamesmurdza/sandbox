@@ -82,7 +82,7 @@ export class GitHubApiRoutes {
 
     this.router.post("/repo/remove", requireGithubAuth, (req, res) =>
       this.handleRoute(req, res, (service) =>
-        service.removeRepoFromSandbox(req.body.projectId)
+        service.removeRepo(req.body.projectId)
       )
     )
   }

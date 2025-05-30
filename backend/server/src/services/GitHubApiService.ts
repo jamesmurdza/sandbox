@@ -205,7 +205,7 @@ export class GitHubApiService {
    * @param projectId - ID of the project to remove repo from
    * @returns Promise containing removal operation result
    */
-  async removeRepoFromSandbox(projectId: string): Promise<ApiResponse> {
+  async removeRepo(projectId: string): Promise<ApiResponse> {
     try {
       if (!projectId) {
         return {
@@ -273,7 +273,7 @@ export class GitHubApiService {
       // Verify repository still exists
       const repoCheck = await this.githubManager.repoExistsByID(repoId)
       if (!repoCheck.exists) {
-        await this.removeRepoFromSandbox(projectId)
+        await this.removeRepo(projectId)
         return {
           success: false,
           code: 404,
@@ -490,7 +490,7 @@ export class GitHubApiService {
     }
 
     if (repoExists.existsInDB && !repoExists.existsInGitHub) {
-      await this.removeRepoFromSandbox(projectId)
+      await this.removeRepo(projectId)
     } else if (repoExists.existsInDB && repoExists.existsInGitHub) {
       throw new Error("Repository already exists")
     }
