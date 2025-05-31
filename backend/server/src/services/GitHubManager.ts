@@ -433,7 +433,7 @@ export class GitHubManager {
     // Update user's GitHub token in database
     const db = drizzle(process.env.DATABASE_URL as string, { schema })
 
-    await db.update(user).set({ githubToken: "" }).where(eq(user.id, userId))
+    await db.update(user).set({ githubToken: null }).where(eq(user.id, userId))
 
     return { success: true }
   }
