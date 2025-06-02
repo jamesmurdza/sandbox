@@ -1,7 +1,14 @@
+import { drizzle } from "drizzle-orm/node-postgres"
 import { Socket } from "socket.io"
 import { z } from "zod"
+import * as schema from "../db/schema"
 import { isClerkConfigured, verifyClerkToken } from "../utils/clerk"
-import { Project, User } from "../utils/types"
+
+// Load the database credentials
+import "dotenv/config"
+
+// Initialize database
+const db = drizzle(process.env.DATABASE_URL as string, { schema })
 
 // Middleware for socket authentication
 export const socketAuth = async (socket: Socket, next: Function) => {
@@ -33,32 +40,24 @@ export const socketAuth = async (socket: Socket, next: Function) => {
       const { user: clerkUser } = await verifyClerkToken(token)
       const userId = clerkUser.id
 
-      // Fetch project data from the database
-      const dbProject = await fetch(
-        `${process.env.SERVER_URL}/api/sandbox?id=${projectId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      )
-      const dbProjectJSON = (await dbProject.json()) as Project
+      // Fetch project data from the database using Drizzle
+      const dbProjectJSON = await db.query.sandbox.findFirst({
+        where: (sandbox, { eq }) => eq(sandbox.id, projectId),
+      })
 
       if (!dbProjectJSON) {
         next(new Error("Project not found"))
         return
       }
 
-      // Fetch user data to verify project access
-      const dbUser = await fetch(
-        `${process.env.SERVER_URL}/api/user?id=${userId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      )
-      const dbUserJSON = (await dbUser.json()) as User
+      // Fetch user data to verify project access using Drizzle
+      const dbUserJSON = await db.query.user.findFirst({
+        where: (user, { eq }) => eq(user.id, userId),
+        with: {
+          sandbox: true,
+          usersToSandboxes: true,
+        },
+      })
 
       if (!dbUserJSON) {
         next(new Error("User not found"))
@@ -66,9 +65,11 @@ export const socketAuth = async (socket: Socket, next: Function) => {
       }
 
       // Check if the user owns the project or has shared access
-      const project = dbUserJSON.sandbox.find((s) => s.id === projectId)
-      const sharedProjects = dbUserJSON.usersToSandboxes.find(
-        (uts) => uts.sandboxId === projectId
+      const project = (dbUserJSON.sandbox as any[])?.find(
+        (s: any) => s.id === projectId
+      )
+      const sharedProjects = (dbUserJSON.usersToSandboxes as any[])?.find(
+        (uts: any) => uts.sandboxId === projectId
       )
 
       // If user doesn't own or have shared access to the project, deny access
