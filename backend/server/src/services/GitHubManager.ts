@@ -6,7 +6,9 @@ import { createJiti } from "jiti"
 import * as schema from "../db/schema"
 import { user } from "../db/schema"
 import { GitHubTokenResponse, UserData } from "../utils/types"
-
+// Load the database credentials
+import "dotenv/config"
+const db = drizzle(process.env.DATABASE_URL as string, { schema })
 // Initialize jiti for dynamic imports
 const jiti = createJiti(__dirname)
 const { Octokit } = jiti("@octokit/core")
@@ -75,8 +77,6 @@ export class GitHubManager {
    * @param token - New GitHub token
    */
   private async updateUserToken(userId: string, token: string): Promise<void> {
-    const db = drizzle(process.env.DATABASE_URL as string, { schema })
-
     await db.update(user).set({ githubToken: token }).where(eq(user.id, userId))
   }
   /**
@@ -85,8 +85,6 @@ export class GitHubManager {
    * @returns User data including GitHub token
    */
   private async fetchUserData(userId: string): Promise<UserData> {
-    const db = drizzle(process.env.DATABASE_URL as string, { schema })
-
     const userData = await db
       .select()
       .from(user)
@@ -431,7 +429,6 @@ export class GitHubManager {
   async logoutGithubUser(userId: string) {
     this.octokit = null
     // Update user's GitHub token in database
-    const db = drizzle(process.env.DATABASE_URL as string, { schema })
 
     await db.update(user).set({ githubToken: null }).where(eq(user.id, userId))
 

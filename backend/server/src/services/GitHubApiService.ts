@@ -9,7 +9,7 @@ import { Project } from "../services/Project"
 import { ApiResponse } from "../utils/types"
 
 dotenv.config()
-
+const db = drizzle(process.env.DATABASE_URL as string, { schema })
 export class GitHubApiService {
   private githubManager: GitHubManager
 
@@ -215,7 +215,6 @@ export class GitHubApiService {
           data: null,
         }
       }
-      const db = drizzle(process.env.DATABASE_URL as string, { schema })
 
       await db
         .update(sandbox)
@@ -440,7 +439,6 @@ export class GitHubApiService {
     return files
   }
   private async fetchSandboxData(projectId: string) {
-    const db = drizzle(process.env.DATABASE_URL as string, { schema })
 
     const sandboxData = await db
       .select()
@@ -461,7 +459,6 @@ export class GitHubApiService {
    * @returns Promise containing update result
    */
   private async updateSandboxWithRepoId(projectId: string, repoId: string) {
-    const db = drizzle(process.env.DATABASE_URL as string, { schema })
 
     await db
       .update(sandbox)
