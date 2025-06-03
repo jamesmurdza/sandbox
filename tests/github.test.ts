@@ -99,6 +99,6 @@ describe("POST /logout", async () => {
     test("Should remove githubToken from user", async () => {
         const userResponse = await api.get(`/user?id=${env.CLERK_TEST_USER_ID}`)
         const userBody = await userResponse.json()
-        expect(userBody.githubToken).toBe('')
+        expect(userBody.githubToken).toBe(null)
     })
 })
