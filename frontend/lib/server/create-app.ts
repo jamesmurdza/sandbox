@@ -57,7 +57,7 @@ export default function createApp() {
                 },
                 servers: [
                     {
-                        url: "http://localhost:3000/api",
+                        url: "http://localhost:3000",
                         description: "Local server",
                     },
                     {
@@ -87,8 +87,8 @@ export default function createApp() {
     app.get(
         "/docs",
         Scalar({
-            url: "/openapi.json",
-            title: "Sandbox by GitWit API Documentation",
+            url: "/api/openapi.json",
+            pageTitle: "Sandbox by GitWit API Documentation",
             theme: "kepler",
             layout: "classic",
             defaultHttpClient: {

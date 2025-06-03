@@ -9,7 +9,7 @@ import {
   timestamp,
   varchar,
 } from "drizzle-orm/pg-core"
-
+import { createInsertSchema, createUpdateSchema } from "drizzle-zod"
 export const KNOWN_PLATFORMS = [
   "github",
   "twitter",
@@ -57,7 +57,67 @@ export const user = pgTable("user", {
 })
 
 export type User = typeof user.$inferSelect
+export const userInsertSchema = createInsertSchema(user, {
+  id: (schema) =>
+    schema.openapi({
+      description: "Unique identifier for the user",
+    }),
+  name: (schema) =>
+    schema.openapi({
+      description: "Name of the user",
+    }),
+  email: (schema) =>
+    schema.openapi({
+      description: "Email address of the user",
+    }),
+  username: (schema) =>
+    schema.openapi({
+      description: "Username of the user",
+    }),
+  avatarUrl: (schema) =>
+    schema.openapi({
+      description: "Avatar URL of the user",
+    }),
+  githubToken: (schema) =>
+    schema.openapi({
+      description: "GitHub token for the user",
+    }),
+  createdAt: (schema) =>
+    schema.openapi({
+      description: "Creation timestamp of the user",
+    }),
+})
 
+export const userUpdateSchema = createUpdateSchema(user, {
+  id: (schema) =>
+    schema.openapi({
+      description: "Unique identifier for the user",
+    }),
+  name: (schema) =>
+    schema.openapi({
+      description: "Name of the user",
+    }),
+  email: (schema) =>
+    schema.openapi({
+      description: "Email address of the user",
+    }),
+  username: (schema) =>
+    schema.openapi({
+      description: "Username of the user",
+    }),
+  avatarUrl: (schema) =>
+    schema.openapi({
+      description: "Avatar URL of the user",
+    }),
+  githubToken: (schema) =>
+    schema.openapi({
+      description: "GitHub token for the user",
+    }),
+  createdAt: (schema) =>
+    schema.openapi({
+      description: "Creation timestamp of the user",
+    }),
+})
 export const sandbox = pgTable("sandbox", {
   id: text("id")
     .$defaultFn(() => createId())
@@ -74,6 +134,39 @@ export const sandbox = pgTable("sandbox", {
   viewCount: integer("viewCount").default(0),
   containerId: text("containerId"),
   repositoryId: text("repositoryId"),
+})
+
+export const sandboxInsertSchema = createInsertSchema(sandbox, {
+  name: (schema) =>
+    schema.openapi({
+      description: "Name of the sandbox",
+    }),
+  type: (schema) =>
+    schema.openapi({
+      description: "Type of the sandbox",
+    }),
+  visibility: (schema) =>
+    schema.openapi({
+      description: "Visibility of the sandbox",
+    }),
+  createdAt: (schema) =>
+    schema.openapi({
+      description: "Creation timestamp of the sandbox",
+    }),
+  userId: (schema) =>
+    schema.openapi({
+      description: "ID of the user who created the sandbox",
+    }),
+  containerId: (schema) =>
+    schema.openapi({
+      description: "Container ID for the sandbox",
+    }),
+  repositoryId: (schema) =>
+    schema.openapi({
+      description: "Repository ID for the sandbox",
+    }),
+}).omit({
+  id: true,
 })
 
 export type Sandbox = typeof sandbox.$inferSelect

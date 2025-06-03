@@ -14,9 +14,9 @@ export const env = createEnv({
         NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
     },
     client: {
-        NEXT_PUBLIC_PUBLISHABLE_KEY: z.string().min(1),
+        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: z.string().min(1),
         NEXT_PUBLIC_SERVER_PORT: z.string().optional().default("4000"),
-        NEXT_PUBLIC_APP_URL: z.string().url().min(1).optional().default("http://localhost:3000"),
+        NEXT_PUBLIC_APP_URL: z.string().optional(),
         NEXT_PUBLIC_SERVER_URL: z.string().url().min(1).optional().default("http://localhost:4000"),
         NEXT_PUBLIC_CLERK_SIGN_IN_URL: z.string().min(1).optional().default("/sign-in"),
         NEXT_PUBLIC_CLERK_SIGN_UP_URL: z.string().min(1).optional().default("/sign-up"),
@@ -24,7 +24,7 @@ export const env = createEnv({
         NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL: z.string().min(1).optional().default("/sign-up"),
     },
     experimental__runtimeEnv: {
-        NEXT_PUBLIC_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_PUBLISHABLE_KEY,
+        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
         NEXT_PUBLIC_SERVER_PORT: process.env.NEXT_PUBLIC_SERVER_PORT,
         NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
         NEXT_PUBLIC_SERVER_URL: process.env.NEXT_PUBLIC_SERVER_URL,
