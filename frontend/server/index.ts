@@ -5,8 +5,10 @@ import { sandboxRouter } from "./routes/sandbox"
 import { userRouter } from "./routes/user"
 
 const app = createApp()
-app.use(clerkAuth)
-app.route("/user", userRouter)
-app.route("/sandbox", sandboxRouter)
+  .use(clerkAuth)
+  .route("/sandbox", sandboxRouter)
+  .route("/user", userRouter)
+
+export type AppType = typeof app
 
 export default app
