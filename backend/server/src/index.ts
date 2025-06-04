@@ -10,10 +10,11 @@ import userRoutes from "./routes/user"
 
 import { attachAuthToken } from "./middleware/attachAuthToken"
 import { requireAuth } from "./middleware/clerkAuth"
-import { socketAuth } from "./middleware/socketAuth" // Import the new socketAuth middleware
+import { socketAuth } from "./middleware/socketAuth"
 import { ConnectionManager } from "./services/ConnectionManager"
 import { DokkuClient } from "./services/DokkuClient"
 import { Project } from "./services/Project"
+import { createProjectHandlers } from "./services/ProjectHandlers"
 import { SecureGitClient } from "./services/SecureGitClient"
 import { TFile, TFolder } from "./utils/types"
 
@@ -119,26 +120,27 @@ io.on("connection", async (socket) => {
       socket.emit("loaded", await project.fileManager?.getFileTree())
 
       // Register event handlers for the project
+      const handlers = createProjectHandlers(
+        project,
+        {
+          userId: data.userId,
+          isOwner: data.isOwner,
+          socket,
+        },
+        {
+          dokkuClient,
+          gitClient,
+        }
+      )
+
       // For each event handler, listen on the socket for that event
-      // Pass connection-specific information to the handlers
-      Object.entries(
-        project.handlers(
-          {
-            userId: data.userId,
-            isOwner: data.isOwner,
-            socket,
-          },
-          {
-            dokkuClient,
-            gitClient,
-          }
-        )
-      ).forEach(([event, handler]) => {
+      Object.entries(handlers).forEach(([event, handler]) => {
+        const typedHandler = handler as (options: any) => Promise<any>
         socket.on(
           event,
           async (options: any, callback?: (response: any) => void) => {
             try {
-              const result = await handler(options)
+              const result = await typedHandler(options)
               callback?.(result)
             } catch (e: any) {
               handleErrors(`Error processing event "${event}":`, e, socket)
