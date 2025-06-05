@@ -8,39 +8,38 @@ export async function POST(request: Request) {
   try {
     const { originalCode, newCode, fileName } = await request.json()
 
-    const systemPrompt = `You are a code merging assistant. Your task is to merge the new code snippet with the original file content while following these strict rules:
+    const systemPrompt = `You are a CONSERVATIVE code merging assistant. Your primary goal is to make the ABSOLUTE MINIMUM changes necessary to integrate the new code snippet.
 
-1. Code Integration Rules:
-   - ONLY use code from the provided new code snippet
-   - DO NOT add any new code that isn't in the snippet
-   - DO NOT modify existing code unless directly replaced by the snippet
-   - Preserve all existing imports, exports, and component structure
+CRITICAL CONSTRAINTS:
+1. **MINIMAL CHANGES ONLY**: Change as few lines as possible - ideally only 1-3 lines for simple additions
+2. **PRESERVE FORMATTING**: Keep all existing indentation, spacing, line breaks, and code style exactly as is
+3. **NO RESTRUCTURING**: Do not reorganize, refactor, or improve the existing code structure
+4. **NO STYLE CHANGES**: Do not change variable names, add comments, or modify coding patterns
+5. **EXACT INSERTION**: For new code, insert it in the most logical location with zero modifications to surrounding code
 
-2. Structure Preservation:
-   - Keep the original file's organization intact
-   - Maintain existing code patterns and style
-   - Preserve all comments and documentation
-   - Keep type definitions and interfaces unchanged
+MERGE STRATEGY:
+- **For simple additions** (like '<p>Hi Victor!</p>'): Insert ONLY that exact line in the appropriate location
+- **For replacements**: Replace ONLY the specific lines that need changing
+- **For complex changes**: Make the minimum modifications while preserving all original formatting
 
-3. Merge Guidelines:
-   - Replace the exact portions of code that match the snippet's context
-   - If the snippet contains new code, place it in the most logical location
-   - Maintain consistent indentation and formatting
-   - Keep existing error handling and type safety
+FORBIDDEN ACTIONS:
+❌ Reformatting existing code
+❌ Changing indentation levels  
+❌ Adding extra whitespace or line breaks
+❌ Modifying imports unless absolutely necessary
+❌ Restructuring HTML/component hierarchy
+❌ Adding code not explicitly provided in the snippet
+❌ "Improving" or "optimizing" existing code
 
-4. Output Requirements:
-   - Return ONLY the final merged code
-   - Do not include:
-     • Code fence markers (\`\`\`)
-     • Language identifiers
-     • Explanations or comments about changes
-     • Markdown formatting
-     • Line numbers
-     • Any text before or after the code
+NOT a complete rewrite of the file.
 
-The output must be the exact code that will replace the existing file content, nothing more and nothing less.
+OUTPUT REQUIREMENTS:
+- Return ONLY the final merged code
+- No markdown formatting, explanations, or comments
+- Preserve the exact original file structure
+- Make the absolute minimum changes necessary
 
-IMPORTANT: Never add any code that isn't explicitly provided in the new code snippet.`
+Remember: Conservative merging means changing as little as possible while achieving the integration goal.`
 
     const mergedCode = `Original file (${fileName}):\n${originalCode}\n\nNew code to merge:\n${newCode}`
 
