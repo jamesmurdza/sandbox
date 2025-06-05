@@ -1,11 +1,11 @@
 "use client"
 
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
 } from "@/components/ui/dialog"
 import { useClerk } from "@clerk/nextjs"
 import Editor, { BeforeMount, OnMount } from "@monaco-editor/react"
@@ -24,29 +24,29 @@ import { Button } from "../ui/button"
 // import * as Y from "yjs"
 
 import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
+    ResizableHandle,
+    ResizablePanel,
+    ResizablePanelGroup,
 } from "@/components/ui/resizable"
 import { PreviewProvider, usePreview } from "@/context/PreviewContext"
 import { useSocket } from "@/context/SocketContext"
 import { parseTSConfigToMonacoOptions } from "@/lib/tsconfig"
 import { DiffBlock, GranularDiffState, LineChange, Sandbox, TFile, TFolder, TTab, User } from "@/lib/types"
 import {
-  cn,
-  debounce,
-  deepMerge,
-  processFileType,
-  validateName,
+    cn,
+    debounce,
+    deepMerge,
+    processFileType,
+    validateName,
 } from "@/lib/utils"
 import { Terminal } from "@xterm/xterm"
 import {
-  ArrowDownToLine,
-  ArrowRightToLine,
-  FileJson,
-  Loader2,
-  Sparkles,
-  TerminalSquare
+    ArrowDownToLine,
+    ArrowRightToLine,
+    FileJson,
+    Loader2,
+    Sparkles,
+    TerminalSquare
 } from "lucide-react"
 import { useTheme } from "next-themes"
 import React from "react"
@@ -584,7 +584,7 @@ export default function CodeEditor({
       })
       ;(editorRef as any).blockControlWidgets = updatedWidgets
 
-      // Auto-save the file after accepting/rejecting changes
+      // Update editor state after accepting/rejecting changes
       if (activeFileId) {
         const currentContent = model.getValue()
         
@@ -597,20 +597,15 @@ export default function CodeEditor({
         // Update active file content
         setActiveFileContent(currentContent)
         
-        // Mark the file as saved since user explicitly accepted/rejected changes
+        // Mark the file as unsaved since content has changed
         setTabs((prev) =>
           prev.map((tab) =>
-            tab.id === activeFileId ? { ...tab, saved: true } : tab
+            tab.id === activeFileId ? { ...tab, saved: false } : tab
           )
         )
-        
-        // Trigger the save operation
-        socket?.emit("saveFile", { fileId: activeFileId, body: currentContent })
-        
-        toast.success(`Changes ${action}ed and saved automatically`)
       }
     },
-    [editorRef, activeFileId, setFileContents, setActiveFileContent, setTabs, socket]
+    [editorRef, activeFileId, setFileContents, setActiveFileContent, setTabs]
   )
 
   // Add floating block control widgets positioned next to diff chunks
