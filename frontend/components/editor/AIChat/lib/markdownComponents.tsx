@@ -5,6 +5,7 @@ import "highlight.js/styles/github.css"
 import "highlight.js/styles/vs2015.css"
 import { Check, CornerUpLeft, FileText, X } from "lucide-react"
 import monaco from "monaco-editor"
+import React from "react"
 import { Components } from "react-markdown"
 import { Button } from "../../../ui/button"
 import ApplyButton from "../ApplyButton"
@@ -123,68 +124,118 @@ export const createMarkdownComponents = (
             ) : (
               <>
                 <Button
-                  onClick={() => {
-                    if (
-                      setMergeDecorationsCollection &&
-                      mergeDecorationsCollection &&
-                      editorRef?.current
-                    ) {
-                      const model = editorRef.current.getModel()
-                      if (model) {
-                        const lines = model.getValue().split("\n")
-                        const removedLines = new Set()
+                    onClick={() => {
+                      if (
+                        setMergeDecorationsCollection &&
+                        mergeDecorationsCollection &&
+                        editorRef?.current
+                      ) {
+                        const model = editorRef.current.getModel()
+                        if (model) {
+                          const granularState = (model as any).granularDiffState
+                          
+                          if (granularState) {
+                            // Accept all changes in granular mode
+                            const updatedBlocks = granularState.blocks.map((block: any) => ({
+                              ...block,
+                              changes: block.changes.map((change: any) => ({
+                                ...change,
+                                accepted: true
+                              }))
+                            }))
 
-                        // Get decorations line by line
-                        for (let i = 1; i <= lines.length; i++) {
-                          const lineDecorations = model.getLineDecorations(i)
-                          if (
-                            lineDecorations?.some(
-                              (d: any) =>
-                                d.options.className ===
-                                "removed-line-decoration"
+                            const updatedState = {
+                              ...granularState,
+                              blocks: updatedBlocks,
+                              allAccepted: true
+                            }
+
+                            // Apply only the accepted additions, remove all removals
+                            const finalLines: string[] = []
+                            const originalLines = granularState.originalCode.split("\n")
+                            let originalIndex = 0
+
+                            for (const block of updatedBlocks) {
+                              // Add unchanged lines before this block
+                              while (originalIndex < Math.min(originalLines.length, block.startLine - 1)) {
+                                finalLines.push(originalLines[originalIndex])
+                                originalIndex++
+                              }
+
+                              // Add only accepted additions (removals are skipped)
+                              const additions = block.changes.filter((c: any) => c.type === 'added' && c.accepted)
+                              additions.forEach((change: any) => {
+                                finalLines.push(change.content)
+                              })
+
+                              // Skip removed lines
+                              const removals = block.changes.filter((c: any) => c.type === 'removed')
+                              originalIndex += removals.length
+                            }
+
+                            // Add remaining unchanged lines
+                            while (originalIndex < originalLines.length) {
+                              finalLines.push(originalLines[originalIndex])
+                              originalIndex++
+                            }
+
+                            model.setValue(finalLines.join("\n"))
+                          } else {
+                            // Fallback to old behavior for backward compatibility
+                            const lines = model.getValue().split("\n")
+                            const removedLines = new Set()
+
+                            for (let i = 1; i <= lines.length; i++) {
+                              const lineDecorations = model.getLineDecorations(i)
+                              if (
+                                lineDecorations?.some(
+                                  (d: any) =>
+                                    d.options.className ===
+                                    "removed-line-decoration"
+                                )
+                              ) {
+                                removedLines.add(i)
+                              }
+                            }
+
+                            const finalLines = lines.filter(
+                              (_: string, index: number) =>
+                                !removedLines.has(index + 1)
                             )
-                          ) {
-                            removedLines.add(i)
+                            model.setValue(finalLines.join("\n"))
                           }
                         }
-
-                        const finalLines = lines.filter(
-                          (_: string, index: number) =>
-                            !removedLines.has(index + 1)
-                        )
-                        model.setValue(finalLines.join("\n"))
-                      }
-                      mergeDecorationsCollection.clear()
-                      setMergeDecorationsCollection(undefined)
-                    }
-                  }}
-                  size="sm"
-                  variant="ghost"
-                  className="p-1 h-6"
-                  title="Accept Changes"
-                >
-                  <Check className="w-4 h-4 text-green-500" />
-                </Button>
-                <div className="w-px bg-input"></div>
-                <Button
-                  onClick={() => {
-                    if (editorRef?.current && mergeDecorationsCollection) {
-                      const model = editorRef.current.getModel()
-                      if (model && (model as any).originalContent) {
-                        editorRef.current?.setValue(
-                          (model as any).originalContent
-                        )
                         mergeDecorationsCollection.clear()
-                        setMergeDecorationsCollection?.(undefined)
+                        setMergeDecorationsCollection(undefined)
                       }
-                    }
-                  }}
-                  size="sm"
-                  variant="ghost"
-                  className="p-1 h-6"
-                  title="Discard Changes"
-                >
-                  <X className="w-4 h-4 text-red-500" />
+                    }}
+                    size="sm"
+                    variant="ghost"
+                    className="p-1 h-6"
+                    title="Accept All Changes"
+                  >
+                    <Check className="w-4 h-4 text-green-500" />
+                  </Button>
+                  <div className="w-px bg-input"></div>
+                  <Button
+                    onClick={() => {
+                      if (editorRef?.current && mergeDecorationsCollection) {
+                        const model = editorRef.current.getModel()
+                        if (model && (model as any).originalContent) {
+                          editorRef.current?.setValue(
+                            (model as any).originalContent
+                          )
+                          mergeDecorationsCollection.clear()
+                          setMergeDecorationsCollection?.(undefined)
+                        }
+                      }
+                    }}
+                    size="sm"
+                    variant="ghost"
+                    className="p-1 h-6"
+                    title="Discard Changes"
+                  >
+                                      <X className="w-4 h-4 text-red-500" />
                 </Button>
               </>
             )}

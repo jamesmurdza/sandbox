@@ -238,6 +238,26 @@
   color: #28a745 !important;
 }
 
+/* Block control buttons positioned at line ends */
+.block-controls-widget {
+  position: relative;
+  z-index: 1000;
+}
+
+.block-controls-widget .flex {
+  background: var(--background);
+  border: 1px solid var(--border);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.accept-block-btn:hover {
+  background-color: rgba(34, 197, 94, 0.1);
+}
+
+.reject-block-btn:hover {
+  background-color: rgba(239, 68, 68, 0.1);
+}
+
 .styled-scrollbar {
   --scrollbar-bg: hsl(var(--background));
   --scrollbar-thumb: hsl(var(--muted-foreground));

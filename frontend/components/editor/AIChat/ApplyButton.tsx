@@ -40,17 +40,7 @@ export default function ApplyButton({
         throw new Error(await response.text())
       }
 
-      const reader = response.body?.getReader()
-      const decoder = new TextDecoder()
-      let mergedCode = ""
-
-      if (reader) {
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) break
-          mergedCode += decoder.decode(value, { stream: true })
-        }
-      }
+      const mergedCode = await response.text()
       onApply(mergedCode.trim(), activeFileContent)
     } catch (error) {
       console.error("Error applying code:", error)
