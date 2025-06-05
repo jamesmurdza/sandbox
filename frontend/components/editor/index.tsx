@@ -177,7 +177,7 @@ export default function CodeEditor({
   const clerk = useClerk()
   const hasUnsavedFiles = tabs.some((tab) => !tab.saved)
 
-  console.log("has Unsaved: ", hasUnsavedFiles, tabs)
+  // console.log("has Unsaved: ", hasUnsavedFiles, tabs)
   // // Liveblocks hooks
   // const room = useRoom()
   // const [provider, setProvider] = useState<TypedLiveblocksProvider>()
