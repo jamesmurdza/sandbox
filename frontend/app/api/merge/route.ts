@@ -167,8 +167,8 @@ function performDiffMerge(original: string, updated: string): string {
   return result
 }
 
-// Optional: Create granular diff state for the editor
-export function createGranularDiffState(original: string, updated: string): GranularDiffState {
+
+function createGranularDiffState(original: string, updated: string): GranularDiffState {
   const changes = diffLines(original, updated, { ignoreWhitespace: false })
   const blocks: DiffBlock[] = []
   let currentLine = 1
