@@ -1,87 +1,212 @@
-import OpenAI from "openai"
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
+import { DiffBlock, GranularDiffState } from '@/lib/types'
+import { diffLines } from 'diff'
+import { nanoid } from 'nanoid'
 
 export async function POST(request: Request) {
   try {
     const { originalCode, newCode, fileName } = await request.json()
 
-    const systemPrompt = `You are a CONSERVATIVE code merging assistant. Your primary goal is to make the ABSOLUTE MINIMUM changes necessary to integrate the new code snippet.
+    // Detect merge strategy based on content
+    const strategy = detectMergeStrategy(originalCode, newCode, fileName)
+    
+    let mergedResult: string
+    
+    switch (strategy) {
+      case 'full-replacement':
+        // Complete file replacement (e.g., full HTML files)
+        mergedResult = newCode
+        break
+        
+      case 'smart-insert':
+        // Insert snippet at appropriate location
+        mergedResult = smartInsertCode(originalCode, newCode, fileName)
+        break
+        
+      case 'diff-merge':
+        // Use diff algorithm for partial updates
+        mergedResult = performDiffMerge(originalCode, newCode)
+        break
+        
+      default:
+        mergedResult = performDiffMerge(originalCode, newCode)
+    }
 
-CRITICAL CONSTRAINTS:
-1. **MINIMAL CHANGES ONLY**: Change as few lines as possible - ideally only 1-3 lines for simple additions
-2. **PRESERVE FORMATTING**: Keep all existing indentation, spacing, line breaks, and code style exactly as is
-3. **NO RESTRUCTURING**: Do not reorganize, refactor, or improve the existing code structure
-4. **NO STYLE CHANGES**: Do not change variable names, add comments, or modify coding patterns
-5. **EXACT INSERTION**: For new code, insert it in the most logical location with zero modifications to surrounding code
-
-MERGE STRATEGY:
-- **For simple additions** (like '<p>Hi Victor!</p>'): Insert ONLY that exact line in the appropriate location
-- **For replacements**: Replace ONLY the specific lines that need changing
-- **For complex changes**: Make the minimum modifications while preserving all original formatting
-
-FORBIDDEN ACTIONS:
-❌ Reformatting existing code
-❌ Changing indentation levels  
-❌ Adding extra whitespace or line breaks
-❌ Modifying imports unless absolutely necessary
-❌ Restructuring HTML/component hierarchy
-❌ Adding code not explicitly provided in the snippet
-❌ "Improving" or "optimizing" existing code
-
-NOT a complete rewrite of the file.
-
-OUTPUT REQUIREMENTS:
-- Return ONLY the final merged code
-- No markdown formatting, explanations, or comments
-- Preserve the exact original file structure
-- Make the absolute minimum changes necessary
-
-Remember: Conservative merging means changing as little as possible while achieving the integration goal.`
-
-    const mergedCode = `Original file (${fileName}):\n${originalCode}\n\nNew code to merge:\n${newCode}`
-
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: mergedCode },
-      ],
-      prediction: {
-        type: "content",
-        content: mergedCode,
-      },
-      stream: true,
+    return new Response(mergedResult, {
+      headers: { 'Content-Type': 'text/plain' }
     })
 
-    // Clean and stream response
-    const encoder = new TextEncoder()
-    return new Response(
-      new ReadableStream({
-        async start(controller) {
-          let buffer = ""
-          for await (const chunk of response) {
-            if (chunk.choices[0]?.delta?.content) {
-              buffer += chunk.choices[0].delta.content
-              // Clean any code fence markers that might appear in the stream
-              const cleanedContent = buffer
-                .replace(/^```[\w-]*\n|```\s*$/gm, "") // Remove code fences
-                .replace(/^(javascript|typescript|python|html|css)\n/gm, "") // Remove language identifiers
-              controller.enqueue(encoder.encode(cleanedContent))
-              buffer = ""
-            }
-          }
-          controller.close()
-        },
-      })
-    )
   } catch (error) {
     console.error("Merge error:", error)
     return new Response(
       error instanceof Error ? error.message : "Failed to merge code",
       { status: 500 }
     )
+  }
+}
+
+function detectMergeStrategy(original: string, newCode: string, fileName: string): string {
+  const trimmedNew = newCode.trim()
+  const lineCount = trimmedNew.split('\n').length
+  
+  // Full HTML document
+  if (trimmedNew.startsWith('<!DOCTYPE') || trimmedNew.startsWith('<html')) {
+    return 'full-replacement'
+  }
+  
+  // Small snippet (likely an insertion)
+  if (lineCount <= 10 && !trimmedNew.includes('function') && !trimmedNew.includes('class')) {
+    return 'smart-insert'
+  }
+  
+  // Default to diff merge
+  return 'diff-merge'
+}
+
+function smartInsertCode(original: string, snippet: string, fileName: string): string {
+  // CRITICAL: Detect and preserve line endings
+  const lineEnding = original.includes('\r\n') ? '\r\n' : '\n'
+  const lines = original.split(/\r?\n/)
+  const ext = fileName.split('.').pop()?.toLowerCase()
+  
+  // Find insertion point based on file type and content
+  let insertIndex = -1
+  
+  if (ext === 'html' || ext === 'htm') {
+    // For HTML, find appropriate location
+    if (snippet.includes('<head>') || snippet.includes('<meta') || snippet.includes('<link')) {
+      // Insert in head
+      insertIndex = lines.findIndex(line => line.includes('</head>'))
+    } else if (snippet.includes('<script')) {
+      // Insert before closing body
+      insertIndex = lines.findIndex(line => line.includes('</body>'))
+    } else {
+      // Insert in body - look for opening body tag
+      for (let i = 0; i < lines.length; i++) {
+        if (lines[i].includes('<body')) {
+          // Find the closing > of the body tag
+          let j = i
+          while (j < lines.length && !lines[j].includes('>')) {
+            j++
+          }
+          insertIndex = j + 1
+          break
+        }
+      }
+    }
+  } else if (['js', 'jsx', 'ts', 'tsx'].includes(ext || '')) {
+    // For JS/TS files
+    if (snippet.includes('import')) {
+      // Insert with other imports
+      const lastImport = lines.findLastIndex(line => line.trim().startsWith('import'))
+      insertIndex = lastImport !== -1 ? lastImport + 1 : 0
+    } else if (snippet.includes('export')) {
+      // Insert at end
+      insertIndex = lines.length
+    } else {
+      // Insert before first function/class or at end
+      const funcIndex = lines.findIndex(line => 
+        line.includes('function') || line.includes('class') || line.includes('const')
+      )
+      insertIndex = funcIndex !== -1 ? funcIndex : lines.length
+    }
+  }
+  
+  // Default to end if no suitable location found
+  if (insertIndex === -1 || insertIndex > lines.length) {
+    insertIndex = lines.length
+  }
+  
+  // Get indentation from the previous non-empty line
+  let indentLevel = 0
+  for (let i = insertIndex - 1; i >= 0; i--) {
+    if (lines[i].trim()) {
+      indentLevel = getIndentLevel(lines[i])
+      break
+    }
+  }
+  
+  // Prepare the snippet with proper indentation
+  const snippetLines = snippet.split(/\r?\n/)
+  const indentedSnippetLines = snippetLines.map(line => 
+    line.trim() ? ' '.repeat(indentLevel) + line.trim() : ''
+  )
+  
+  // CRITICAL: Insert without modifying the original array structure
+  const result = [
+    ...lines.slice(0, insertIndex),
+    ...indentedSnippetLines,
+    ...lines.slice(insertIndex)
+  ]
+  
+  // CRITICAL: Preserve exact line ending format
+  return result.join(lineEnding)
+}
+
+function getIndentLevel(line: string): number {
+  const match = line.match(/^(\s*)/)
+  return match ? match[1].length : 0
+}
+
+function performDiffMerge(original: string, updated: string): string {
+  const changes = diffLines(original, updated, { ignoreWhitespace: false })
+  
+  // Build merged result
+  let result = ''
+  
+  for (const change of changes) {
+    if (change.added) {
+      // Add new content
+      result += change.value
+    } else if (!change.removed) {
+      // Keep unchanged content
+      result += change.value
+    }
+    // Skip removed content
+  }
+  
+  return result
+}
+
+// Optional: Create granular diff state for the editor
+export function createGranularDiffState(original: string, updated: string): GranularDiffState {
+  const changes = diffLines(original, updated, { ignoreWhitespace: false })
+  const blocks: DiffBlock[] = []
+  let currentLine = 1
+  
+  for (let i = 0; i < changes.length; i++) {
+    const change = changes[i]
+    const lines = change.value.split('\n').filter(l => l !== '')
+    
+    if (change.added || change.removed) {
+      const blockId = nanoid()
+      const block: DiffBlock = {
+        id: blockId,
+        startLine: currentLine,
+        endLine: currentLine + lines.length - 1,
+        type: change.added ? 'addition' : 'deletion',
+        changes: lines.map((line, idx) => ({
+          id: nanoid(),
+          lineNumber: currentLine + idx,
+          type: change.added ? 'added' : 'removed',
+          content: line,
+          blockId,
+          accepted: true,
+          originalLineNumber: change.removed ? currentLine + idx : undefined
+        }))
+      }
+      
+      blocks.push(block)
+    }
+    
+    if (!change.removed) {
+      currentLine += lines.length
+    }
+  }
+  
+  return {
+    blocks,
+    originalCode: original,
+    mergedCode: updated,
+    allAccepted: true
   }
 }

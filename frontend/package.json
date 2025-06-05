@@ -49,6 +49,7 @@
     "@xterm/xterm": "^5.5.0",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
+    "diff": "^8.0.2",
     "embla-carousel": "^8.3.0",
     "embla-carousel-react": "^8.3.0",
     "embla-carousel-wheel-gestures": "^8.0.1",
@@ -60,6 +61,7 @@
     "lucide-react": "^0.511.0",
     "monaco-editor": "^0.52.2",
     "monaco-themes": "^0.4.4",
+    "nanoid": "^5.1.5",
     "next": "^15.3.2",
     "next-themes": "^0.4.4",
     "openai": "^4.73.1",
@@ -84,6 +86,7 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@types/diff": "^7.0.2",
     "@types/estree": "^1.0.6",
     "@types/highlight.js": "^9.12.4",
     "@types/node": "^20.17.19",

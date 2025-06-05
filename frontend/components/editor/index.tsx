@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dialog"
 import { useClerk } from "@clerk/nextjs"
 import Editor, { BeforeMount, OnMount } from "@monaco-editor/react"
+import { diffLines } from 'diff'
 import { AnimatePresence, motion } from "framer-motion"
 import { X } from "lucide-react"
 import * as monaco from "monaco-editor"
@@ -405,7 +406,7 @@ export default function CodeEditor({
     [editorRef]
   )
 
-  // Enhanced handle apply code with granular diff tracking
+  // Enhanced handle apply code with granular diff tracking  
   const handleApplyCode = useCallback(
     (mergedCode: string, originalCode: string) => {
       if (!editorRef) return
@@ -413,194 +414,106 @@ export default function CodeEditor({
       if (!model) return
       ;(model as any).originalContent = originalCode
 
-      const originalLines = originalCode.split("\n")
-      const mergedLines = mergedCode.split("\n")
+      // Use the imported diffLines function for proper diff detection
+      const changes = diffLines(originalCode, mergedCode, { ignoreWhitespace: false })
+      
       const decorations: monaco.editor.IModelDeltaDecoration[] = []
       const combinedLines: string[] = []
       const diffBlocks: DiffBlock[] = []
       const allChanges: LineChange[] = []
 
-      let i = 0
-      let inDiffBlock = false
+      let currentLine = 1
       let currentBlockId = ""
-      let originalBlock: string[] = []
-      let mergedBlock: string[] = []
-      let blockStartLine = 0
+      let currentBlock: LineChange[] = []
 
       const generateId = () => `change-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
 
-      while (i < Math.max(originalLines.length, mergedLines.length)) {
-        if (originalLines[i] !== mergedLines[i]) {
-          if (!inDiffBlock) {
-            inDiffBlock = true
+      for (let i = 0; i < changes.length; i++) {
+        const change = changes[i]
+        const lines = change.value.split('\n').filter((line: string, idx: number, arr: string[]) => {
+          // Keep all lines except the last empty line (which is just the trailing newline)
+          return idx < arr.length - 1 || line !== ''
+        })
+
+        if (change.added || change.removed) {
+          // Start new block if needed
+          if (currentBlock.length === 0) {
             currentBlockId = generateId()
-            blockStartLine = combinedLines.length
-            originalBlock = []
-            mergedBlock = []
           }
 
-          if (i < originalLines.length) originalBlock.push(originalLines[i])
-          if (i < mergedLines.length) mergedBlock.push(mergedLines[i])
+          // Process each line in this change
+          lines.forEach((line: string, lineIdx: number) => {
+            combinedLines.push(line)
+            const lineNumber = combinedLines.length
+            const changeId = generateId()
+            
+            const lineChange: LineChange = {
+              id: changeId,
+              lineNumber,
+              type: change.added ? 'added' : 'removed',
+              content: line,
+              blockId: currentBlockId,
+              accepted: true,
+              originalLineNumber: currentLine + lineIdx
+            }
+            
+            allChanges.push(lineChange)
+            currentBlock.push(lineChange)
+
+            // Add decoration
+            decorations.push({
+              range: new monaco.Range(lineNumber, 1, lineNumber, 1),
+              options: {
+                isWholeLine: true,
+                className: change.added ? "added-line-decoration" : "removed-line-decoration",
+                glyphMarginClassName: change.added ? "added-line-glyph" : "removed-line-glyph", 
+                linesDecorationsClassName: change.added ? "added-line-number" : "removed-line-number",
+                minimap: { 
+                  color: change.added ? "rgb(0, 255, 0, 0.2)" : "rgb(255, 0, 0, 0.2)", 
+                  position: 2 
+                },
+              },
+            })
+          })
+
+          // Don't increment currentLine for removals since they don't exist in new content
+          if (!change.removed) {
+            currentLine += lines.length
+          }
         } else {
-          if (inDiffBlock) {
-            const blockChanges: LineChange[] = []
-
-            // Process removed lines (no individual controls)
-            originalBlock.forEach((line, idx) => {
-              combinedLines.push(line)
-              const lineNumber = combinedLines.length
-              const changeId = generateId()
-              
-              const lineChange: LineChange = {
-                id: changeId,
-                lineNumber,
-                type: 'removed',
-                content: line,
-                blockId: currentBlockId,
-                accepted: true,
-                originalLineNumber: i - originalBlock.length + idx + 1
-              }
-              
-              allChanges.push(lineChange)
-              blockChanges.push(lineChange)
-
-              decorations.push({
-                range: new monaco.Range(lineNumber, 1, lineNumber, 1),
-                options: {
-                  isWholeLine: true,
-                  className: "removed-line-decoration",
-                  glyphMarginClassName: "removed-line-glyph",
-                  linesDecorationsClassName: "removed-line-number",
-                  minimap: { color: "rgb(255, 0, 0, 0.2)", position: 2 },
-                },
-              })
-            })
-
-            // Process added lines (no individual controls)
-            mergedBlock.forEach((line, idx) => {
-              combinedLines.push(line)
-              const lineNumber = combinedLines.length
-              const changeId = generateId()
-              
-              const lineChange: LineChange = {
-                id: changeId,
-                lineNumber,
-                type: 'added',
-                content: line,
-                blockId: currentBlockId,
-                accepted: true,
-                originalLineNumber: i + idx + 1
-              }
-              
-              allChanges.push(lineChange)
-              blockChanges.push(lineChange)
-
-              decorations.push({
-                range: new monaco.Range(lineNumber, 1, lineNumber, 1),
-                options: {
-                  isWholeLine: true,
-                  className: "added-line-decoration",
-                  glyphMarginClassName: "added-line-glyph",
-                  linesDecorationsClassName: "added-line-number",
-                  minimap: { color: "rgb(0, 255, 0, 0.2)", position: 2 },
-                },
-              })
-            })
-
-            // Store block info for button placement (no extra line needed)
-
-            // Create diff block
+          // Unchanged content - finalize any pending block
+          if (currentBlock.length > 0) {
             const diffBlock: DiffBlock = {
               id: currentBlockId,
-              startLine: blockStartLine + 1,
-              endLine: combinedLines.length,
-              changes: blockChanges,
-              type: originalBlock.length > 0 && mergedBlock.length > 0 ? 'modification' : 
-                    originalBlock.length > 0 ? 'deletion' : 'addition'
+              startLine: currentBlock[0].lineNumber,
+              endLine: currentBlock[currentBlock.length - 1].lineNumber,
+              changes: currentBlock,
+              type: currentBlock.some((c: LineChange) => c.type === 'added') && currentBlock.some((c: LineChange) => c.type === 'removed') 
+                ? 'modification' 
+                : currentBlock[0].type === 'added' ? 'addition' : 'deletion'
             }
             diffBlocks.push(diffBlock)
-
-            inDiffBlock = false
+            currentBlock = []
           }
 
-          combinedLines.push(originalLines[i])
+          // Add unchanged lines
+          lines.forEach((line: string) => {
+            combinedLines.push(line)
+            currentLine++
+          })
         }
-        i++
       }
 
-      // Handle any remaining diff block at the end
-      if (inDiffBlock) {
-        const blockChanges: LineChange[] = []
-
-        originalBlock.forEach((line, idx) => {
-          combinedLines.push(line)
-          const lineNumber = combinedLines.length
-          const changeId = generateId()
-          
-          const lineChange: LineChange = {
-            id: changeId,
-            lineNumber,
-            type: 'removed',
-            content: line,
-            blockId: currentBlockId,
-            accepted: true,
-            originalLineNumber: i - originalBlock.length + idx + 1
-          }
-          
-          allChanges.push(lineChange)
-          blockChanges.push(lineChange)
-
-          decorations.push({
-            range: new monaco.Range(lineNumber, 1, lineNumber, 1),
-            options: {
-              isWholeLine: true,
-              className: "removed-line-decoration",
-              glyphMarginClassName: "removed-line-glyph",
-              linesDecorationsClassName: "removed-line-number",
-              minimap: { color: "rgb(255, 0, 0, 0.2)", position: 2 },
-            },
-          })
-        })
-
-        mergedBlock.forEach((line, idx) => {
-          combinedLines.push(line)
-          const lineNumber = combinedLines.length
-          const changeId = generateId()
-          
-          const lineChange: LineChange = {
-            id: changeId,
-            lineNumber,
-            type: 'added',
-            content: line,
-            blockId: currentBlockId,
-            accepted: true,
-            originalLineNumber: i + idx + 1
-          }
-          
-          allChanges.push(lineChange)
-          blockChanges.push(lineChange)
-
-          decorations.push({
-            range: new monaco.Range(lineNumber, 1, lineNumber, 1),
-            options: {
-              isWholeLine: true,
-              className: "added-line-decoration",
-              glyphMarginClassName: "added-line-glyph",
-              linesDecorationsClassName: "added-line-number",
-              minimap: { color: "rgb(0, 255, 0, 0.2)", position: 2 },
-            },
-          })
-        })
-
-        // Store block info for button placement (no extra line needed)
-
+      // Handle any remaining block
+      if (currentBlock.length > 0) {
         const diffBlock: DiffBlock = {
           id: currentBlockId,
-          startLine: blockStartLine + 1,
-          endLine: combinedLines.length,
-          changes: blockChanges,
-          type: originalBlock.length > 0 && mergedBlock.length > 0 ? 'modification' : 
-                originalBlock.length > 0 ? 'deletion' : 'addition'
+          startLine: currentBlock[0].lineNumber,
+          endLine: currentBlock[currentBlock.length - 1].lineNumber,
+          changes: currentBlock,
+          type: currentBlock.some((c: LineChange) => c.type === 'added') && currentBlock.some((c: LineChange) => c.type === 'removed') 
+            ? 'modification' 
+            : currentBlock[0].type === 'added' ? 'addition' : 'deletion'
         }
         diffBlocks.push(diffBlock)
       }
@@ -623,8 +536,6 @@ export default function CodeEditor({
     },
     [editorRef]
   )
-
-
 
   // Handle block accept/reject actions
   const handleBlockAction = useCallback(
@@ -672,8 +583,34 @@ export default function CodeEditor({
         return true
       })
       ;(editorRef as any).blockControlWidgets = updatedWidgets
+
+      // Auto-save the file after accepting/rejecting changes
+      if (activeFileId) {
+        const currentContent = model.getValue()
+        
+        // Update file contents state
+        setFileContents((prev) => ({
+          ...prev,
+          [activeFileId]: currentContent,
+        }))
+        
+        // Update active file content
+        setActiveFileContent(currentContent)
+        
+        // Mark the file as saved since user explicitly accepted/rejected changes
+        setTabs((prev) =>
+          prev.map((tab) =>
+            tab.id === activeFileId ? { ...tab, saved: true } : tab
+          )
+        )
+        
+        // Trigger the save operation
+        socket?.emit("saveFile", { fileId: activeFileId, body: currentContent })
+        
+        toast.success(`Changes ${action}ed and saved automatically`)
+      }
     },
-    [editorRef]
+    [editorRef, activeFileId, setFileContents, setActiveFileContent, setTabs, socket]
   )
 
   // Add floating block control widgets positioned next to diff chunks
@@ -812,17 +749,24 @@ export default function CodeEditor({
           result.push(change.content)
           resultLineNumber++
           
-          // Add decoration for accepted addition
-          newDecorations.push({
-            range: new monaco.Range(resultLineNumber, 1, resultLineNumber, 1),
-            options: {
-              isWholeLine: true,
-              className: "added-line-decoration",
-              glyphMarginClassName: "added-line-glyph",
-              linesDecorationsClassName: "added-line-number",
-              minimap: { color: "rgb(0, 255, 0, 0.2)", position: 2 },
-            },
-          })
+          // Only add decoration if there are still unprocessed changes in this block
+          const hasUnprocessedChanges = block.changes.some(c => 
+            (c.type === 'removed' && !c.accepted) || 
+            (c.type === 'added' && !c.accepted)
+          )
+          
+          if (hasUnprocessedChanges) {
+            newDecorations.push({
+              range: new monaco.Range(resultLineNumber, 1, resultLineNumber, 1),
+              options: {
+                isWholeLine: true,
+                className: "added-line-decoration",
+                glyphMarginClassName: "added-line-glyph",
+                linesDecorationsClassName: "added-line-number",
+                minimap: { color: "rgb(0, 255, 0, 0.2)", position: 2 },
+              },
+            })
+          }
         })
 
         // Skip original lines that were accepted for removal
@@ -838,10 +782,21 @@ export default function CodeEditor({
 
       // Update editor content and decorations
       model.setValue(result.join("\n"))
-      const decorationsCollection = editorRef.createDecorationsCollection(newDecorations)
-      setMergeDecorationsCollection(decorationsCollection)
+      
+      // Clear existing decorations and only add new ones for unprocessed blocks
+      if (mergeDecorationsCollection) {
+        mergeDecorationsCollection.clear()
+      }
+      
+      if (newDecorations.length > 0) {
+        const decorationsCollection = editorRef.createDecorationsCollection(newDecorations)
+        setMergeDecorationsCollection(decorationsCollection)
+      } else {
+        // If no decorations remain, clear the collection completely
+        setMergeDecorationsCollection(undefined)
+      }
     },
-    [editorRef]
+    [editorRef, mergeDecorationsCollection, setMergeDecorationsCollection]
   )
 
   useEffect(() => {
@@ -1134,10 +1089,6 @@ export default function CodeEditor({
 
   // Connection/disconnection effect
   useEffect(() => {
-    socket?.connect()
-    return () => {
-      socket?.disconnect()
-    }
   }, [socket])
 
   // Socket event listener effect
