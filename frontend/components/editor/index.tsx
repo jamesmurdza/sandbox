@@ -443,7 +443,7 @@ export default function CodeEditor({
 
           // Process each line in this change
           lines.forEach((line: string, lineIdx: number) => {
-            combinedLines.push(line)
+              combinedLines.push(line)
             const lineNumber = combinedLines.length
             const changeId = generateId()
             
@@ -453,7 +453,7 @@ export default function CodeEditor({
               type: change.added ? 'added' : 'removed',
               content: line,
               blockId: currentBlockId,
-              accepted: true,
+              accepted: false, // Initially pending - user must accept/reject
               originalLineNumber: currentLine + lineIdx
             }
             
@@ -461,10 +461,10 @@ export default function CodeEditor({
             currentBlock.push(lineChange)
 
             // Add decoration
-            decorations.push({
+              decorations.push({
               range: new monaco.Range(lineNumber, 1, lineNumber, 1),
-              options: {
-                isWholeLine: true,
+                options: {
+                  isWholeLine: true,
                 className: change.added ? "added-line-decoration" : "removed-line-decoration",
                 glyphMarginClassName: change.added ? "added-line-glyph" : "removed-line-glyph", 
                 linesDecorationsClassName: change.added ? "added-line-number" : "removed-line-number",
@@ -472,9 +472,9 @@ export default function CodeEditor({
                   color: change.added ? "rgb(0, 255, 0, 0.2)" : "rgb(255, 0, 0, 0.2)", 
                   position: 2 
                 },
-              },
+                },
+              })
             })
-          })
 
           // Don't increment currentLine for removals since they don't exist in new content
           if (!change.removed) {
@@ -498,7 +498,7 @@ export default function CodeEditor({
 
           // Add unchanged lines
           lines.forEach((line: string) => {
-            combinedLines.push(line)
+              combinedLines.push(line)
             currentLine++
           })
         }
@@ -523,7 +523,7 @@ export default function CodeEditor({
         blocks: diffBlocks,
         originalCode,
         mergedCode,
-        allAccepted: true
+        allAccepted: false // Initially false since changes start as pending
       }
       ;(model as any).granularDiffState = granularDiffState
 
@@ -733,35 +733,46 @@ export default function CodeEditor({
         const rejectedRemovals = block.changes.filter(c => c.type === 'removed' && !c.accepted)
         const rejectedAdditions = block.changes.filter(c => c.type === 'added' && !c.accepted)
 
-        // Add rejected removals (keep original lines)
+        // Add rejected removals (keep original lines with decoration)
         rejectedRemovals.forEach(change => {
           result.push(change.content)
           resultLineNumber++
+          
+          // Always add decoration for rejected removals (they're still pending deletion)
+          newDecorations.push({
+            range: new monaco.Range(resultLineNumber, 1, resultLineNumber, 1),
+            options: {
+              isWholeLine: true,
+              className: "removed-line-decoration",
+              glyphMarginClassName: "removed-line-glyph",
+              linesDecorationsClassName: "removed-line-number",
+              minimap: { color: "rgb(255, 0, 0, 0.2)", position: 2 },
+            },
+          })
         })
 
-        // Add accepted additions
+        // Add accepted additions  
         acceptedAdditions.forEach(change => {
           result.push(change.content)
           resultLineNumber++
+        })
+        
+        // Add rejected additions (show as pending additions with decoration)
+        rejectedAdditions.forEach(change => {
+          result.push(change.content)
+          resultLineNumber++
           
-          // Only add decoration if there are still unprocessed changes in this block
-          const hasUnprocessedChanges = block.changes.some(c => 
-            (c.type === 'removed' && !c.accepted) || 
-            (c.type === 'added' && !c.accepted)
-          )
-          
-          if (hasUnprocessedChanges) {
-            newDecorations.push({
-              range: new monaco.Range(resultLineNumber, 1, resultLineNumber, 1),
-              options: {
-                isWholeLine: true,
-                className: "added-line-decoration",
-                glyphMarginClassName: "added-line-glyph",
-                linesDecorationsClassName: "added-line-number",
-                minimap: { color: "rgb(0, 255, 0, 0.2)", position: 2 },
-              },
-            })
-          }
+          // Always add decoration for rejected additions (they're still pending)
+          newDecorations.push({
+            range: new monaco.Range(resultLineNumber, 1, resultLineNumber, 1),
+            options: {
+              isWholeLine: true,
+              className: "added-line-decoration",
+              glyphMarginClassName: "added-line-glyph",
+              linesDecorationsClassName: "added-line-number",
+              minimap: { color: "rgb(0, 255, 0, 0.2)", position: 2 },
+            },
+          })
         })
 
         // Skip original lines that were accepted for removal

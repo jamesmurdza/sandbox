@@ -112,26 +112,26 @@ export const createMarkdownComponents = (
                 
                 // No intended file - show normal apply
                 return (
-                  <ApplyButton
-                    code={stringifiedChildren}
-                    activeFileName={activeFileName}
-                    activeFileContent={activeFileContent}
-                    editorRef={editorRef}
-                    onApply={handleApplyCode}
-                  />
+              <ApplyButton
+                code={stringifiedChildren}
+                activeFileName={activeFileName}
+                activeFileContent={activeFileContent}
+                editorRef={editorRef}
+                onApply={handleApplyCode}
+              />
                 )
               })()
             ) : (
               <>
                 <Button
-                    onClick={() => {
-                      if (
-                        setMergeDecorationsCollection &&
-                        mergeDecorationsCollection &&
-                        editorRef?.current
-                      ) {
-                        const model = editorRef.current.getModel()
-                        if (model) {
+                  onClick={() => {
+                    if (
+                      setMergeDecorationsCollection &&
+                      mergeDecorationsCollection &&
+                      editorRef?.current
+                    ) {
+                      const model = editorRef.current.getModel()
+                      if (model) {
                           const granularState = (model as any).granularDiffState
                           
                           if (granularState) {
@@ -182,60 +182,60 @@ export const createMarkdownComponents = (
                             model.setValue(finalLines.join("\n"))
                           } else {
                             // Fallback to old behavior for backward compatibility
-                            const lines = model.getValue().split("\n")
-                            const removedLines = new Set()
+                        const lines = model.getValue().split("\n")
+                        const removedLines = new Set()
 
-                            for (let i = 1; i <= lines.length; i++) {
-                              const lineDecorations = model.getLineDecorations(i)
-                              if (
-                                lineDecorations?.some(
-                                  (d: any) =>
-                                    d.options.className ===
-                                    "removed-line-decoration"
-                                )
-                              ) {
-                                removedLines.add(i)
-                              }
-                            }
-
-                            const finalLines = lines.filter(
-                              (_: string, index: number) =>
-                                !removedLines.has(index + 1)
+                        for (let i = 1; i <= lines.length; i++) {
+                          const lineDecorations = model.getLineDecorations(i)
+                          if (
+                            lineDecorations?.some(
+                              (d: any) =>
+                                d.options.className ===
+                                "removed-line-decoration"
                             )
-                            model.setValue(finalLines.join("\n"))
+                          ) {
+                            removedLines.add(i)
                           }
                         }
-                        mergeDecorationsCollection.clear()
-                        setMergeDecorationsCollection(undefined)
+
+                        const finalLines = lines.filter(
+                          (_: string, index: number) =>
+                            !removedLines.has(index + 1)
+                        )
+                        model.setValue(finalLines.join("\n"))
+                          }
                       }
-                    }}
-                    size="sm"
-                    variant="ghost"
-                    className="p-1 h-6"
+                      mergeDecorationsCollection.clear()
+                      setMergeDecorationsCollection(undefined)
+                    }
+                  }}
+                  size="sm"
+                  variant="ghost"
+                  className="p-1 h-6"
                     title="Accept All Changes"
-                  >
-                    <Check className="w-4 h-4 text-green-500" />
-                  </Button>
-                  <div className="w-px bg-input"></div>
-                  <Button
-                    onClick={() => {
-                      if (editorRef?.current && mergeDecorationsCollection) {
-                        const model = editorRef.current.getModel()
-                        if (model && (model as any).originalContent) {
-                          editorRef.current?.setValue(
-                            (model as any).originalContent
-                          )
-                          mergeDecorationsCollection.clear()
-                          setMergeDecorationsCollection?.(undefined)
-                        }
+                >
+                  <Check className="w-4 h-4 text-green-500" />
+                </Button>
+                <div className="w-px bg-input"></div>
+                <Button
+                  onClick={() => {
+                    if (editorRef?.current && mergeDecorationsCollection) {
+                      const model = editorRef.current.getModel()
+                      if (model && (model as any).originalContent) {
+                        editorRef.current?.setValue(
+                          (model as any).originalContent
+                        )
+                        mergeDecorationsCollection.clear()
+                        setMergeDecorationsCollection?.(undefined)
                       }
-                    }}
-                    size="sm"
-                    variant="ghost"
-                    className="p-1 h-6"
-                    title="Discard Changes"
-                  >
-                                      <X className="w-4 h-4 text-red-500" />
+                    }
+                  }}
+                  size="sm"
+                  variant="ghost"
+                  className="p-1 h-6"
+                  title="Discard Changes"
+                >
+                  <X className="w-4 h-4 text-red-500" />
                 </Button>
               </>
             )}

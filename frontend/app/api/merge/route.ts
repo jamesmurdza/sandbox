@@ -190,7 +190,7 @@ function createGranularDiffState(original: string, updated: string): GranularDif
           type: change.added ? 'added' : 'removed',
           content: line,
           blockId,
-          accepted: true,
+          accepted: false, // Initially pending - user must accept/reject
           originalLineNumber: change.removed ? currentLine + idx : undefined
         }))
       }
@@ -207,6 +207,6 @@ function createGranularDiffState(original: string, updated: string): GranularDif
     blocks,
     originalCode: original,
     mergedCode: updated,
-    allAccepted: true
+    allAccepted: false // Initially false since changes start as pending
   }
 }
