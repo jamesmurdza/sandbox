@@ -41,19 +41,21 @@ export const user = pgTable("user", {
   username: text("username").notNull().unique(),
   avatarUrl: text("avatarUrl"),
   githubToken: varchar("githubToken"),
-  createdAt: timestamp("createdAt").default(sql`CURRENT_TIMESTAMP`),
-  generations: integer("generations").default(0),
+  createdAt: timestamp("createdAt")
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull(),
+  generations: integer("generations").default(0).notNull(),
   bio: varchar("bio"),
   personalWebsite: varchar("personalWebsite"),
   links: json("links")
     .notNull()
     .$type<UserLink[]>()
     .default(sql`'[]'::json`),
-  tier: varchar("tier", { enum: ["FREE", "PRO", "ENTERPRISE"] }).default(
-    "FREE"
-  ),
-  tierExpiresAt: timestamp("tierExpiresAt"),
-  lastResetDate: timestamp("lastResetDate"),
+  tier: varchar("tier", { enum: ["FREE", "PRO", "ENTERPRISE"] })
+    .default("FREE")
+    .notNull(),
+  tierExpiresAt: timestamp("tierExpiresAt").notNull(),
+  lastResetDate: timestamp("lastResetDate").notNull(),
 })
 
 export type User = typeof user.$inferSelect
@@ -125,13 +127,15 @@ export const sandbox = pgTable("sandbox", {
     .unique(),
   name: text("name").notNull(),
   type: text("type").notNull(),
-  visibility: varchar("visibility", { enum: ["public", "private"] }),
-  createdAt: timestamp("createdAt").default(sql`CURRENT_TIMESTAMP`),
+  visibility: varchar("visibility", { enum: ["public", "private"] }).notNull(),
+  createdAt: timestamp("createdAt")
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull(),
   userId: text("user_id")
     .notNull()
     .references(() => user.id),
-  likeCount: integer("likeCount").default(0),
-  viewCount: integer("viewCount").default(0),
+  likeCount: integer("likeCount").default(0).notNull(),
+  viewCount: integer("viewCount").default(0).notNull(),
   containerId: text("containerId"),
   repositoryId: text("repositoryId"),
 })
@@ -194,8 +198,9 @@ export const usersToSandboxes = pgTable("users_to_sandboxes", {
   sandboxId: text("sandboxId")
     .notNull()
     .references(() => sandbox.id),
-  sharedOn: timestamp("sharedOn"),
+  sharedOn: timestamp("sharedOn").notNull(),
 })
+export type UsersToSandboxes = typeof usersToSandboxes.$inferSelect
 
 // #region Relations
 export const userRelations = relations(user, ({ many }: any) => ({
