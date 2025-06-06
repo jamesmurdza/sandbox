@@ -9,18 +9,24 @@ import {
   sandbox,
   sandboxInsertSchema,
   sandboxLikes,
+  user,
   usersToSandboxes,
 } from "../db/schema"
 
-export const sandboxRouter = createRouter()
+export const projectRouter = createRouter()
   // #region GET /
   .get(
     "/",
     describeRoute({
-      tags: ["Sandbox"],
+      tags: ["Project"],
       description: "Get sandbox data",
       responses: {
-        200: jsonContent(z.object({}), "Sandbox data response"),
+        200: jsonContent(
+          z.object({
+            id: z.string(),
+          }),
+          "Sandbox data response"
+        ),
       },
     }),
     zValidator(
@@ -38,7 +44,10 @@ export const sandboxRouter = createRouter()
             usersToSandboxes: true,
           },
         })
-        return c.json(res ?? {}, 200)
+        if (!res) {
+          return c.json({ success: false, message: "Sandbox not found" }, 404)
+        }
+        return c.json(res, 200)
       } else {
         const res = await db.select().from(sandbox)
         return c.json(res ?? {}, 200)
@@ -51,7 +60,7 @@ export const sandboxRouter = createRouter()
   .delete(
     "/",
     describeRoute({
-      tags: ["Sandbox"],
+      tags: ["Project"],
       description: "Delete a sandbox",
       responses: {
         200: jsonContent(z.object({}), "Sandbox deletion response"),
@@ -82,7 +91,7 @@ export const sandboxRouter = createRouter()
   .post(
     "/",
     describeRoute({
-      tags: ["Sandbox"],
+      tags: ["Project"],
       description: "Create or update a sandbox",
       responses: {
         200: jsonContent(z.object({}), "Sandbox creation/update response"),
@@ -136,7 +145,7 @@ export const sandboxRouter = createRouter()
   .patch(
     "/",
     describeRoute({
-      tags: ["Sandbox"],
+      tags: ["Project"],
       description: "Update a sandbox",
       responses: {
         200: jsonContent(z.object({}), "Sandbox update response"),
@@ -186,59 +195,35 @@ export const sandboxRouter = createRouter()
   .get(
     "/share",
     describeRoute({
-      tags: ["Sandbox"],
+      tags: ["Project"],
       description: "Get shared sandbox data",
       responses: {
         200: jsonContent(z.object({}), "Shared sandbox data response"),
       },
     }),
-    zValidator(
-      "query",
-      z.object({
-        id: z.string().openapi({
-          description: "Unique identifier for the sandbox to be shared",
-          example: "sandbox_12345",
-        }),
-      })
-    ),
-    async (c) => {
-      const { id } = c.req.valid("query")
-      const res = await db.query.usersToSandboxes.findMany({
-        where: (uts, { eq }) => eq(uts.userId, id),
-      })
 
-      const owners = await Promise.all(
-        res.map(async (r) => {
-          const sb = await db.query.sandbox.findFirst({
-            where: (sandbox, { eq }) => eq(sandbox.id, r.sandboxId),
-            with: {
-              author: true,
-            },
-          })
-          if (
-            sb &&
-            "author" in sb &&
-            sb.author &&
-            "name" in sb.author &&
-            "avatarUrl" in sb.author
-          ) {
-            return {
-              id: sb.id,
-              name: sb.name,
-              type: sb.type,
-              author: sb.author.name,
-              authorAvatarUrl: sb.author.avatarUrl,
-              sharedOn: r.sharedOn,
-            }
-          }
+    async (c) => {
+      const { id } = c.get("user")
+
+      const shared = await db
+        .select({
+          id: sandbox.id,
+          name: sandbox.name,
+          type: sandbox.type,
+          sharedOn: usersToSandboxes.sharedOn,
+          author: user.name,
+          authorAvatarUrl: user.avatarUrl,
         })
-      )
+        .from(usersToSandboxes)
+        .innerJoin(sandbox, eq(usersToSandboxes.sandboxId, sandbox.id))
+        .innerJoin(user, eq(sandbox.userId, user.id))
+        .where(eq(usersToSandboxes.userId, id))
 
       return c.json(
         {
           success: true,
           message: "Shared sandboxes retrieved successfully",
-          data: owners,
+          data: shared,
         },
         200
       )
@@ -250,7 +235,7 @@ export const sandboxRouter = createRouter()
   .post(
     "/share",
     describeRoute({
-      tags: ["Sandbox"],
+      tags: ["Project"],
       description: "Share a sandbox with a user",
       responses: {
         200: jsonContent(z.object({}), "Sandbox sharing response"),
@@ -320,7 +305,7 @@ export const sandboxRouter = createRouter()
   .delete(
     "/share",
     describeRoute({
-      tags: ["Sandbox"],
+      tags: ["Project"],
       description: "Remove sharing access from a user",
       responses: {
         200: jsonContent(z.object({}), "Sandbox sharing removal response"),
@@ -357,7 +342,7 @@ export const sandboxRouter = createRouter()
   .post(
     "/like",
     describeRoute({
-      tags: ["Sandbox"],
+      tags: ["Project"],
       description: "Like a sandbox",
       responses: {
         200: jsonContent(z.object({}), "Sandbox like response"),
@@ -438,7 +423,7 @@ export const sandboxRouter = createRouter()
   .get(
     "/like",
     describeRoute({
-      tags: ["Sandbox"],
+      tags: ["Project"],
       description: "Check if a sandbox is liked by a user",
       responses: {
         200: jsonContent(z.object({}), "Sandbox like check response"),
