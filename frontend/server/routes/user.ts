@@ -5,7 +5,13 @@ import { describeRoute } from "hono-openapi"
 import { validator as zValidator } from "hono-openapi/zod"
 import z from "zod"
 import { db } from "../db"
-import { Sandbox, user, userInsertSchema, userUpdateSchema } from "../db/schema"
+import {
+  type Sandbox,
+  user,
+  userInsertSchema,
+  type UsersToSandboxes,
+  userUpdateSchema,
+} from "../db/schema"
 
 interface SandboxWithLiked extends Sandbox {
   liked: boolean
@@ -24,40 +30,14 @@ export const userRouter = createRouter()
     zValidator(
       "query",
       z.object({
-        id: z.string().optional(),
         username: z.string().optional(),
       })
     ),
     async (c) => {
-      const { id, username } = c.req.valid("query")
-      if (id) {
-        const res = await db.query.user.findFirst({
-          where: (user, { eq }) => eq(user.id, id),
-          with: {
-            sandbox: {
-              orderBy: (sandbox: any, { desc }) => [desc(sandbox.createdAt)],
-              with: {
-                likes: true,
-              },
-            },
-            usersToSandboxes: true,
-          },
-        })
-        if (res) {
-          const transformedUser = {
-            ...res,
-            sandbox: (res.sandbox as Sandbox[]).map(
-              (sb: any): SandboxWithLiked => ({
-                ...sb,
-                liked: sb.likes.some((like: any) => like.userId === id),
-              })
-            ),
-          }
-          return c.json(transformedUser, 200)
-        }
-        return c.json({ success: false, message: "User not found" }, 404)
-      } else if (username) {
-        const userId = c.get("user")?.id // Assuming user ID is available in the context
+      const userId = c.get("user").id
+      const { username } = c.req.valid("query")
+      if (username) {
+        const userId = c.get("user")?.id
         const res = await db.query.user.findFirst({
           where: (user, { eq }) => eq(user.username, username),
           with: {
@@ -70,20 +50,53 @@ export const userRouter = createRouter()
             usersToSandboxes: true,
           },
         })
-        if (res) {
-          const transformedUser = {
-            ...res,
-            sandbox: (res.sandbox as Sandbox[]).map(
-              (sb: any): SandboxWithLiked => ({
-                ...sb,
-                liked: sb.likes.some((like: any) => like.userId === userId),
-              })
-            ),
-          }
-          return c.json(transformedUser)
+        if (!res) {
+          return c.json({ success: false, message: "User not found" }, 404)
         }
+        const transformedUser = {
+          ...res,
+          usersToSandboxes: res.usersToSandboxes as UsersToSandboxes[],
+          sandbox: (res.sandbox as Sandbox[]).map(
+            (sb: any): SandboxWithLiked => ({
+              ...sb,
+              liked: sb.likes.some((like: any) => like.userId === userId),
+            })
+          ),
+        }
+        return c.json(
+          { success: true, message: "User found ", data: transformedUser },
+          200
+        )
+      }
+      const res = await db.query.user.findFirst({
+        where: (user, { eq }) => eq(user.id, userId),
+        with: {
+          sandbox: {
+            orderBy: (sandbox: any, { desc }) => [desc(sandbox.createdAt)],
+            with: {
+              likes: true,
+            },
+          },
+          usersToSandboxes: true,
+        },
+      })
+      if (!res) {
         return c.json({ success: false, message: "User not found" }, 404)
       }
+      const transformedUser = {
+        ...res,
+        usersToSandboxes: res.usersToSandboxes as UsersToSandboxes[],
+        sandbox: (res.sandbox as Sandbox[]).map(
+          (sb: any): SandboxWithLiked => ({
+            ...sb,
+            liked: sb.likes.some((like: any) => like.userId === userId),
+          })
+        ),
+      }
+      return c.json(
+        { success: true, message: "User found ", data: transformedUser },
+        200
+      )
     }
   )
   // #endregion
