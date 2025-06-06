@@ -5,7 +5,7 @@ import {
 import { templateConfigs } from "@/lib/templates"
 import { TIERS } from "@/lib/tiers"
 import { TFile, TFolder } from "@/lib/types"
-import { fetchWithAuth } from "@/lib/server-utils"
+import { apiClient } from "@/server/client"
 import { Anthropic } from "@anthropic-ai/sdk"
 import {
   BedrockRuntimeClient,
@@ -84,31 +84,23 @@ export async function POST(request: Request) {
     }
 
     // Check and potentially reset monthly usage
-    const resetResponse = await fetchWithAuth(
-      `${process.env.NEXT_PUBLIC_SERVER_URL}/api/user/check-reset`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ userId: user.id }),
-      }
-    )
+    const resetResponse = await apiClient.user["check-reset"].$post({
+      json: { userId: user.id },
+    })
 
     if (!resetResponse.ok) {
       console.error("Failed to check usage reset")
     }
 
     // Get user data and check tier
-    const dbUser = await fetchWithAuth(
-      `${process.env.NEXT_PUBLIC_SERVER_URL}/api/user?id=${user.id}`,
-      {
-        headers: {
-          "Content-Type": "application/json",
-        },
-      }
-    )
-    const userData = await dbUser.json()
+    const dbUser = await apiClient.user.$get({
+      query: {},
+    })
+    if (!dbUser.ok) {
+      const message = (await dbUser.json()).message || "User not found"
+      return new Response(message, { status: dbUser.status })
+    }
+    const userData = (await dbUser.json()).data
 
     // Get tier settings
     const tierSettings =
@@ -178,16 +170,9 @@ OUTPUT THE MODIFIED CODE ONLY, NO EXPLANATIONS OR FORMATTING.`
         const response = await bedrockClient.send(command)
 
         // Increment user's generation count
-        await fetchWithAuth(
-          `${process.env.NEXT_PUBLIC_SERVER_URL}/api/user/increment-generations`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ userId: user.id }),
-          }
-        )
+        await apiClient.user["increment-generations"].$post({
+          json: { userId: user.id },
+        })
 
         // Return streaming response for Bedrock
         const encoder = new TextEncoder()
@@ -257,16 +242,9 @@ OUTPUT THE MODIFIED CODE ONLY, NO EXPLANATIONS OR FORMATTING.`
         })
 
         // Increment user's generation count
-        await fetchWithAuth(
-          `${process.env.NEXT_PUBLIC_SERVER_URL}/api/user/increment-generations`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ userId: user.id }),
-          }
-        )
+        await apiClient.user["increment-generations"].$post({
+          json: { userId: user.id },
+        })
 
         // Return streaming response for Anthropic
         const encoder = new TextEncoder()
@@ -367,16 +345,9 @@ ${activeFileContent ? `Active File Content:\n${activeFileContent}\n` : ""}`
         const response = await bedrockClient.send(command)
 
         // Increment user's generation count
-        await fetchWithAuth(
-          `${process.env.NEXT_PUBLIC_SERVER_URL}/api/user/increment-generations`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ userId: user.id }),
-          }
-        )
+        await apiClient.user["increment-generations"].$post({
+          json: { userId: user.id },
+        })
 
         // Return streaming response for Bedrock
         const encoder = new TextEncoder()
@@ -444,16 +415,9 @@ ${activeFileContent ? `Active File Content:\n${activeFileContent}\n` : ""}`
         })
 
         // Increment user's generation count
-        await fetchWithAuth(
-          `${process.env.NEXT_PUBLIC_SERVER_URL}/api/user/increment-generations`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ userId: user.id }),
-          }
-        )
+        await apiClient.user["increment-generations"].$post({
+          json: { userId: user.id },
+        })
 
         // Return streaming response for Anthropic
         const encoder = new TextEncoder()

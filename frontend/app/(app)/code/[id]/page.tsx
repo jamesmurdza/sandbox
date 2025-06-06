@@ -6,8 +6,8 @@ import { SocketProvider } from "@/context/SocketContext"
 import { TerminalProvider } from "@/context/TerminalContext"
 import { github } from "@/hooks/github"
 import { getQueryClient } from "@/lib/get-query-client"
-import { fetchWithAuth } from "@/lib/server-utils"
-import { Sandbox, User, UsersToSandboxes } from "@/lib/types"
+import { UsersToSandboxes } from "@/lib/types"
+import { apiClient } from "@/server/client"
 import { auth, currentUser } from "@clerk/nextjs/server"
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query"
 import { notFound, redirect } from "next/navigation"
@@ -15,18 +15,28 @@ import { notFound, redirect } from "next/navigation"
 export const revalidate = 0
 
 const getUserData = async (id: string) => {
-  const userRes = await fetchWithAuth(
-    `${process.env.NEXT_PUBLIC_SERVER_URL}/api/user?id=${id}`
-  )
-  const userData: User = await userRes.json()
+  const userRes = await apiClient.user.$get({
+    query: { id },
+  })
+  if (!userRes.ok) {
+    throw new Error("Failed to fetch user data")
+  }
+  const userData = (await userRes.json()).data
   return userData
 }
 
 const getSandboxData = async (id: string) => {
-  const sandboxRes = await fetchWithAuth(
-    `${process.env.NEXT_PUBLIC_SERVER_URL}/api/sandbox?id=${id}`
-  )
-  const sandboxData: Sandbox = await sandboxRes.json()
+  const sandboxRes = await apiClient.project.$get({
+    query: { id },
+  })
+  if (!sandboxRes.ok) {
+    throw new Error("Failed to fetch sandbox data")
+  }
+  const sandboxData = await sandboxRes.json()
+  // For type safety, we assert that the sandboxData is of type Sandbox
+  if (Array.isArray(sandboxData)) {
+    throw new Error("Sandbox not found")
+  }
   return sandboxData
 }
 
@@ -37,10 +47,7 @@ const getSharedUsers = async (usersToSandboxes: UsersToSandboxes[]) => {
 
   const shared = await Promise.all(
     usersToSandboxes.map(async (user) => {
-      const userRes = await fetchWithAuth(
-        `${process.env.NEXT_PUBLIC_SERVER_URL}/api/user?id=${user.userId}`
-      )
-      const userData: User = await userRes.json()
+      const userData = await getUserData(user.userId)
       return {
         id: userData.id,
         name: userData.name,

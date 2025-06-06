@@ -8,14 +8,14 @@ export type User = {
   email: string
   username: string
   avatarUrl: string | null
-  createdAt: Date
+  createdAt: string
   generations: number
   bio: string | null
   personalWebsite: string | null
   links: UserLink[]
   tier: "FREE" | "PRO" | "ENTERPRISE"
-  tierExpiresAt: Date
-  lastResetDate: number
+  tierExpiresAt: string
+  lastResetDate: string
   sandbox: Sandbox[]
   usersToSandboxes: UsersToSandboxes[]
 }
@@ -31,11 +31,11 @@ export type Sandbox = {
   name: string
   type: string
   visibility: "public" | "private"
-  createdAt: Date
+  createdAt: string
   userId: string
   likeCount: number
   viewCount: number
-  usersToSandboxes: UsersToSandboxes[]
+  // usersToSandboxes: UsersToSandboxes[]
 }
 export type SandboxWithLiked = Sandbox & {
   liked: boolean
@@ -43,7 +43,7 @@ export type SandboxWithLiked = Sandbox & {
 export type UsersToSandboxes = {
   userId: string
   sandboxId: string
-  sharedOn: Date
+  sharedOn: string
 }
 
 export type R2Files = {

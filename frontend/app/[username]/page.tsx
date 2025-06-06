@@ -1,8 +1,7 @@
 import ProfilePage from "@/components/profile"
 import ProfileNavbar from "@/components/profile/navbar"
-import { fetchWithAuth } from "@/lib/server-utils"
-import { SandboxWithLiked, User } from "@/lib/types"
-import { currentUser } from "@clerk/nextjs/server"
+import { SandboxWithLiked } from "@/lib/types"
+import { apiClient } from "@/server/client"
 import { notFound } from "next/navigation"
 
 export default async function Page({
@@ -12,19 +11,23 @@ export default async function Page({
 }) {
   const { username: rawUsername } = await params
   const username = decodeURIComponent(rawUsername).replace("@", "")
-  const loggedInClerkUser = await currentUser()
 
   const [profileOwnerResponse, loggedInUserResponse] = await Promise.all([
-    fetchWithAuth(
-      `${process.env.NEXT_PUBLIC_SERVER_URL}/api/user?username=${username}&currentUserId=${loggedInClerkUser?.id}`
-    ),
-    fetchWithAuth(
-      `${process.env.NEXT_PUBLIC_SERVER_URL}/api/user?id=${loggedInClerkUser?.id}`
-    ),
+    apiClient.user.$get({
+      query: {
+        username,
+      },
+    }),
+    apiClient.user.$get({
+      query: {},
+    }),
   ])
+  if (!profileOwnerResponse.ok || !loggedInUserResponse.ok) {
+    notFound()
+  }
 
-  const profileOwner = (await profileOwnerResponse.json()) as User
-  const loggedInUser = (await loggedInUserResponse.json()) as User
+  const profileOwner = (await profileOwnerResponse.json()).data
+  const loggedInUser = (await loggedInUserResponse.json()).data
 
   if (!Boolean(profileOwner?.id)) {
     notFound()

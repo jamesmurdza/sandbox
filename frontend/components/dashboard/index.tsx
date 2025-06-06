@@ -23,10 +23,10 @@ export default function Dashboard({
   shared: {
     id: string
     name: string
-    type: "react" | "node"
+    type: string
     author: string
-    sharedOn: Date
-    authorAvatarUrl?: string
+    sharedOn: string
+    authorAvatarUrl: string | null
   }[]
 }) {
   const [screen, setScreen] = useState<TScreen>("projects")
