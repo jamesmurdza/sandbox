@@ -1,11 +1,11 @@
 "use client"
 
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog"
 import { useClerk } from "@clerk/nextjs"
 import Editor, { BeforeMount, OnMount } from "@monaco-editor/react"
@@ -24,29 +24,29 @@ import { Button } from "../ui/button"
 // import * as Y from "yjs"
 
 import {
-    ResizableHandle,
-    ResizablePanel,
-    ResizablePanelGroup,
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
 } from "@/components/ui/resizable"
 import { PreviewProvider, usePreview } from "@/context/PreviewContext"
 import { useSocket } from "@/context/SocketContext"
 import { parseTSConfigToMonacoOptions } from "@/lib/tsconfig"
 import { DiffBlock, GranularDiffState, LineChange, Sandbox, TFile, TFolder, TTab, User } from "@/lib/types"
 import {
-    cn,
-    debounce,
-    deepMerge,
-    processFileType,
-    validateName,
+  cn,
+  debounce,
+  deepMerge,
+  processFileType,
+  validateName,
 } from "@/lib/utils"
 import { Terminal } from "@xterm/xterm"
 import {
-    ArrowDownToLine,
-    ArrowRightToLine,
-    FileJson,
-    Loader2,
-    Sparkles,
-    TerminalSquare
+  ArrowDownToLine,
+  ArrowRightToLine,
+  FileJson,
+  Loader2,
+  Sparkles,
+  TerminalSquare
 } from "lucide-react"
 import { useTheme } from "next-themes"
 import React from "react"
@@ -673,7 +673,7 @@ export default function CodeEditor({
           (e.target as HTMLElement).style.backgroundColor = 'transparent'
         })
 
-        // Create content widget positioned next to the diff block
+        // Create right-side positioned widget for the diff block
         const widget = {
           getDomNode: () => widgetElement,
           getId: () => `block-controls-${block.id}`,
@@ -681,16 +681,15 @@ export default function CodeEditor({
             const model = editorRef.getModel()
             if (!model) return null
             
-            // Get the line content to position after it
             const lineContent = model.getLineContent(block.startLine)
             const lineLength = lineContent.length
             
             return {
               position: {
-                lineNumber: block.startLine, // Position at the start of the block instead of end
-                column: Math.max(lineLength + 1, 1) // Position right after the line content
+                lineNumber: block.startLine,
+                column: Math.max(lineLength + 5, 50) // Position well to the right of content
               },
-              preference: [monaco.editor.ContentWidgetPositionPreference.ABOVE] // Position above the line
+              preference: [monaco.editor.ContentWidgetPositionPreference.EXACT]
             }
           }
         }
