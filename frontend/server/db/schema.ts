@@ -54,8 +54,12 @@ export const user = pgTable("user", {
   tier: varchar("tier", { enum: ["FREE", "PRO", "ENTERPRISE"] })
     .default("FREE")
     .notNull(),
-  tierExpiresAt: timestamp("tierExpiresAt").notNull(),
-  lastResetDate: timestamp("lastResetDate").notNull(),
+  tierExpiresAt: timestamp("tierExpiresAt")
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull(),
+  lastResetDate: timestamp("lastResetDate")
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull(),
 })
 
 export type User = typeof user.$inferSelect
