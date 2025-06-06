@@ -31,11 +31,15 @@ export const userRouter = createRouter()
       "query",
       z.object({
         username: z.string().optional(),
+        id: z.string().optional().openapi({
+          description: "Unique identifier for the user",
+          example: "user_12345",
+        }),
       })
     ),
     async (c) => {
       const userId = c.get("user").id
-      const { username } = c.req.valid("query")
+      const { username, id } = c.req.valid("query")
       if (username) {
         const userId = c.get("user")?.id
         const res = await db.query.user.findFirst({
@@ -69,7 +73,7 @@ export const userRouter = createRouter()
         )
       }
       const res = await db.query.user.findFirst({
-        where: (user, { eq }) => eq(user.id, userId),
+        where: (user, { eq }) => eq(user.id, id ?? userId),
         with: {
           sandbox: {
             orderBy: (sandbox: any, { desc }) => [desc(sandbox.createdAt)],
@@ -89,7 +93,7 @@ export const userRouter = createRouter()
         sandbox: (res.sandbox as Sandbox[]).map(
           (sb: any): SandboxWithLiked => ({
             ...sb,
-            liked: sb.likes.some((like: any) => like.userId === userId),
+            liked: sb.likes.some((like: any) => like.userId === (id ?? userId)),
           })
         ),
       }
@@ -174,7 +178,15 @@ export const userRouter = createRouter()
         200: jsonContent(z.object({}), "User data response"),
       },
     }),
-    zValidator("json", userUpdateSchema),
+    zValidator(
+      "json",
+      userUpdateSchema.extend({
+        id: z.string().openapi({
+          description: "Unique identifier for the user to be updated",
+          example: "user_12345",
+        }),
+      })
+    ),
     async (c) => {
       const { id, username, ...updateData } = c.req.valid("json")
 
@@ -197,7 +209,7 @@ export const userRouter = createRouter()
         await db
           .update(user)
           .set(cleanUpdateData)
-          .where(eq(user.id, id!))
+          .where(eq(user.id, id))
           .returning()
       )[0]
 

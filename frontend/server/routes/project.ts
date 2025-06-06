@@ -9,7 +9,9 @@ import {
   sandbox,
   sandboxInsertSchema,
   sandboxLikes,
+  sandboxUpdateSchema,
   user,
+  UsersToSandboxes,
   usersToSandboxes,
 } from "../db/schema"
 
@@ -47,7 +49,13 @@ export const projectRouter = createRouter()
         if (!res) {
           return c.json({ success: false, message: "Sandbox not found" }, 404)
         }
-        return c.json(res, 200)
+        return c.json(
+          {
+            ...res,
+            usersToSandboxes: res.usersToSandboxes as UsersToSandboxes[],
+          },
+          200
+        )
       } else {
         const res = await db.select().from(sandbox)
         return c.json(res ?? {}, 200)
@@ -97,10 +105,16 @@ export const projectRouter = createRouter()
         200: jsonContent(z.object({}), "Sandbox creation/update response"),
       },
     }),
-    zValidator("json", sandboxInsertSchema),
+    zValidator(
+      "json",
+      sandboxInsertSchema.omit({
+        userId: true,
+      })
+    ),
     async (c) => {
       const data = c.req.valid("json")
-      const { type, name, userId, visibility, repositoryId } = data
+      const userId = c.get("user").id
+      const { type, name, visibility, repositoryId } = data
 
       const userSandboxes = await db
         .select()
@@ -108,9 +122,13 @@ export const projectRouter = createRouter()
         .where(eq(sandbox.userId, userId))
 
       if (userSandboxes.length >= 8) {
-        return new Response("You reached the maximum # of sandboxes.", {
-          status: 400,
-        })
+        return c.json(
+          {
+            success: false,
+            message: "You reached the maximum # of sandboxes.",
+          },
+          400
+        )
       }
 
       const sb = (
@@ -153,7 +171,7 @@ export const projectRouter = createRouter()
     }),
     zValidator(
       "json",
-      sandboxInsertSchema.extend({
+      sandboxUpdateSchema.extend({
         id: z.string().openapi({
           description: "Unique identifier for the sandbox to be updated",
           example: "sandbox_12345",

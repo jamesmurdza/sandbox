@@ -176,6 +176,36 @@ export const sandboxInsertSchema = createInsertSchema(sandbox, {
 }).omit({
   id: true,
 })
+export const sandboxUpdateSchema = createUpdateSchema(sandbox, {
+  name: (schema) =>
+    schema.openapi({
+      description: "Name of the sandbox",
+    }),
+  type: (schema) =>
+    schema.openapi({
+      description: "Type of the sandbox",
+    }),
+  visibility: (schema) =>
+    schema.openapi({
+      description: "Visibility of the sandbox",
+    }),
+  createdAt: (schema) =>
+    schema.openapi({
+      description: "Creation timestamp of the sandbox",
+    }),
+  userId: (schema) =>
+    schema.openapi({
+      description: "ID of the user who created the sandbox",
+    }),
+  containerId: (schema) =>
+    schema.openapi({
+      description: "Container ID for the sandbox",
+    }),
+  repositoryId: (schema) =>
+    schema.openapi({
+      description: "Repository ID for the sandbox",
+    }),
+})
 
 export type Sandbox = typeof sandbox.$inferSelect
 
