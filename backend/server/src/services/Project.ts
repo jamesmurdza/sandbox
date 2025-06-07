@@ -20,20 +20,30 @@ const db = drizzle(process.env.DATABASE_URL as string, { schema })
 export class Project {
   // Project properties:
   projectId: string
-  type: string
+  type: string | null = null
   fileManager: FileManager | null = null
   terminalManager: TerminalManager | null = null
   container: Container | null = null
   containerId: string | null = null
 
-  constructor(projectId: string, type: string, containerId: string) {
-    // Project properties:
+  constructor(projectId: string) {
     this.projectId = projectId
-    this.type = type
-    this.containerId = containerId
   }
 
   async initialize() {
+    // Fetch project data from the database
+    const dbProject = await db.query.sandbox.findFirst({
+      where: (sandbox, { eq }) => eq(sandbox.id, this.projectId),
+    })
+
+    if (!dbProject) {
+      throw new Error("Project not found")
+    }
+
+    // Load type and containerId from database
+    this.type = dbProject.type
+    this.containerId = dbProject.containerId
+
     // Acquire a lock to ensure exclusive access to the container
     await lockManager.acquireLock(this.projectId, async () => {
       // If we have already initialized the container, connect to it.
@@ -55,7 +65,7 @@ export class Project {
           "streamlit",
           "php",
         ]
-        const template = templateTypes.includes(this.type)
+        const template = templateTypes.includes(this.type ?? "")
           ? `gitwit-${this.type}`
           : `base`
         this.container = await Container.create(template, {

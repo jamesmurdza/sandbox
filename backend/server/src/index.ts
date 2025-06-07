@@ -114,7 +114,7 @@ io.on("connection", async (socket) => {
       }
 
       // Create or retrieve the project container for the given project ID
-      const project = new Project(data.projectId, data.type, data.containerId)
+      const project = new Project(data.projectId)
       await project.initialize()
       await project.fileManager?.startWatching(sendFileNotifications)
       socket.emit("loaded", await project.fileManager?.getFileTree())
