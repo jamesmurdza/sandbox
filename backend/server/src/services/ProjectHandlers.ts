@@ -3,14 +3,6 @@ import { CONTAINER_TIMEOUT } from "../utils/constants"
 import { LockManager } from "../utils/lock"
 import { Project } from "./Project"
 
-import {
-  createFileRL,
-  createFolderRL,
-  deleteFileRL,
-  renameFileRL,
-  saveFileRL,
-} from "../utils/ratelimit"
-
 type ServerContext = {
   dokkuClient: any | null
   gitClient: any | null
@@ -52,43 +44,6 @@ export const createProjectHandlers = (
       }
     }
     return true
-  }
-
-  // Handle getting a file
-  const handleGetFile: SocketHandler = ({ fileId }: { fileId: string }) => {
-    return project.fileManager?.getFile(fileId)
-  }
-
-  // Handle getting a folder
-  const handleGetFolder: SocketHandler = ({
-    folderId,
-  }: {
-    folderId: string
-  }) => {
-    return project.fileManager?.getFolder(folderId)
-  }
-
-  // Handle saving a file
-  const handleSaveFile: SocketHandler = async ({
-    fileId,
-    body,
-  }: {
-    fileId: string
-    body: string
-  }) => {
-    saveFileRL.consume(connection.userId, 1)
-    return project.fileManager?.saveFile(fileId, body)
-  }
-
-  // Handle moving a file
-  const handleMoveFile: SocketHandler = ({
-    fileId,
-    folderId,
-  }: {
-    fileId: string
-    folderId: string
-  }) => {
-    return project.fileManager?.moveFile(fileId, folderId)
   }
 
   // Handle listing apps
@@ -145,57 +100,6 @@ export const createProjectHandlers = (
     const tarBase64 = await project.fileManager.getFilesForDownload()
     await gitClient.pushFiles(tarBase64, project.projectId)
     return { success: true }
-  }
-
-  // Handle creating a file
-  const handleCreateFile: SocketHandler = async ({
-    name,
-  }: {
-    name: string
-  }) => {
-    createFileRL.consume(connection.userId, 1)
-    return { success: await project.fileManager?.createFile(name) }
-  }
-
-  // Handle creating a folder
-  const handleCreateFolder: SocketHandler = async ({
-    name,
-  }: {
-    name: string
-  }) => {
-    createFolderRL.consume(connection.userId, 1)
-    return { success: await project.fileManager?.createFolder(name) }
-  }
-
-  // Handle renaming a file
-  const handleRenameFile: SocketHandler = async ({
-    fileId,
-    newName,
-  }: {
-    fileId: string
-    newName: string
-  }) => {
-    renameFileRL.consume(connection.userId, 1)
-    return project.fileManager?.renameFile(fileId, newName)
-  }
-
-  // Handle deleting a file
-  const handleDeleteFile: SocketHandler = async ({
-    fileId,
-  }: {
-    fileId: string
-  }) => {
-    deleteFileRL.consume(connection.userId, 1)
-    return project.fileManager?.deleteFile(fileId)
-  }
-
-  // Handle deleting a folder
-  const handleDeleteFolder: SocketHandler = ({
-    folderId,
-  }: {
-    folderId: string
-  }) => {
-    return project.fileManager?.deleteFolder(folderId)
   }
 
   // Handle creating a terminal session
@@ -258,19 +162,10 @@ export const createProjectHandlers = (
   // Return all handlers as a map of event names to handler functions
   return {
     heartbeat: handleHeartbeat,
-    getFile: handleGetFile,
-    getFolder: handleGetFolder,
-    saveFile: handleSaveFile,
-    moveFile: handleMoveFile,
     listApps: handleListApps,
     getAppCreatedAt: handleGetAppCreatedAt,
     appExists: handleAppExists,
     deploy: handleDeploy,
-    createFile: handleCreateFile,
-    createFolder: handleCreateFolder,
-    renameFile: handleRenameFile,
-    deleteFile: handleDeleteFile,
-    deleteFolder: handleDeleteFolder,
     createTerminal: handleCreateTerminal,
     resizeTerminal: handleResizeTerminal,
     terminalData: handleTerminalData,

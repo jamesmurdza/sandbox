@@ -57,6 +57,7 @@ export interface AIChatProps {
   templateType: string
   templateConfig?: TemplateConfig
   projectName: string
+  projectId: string
   handleApplyCode: (mergedCode: string, originalCode: string) => void
   mergeDecorationsCollection?: monaco.editor.IEditorDecorationsCollection
   setMergeDecorationsCollection?: (collection: undefined) => void
@@ -119,6 +120,7 @@ export interface MessageProps {
   setMergeDecorationsCollection?: (collection: undefined) => void
   selectFile: (tab: TTab) => void
   tabs: TTab[]
+  projectId: string
 }
 
 // Context tabs props interface

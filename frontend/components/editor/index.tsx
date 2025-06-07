@@ -7,6 +7,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { apiClient } from "@/server/client-side-client"
 import { useClerk } from "@clerk/nextjs"
 import Editor, { BeforeMount, OnMount } from "@monaco-editor/react"
 import { AnimatePresence, motion } from "framer-motion"
@@ -243,9 +244,18 @@ export default function CodeEditor({
     )
     const fetchFileContent = (fileId: string): Promise<string> => {
       return new Promise((resolve) => {
-        socket?.emit("getFile", { fileId }, (content: string) => {
-          resolve(content)
-        })
+        apiClient.file
+          .$get({
+            query: {
+              fileId,
+              projectId: sandboxData.id,
+            },
+          })
+          .then(async (res) => {
+            if (res.status === 200) {
+              resolve(await res.json())
+            }
+          })
       })
     }
     const loadTSConfig = async (files: (TFolder | TFile)[]) => {
@@ -714,7 +724,13 @@ export default function CodeEditor({
             tab.id === activeFileId ? { ...tab, saved: true } : tab
           )
         )
-        socket?.emit("saveFile", { fileId: activeFileId, body: content })
+        apiClient.file.save.$post({
+          json: {
+            fileId: activeFileId,
+            content: content,
+            projectId: sandboxData.id,
+          },
+        })
       }
     }, Number(process.env.FILE_SAVE_DEBOUNCE_DELAY) || 1000),
     [socket, fileContents]
@@ -818,7 +834,18 @@ export default function CodeEditor({
 
   // Debounced function to get file content
   const debouncedGetFile = (tabId: any, callback: any) => {
-    socket?.emit("getFile", { fileId: tabId }, callback)
+    apiClient.file
+      .$get({
+        query: {
+          fileId: tabId,
+          projectId: sandboxData.id,
+        },
+      })
+      .then(async (res) => {
+        if (res.status === 200) {
+          callback(await res.json())
+        }
+      })
   } // 300ms debounce delay, adjust as needed
 
   const selectFile = (tab: TTab) => {
@@ -972,7 +999,13 @@ export default function CodeEditor({
       return false
     }
 
-    socket?.emit("renameFile", { fileId: id, newName })
+    apiClient.file.rename.$post({
+      json: {
+        fileId: id,
+        newName,
+        projectId: sandboxData.id,
+      },
+    })
     setTabs((prev) =>
       prev.map((tab) => (tab.id === id ? { ...tab, name: newName } : tab))
     )
@@ -981,7 +1014,12 @@ export default function CodeEditor({
   }
 
   const handleDeleteFile = (file: TFile) => {
-    socket?.emit("deleteFile", { fileId: file.id })
+    apiClient.file.$delete({
+      query: {
+        fileId: file.id,
+        projectId: sandboxData.id,
+      },
+    })
     closeTab(file.id)
   }
 
@@ -989,17 +1027,33 @@ export default function CodeEditor({
     setDeletingFolderId(folder.id)
     console.log("deleting folder", folder.id)
 
-    socket?.emit("getFolder", { folderId: folder.id }, (response: string[]) =>
-      closeTabs(response)
-    )
+    apiClient.file.folder
+      .$get({
+        query: {
+          folderId: folder.id,
+          projectId: sandboxData.id,
+        },
+      })
+      .then(async (res) => {
+        if (res.status === 200) {
+          const data = await res.json()
+          closeTabs(data)
+        }
+      })
 
-    socket?.emit(
-      "deleteFolder",
-      { folderId: folder.id },
-      (response: (TFolder | TFile)[]) => {
-        setDeletingFolderId("")
-      }
-    )
+    apiClient.file.folder
+      .$delete({
+        query: {
+          folderId: folder.id,
+          projectId: sandboxData.id,
+        },
+      })
+      .then(async (res) => {
+        if (res.status === 200) {
+          const data = await res.json()
+          closeTabs(data.data?.map((item: any) => item.id) ?? [])
+        }
+      })
   }
 
   const togglePreviewPanel = () => {
@@ -1393,6 +1447,7 @@ export default function CodeEditor({
                   files={files}
                   templateType={sandboxData.type}
                   projectName={sandboxData.name}
+                  projectId={sandboxData.id}
                   handleApplyCode={handleApplyCode}
                   mergeDecorationsCollection={mergeDecorationsCollection}
                   setMergeDecorationsCollection={setMergeDecorationsCollection}

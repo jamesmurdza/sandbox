@@ -1,5 +1,7 @@
 "use client"
 
+import { apiClient } from "@/server/client-side-client"
+
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -93,17 +95,19 @@ export function FileExplorer({
         console.log("move file", fileId, "to folder", folderId)
 
         setMovingId(fileId)
-        socket?.emit(
-          "moveFile",
-          {
-            fileId,
-            folderId,
-          },
-          (response: (TFolder | TFile)[]) => {
-            setFiles(response)
-            setMovingId("")
-          }
-        )
+        apiClient.file.move
+          .$post({
+            json: {
+              fileId,
+              projectId: sandboxData.id,
+              folderId,
+            },
+          })
+          .then(async (res) => {
+            if (res.status === 200) {
+              setMovingId("")
+            }
+          })
       },
     })
   }, [socket])
@@ -167,7 +171,7 @@ export function FileExplorer({
               )}
               {creatingNew !== null ? (
                 <New
-                  socket={socket!}
+                  projectId={sandboxData.id}
                   type={creatingNew}
                   stopEditing={() => {
                     setCreatingNew(null)

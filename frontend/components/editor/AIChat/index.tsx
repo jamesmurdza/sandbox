@@ -1,5 +1,6 @@
 import { useSocket } from "@/context/SocketContext"
 import { TFile } from "@/lib/types"
+import { apiClient } from "@/server/client-side-client"
 import { ChevronDown, X } from "lucide-react"
 import { nanoid } from "nanoid"
 import { useEffect, useRef, useState } from "react"
@@ -23,7 +24,8 @@ export default function AIChat({
   mergeDecorationsCollection,
   setMergeDecorationsCollection,
   projectName,
-  tabs
+  tabs,
+  projectId,
 }: AIChatProps) {
   // Initialize socket and messages
   const { socket } = useSocket()
@@ -227,6 +229,7 @@ export default function AIChat({
             setMergeDecorationsCollection={setMergeDecorationsCollection}
             selectFile={selectFile}
             tabs={tabs}
+            projectId={projectId}
           />
         ))}
         {isLoading && <LoadingDots />}
@@ -254,14 +257,22 @@ export default function AIChat({
           files={files}
           socket={socket}
           onFileSelect={(file: TFile) => {
-            socket?.emit("getFile", { fileId: file.id }, (response: string) => {
-              const fileExt = file.name.split(".").pop() || "txt"
-              const formattedContent = `\`\`\`${fileExt}\n${response}\n\`\`\``
-              addContextTab("file", file.name, formattedContent)
-              if (textareaRef.current) {
-                textareaRef.current.focus()
-              }
-            })
+            apiClient.file
+              .$get({
+                query: {
+                  fileId: file.id,
+                  projectId: projectId,
+                },
+              })
+              .then(async (res) => {
+                const fileData = await res.json()
+                const fileExt = file.name.split(".").pop() || "txt"
+                const formattedContent = `\`\`\`${fileExt}\n${fileData}\n\`\`\``
+                addContextTab("file", file.name, formattedContent)
+                if (textareaRef.current) {
+                  textareaRef.current.focus()
+                }
+              })
           }}
         />
         {/* Render chat input component */}
