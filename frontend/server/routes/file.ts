@@ -73,9 +73,6 @@ export const fileRouter = createRouter()
         }
 
         const file = await project.fileManager.getFile(fileId)
-        if (!file) {
-          return c.json({ error: "File not found" }, 404)
-        }
         return c.json(file)
       } catch (error) {
         console.error(`Error reading file ${fileId}:`, error)
