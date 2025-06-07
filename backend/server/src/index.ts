@@ -109,7 +109,7 @@ io.on("connection", async (socket) => {
         connections
           .connectionsForProject(data.projectId)
           .forEach((socket: Socket) => {
-            socket.emit("loaded", files)
+            socket.emit("refreshFiles", files)
           })
       }
 
@@ -117,7 +117,6 @@ io.on("connection", async (socket) => {
       const project = new Project(data.projectId)
       await project.initialize()
       await project.fileManager?.startWatching(sendFileNotifications)
-      socket.emit("loaded", await project.fileManager?.getFileTree())
 
       // Register event handlers for the project
       const handlers = createProjectHandlers(

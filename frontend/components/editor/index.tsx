@@ -769,6 +769,7 @@ export default function CodeEditor({
   }, [socket])
 
   // Socket event listener effect
+  const isFirstRun = useRef(true)
   useEffect(() => {
     const onConnect = () => {}
 
@@ -776,8 +777,28 @@ export default function CodeEditor({
       setTerminals([])
     }
 
-    const onLoadedEvent = (files: (TFolder | TFile)[]) => {
-      setFiles(files)
+    const onRefreshEvent = async () => {
+      try {
+        const response = await apiClient.file.tree.$get({
+          query: {
+            projectId: sandboxData.id,
+          },
+        })
+
+        if (response.status === 200) {
+          const data = await response.json()
+          if (data.success && data.data) {
+            setFiles(data.data as (TFolder | TFile)[])
+          } else {
+            toast.error("Failed to load file tree")
+          }
+        } else {
+          toast.error("Failed to load file tree")
+        }
+      } catch (error) {
+        console.error("Error loading file tree:", error)
+        toast.error("Failed to load file tree")
+      }
     }
 
     const onError = (message: string) => {
@@ -801,16 +822,21 @@ export default function CodeEditor({
 
     socket?.on("connect", onConnect)
     socket?.on("disconnect", onDisconnect)
-    socket?.on("loaded", onLoadedEvent)
     socket?.on("error", onError)
     socket?.on("terminalResponse", onTerminalResponse)
     socket?.on("disableAccess", onDisableAccess)
     socket?.on("previewURL", loadPreviewURL)
 
+    // Only run onRefreshEvent on first mount
+    if (isFirstRun.current) {
+      onRefreshEvent()
+      isFirstRun.current = false
+    }
+
     return () => {
       socket?.off("connect", onConnect)
       socket?.off("disconnect", onDisconnect)
-      socket?.off("loaded", onLoadedEvent)
+      socket?.off("refreshFiles", onRefreshEvent)
       socket?.off("error", onError)
       socket?.off("terminalResponse", onTerminalResponse)
       socket?.off("disableAccess", onDisableAccess)

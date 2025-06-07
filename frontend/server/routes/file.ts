@@ -779,3 +779,66 @@ export const fileRouter = createRouter()
       }
     }
   )
+
+  // Get file tree
+  .get(
+    "/tree",
+    describeRoute({
+      tags: ["File"],
+      description: "Get the complete file tree structure",
+      parameters: [
+        {
+          in: "query",
+          name: "projectId",
+          required: true,
+          schema: { type: "string" },
+        },
+      ],
+      responses: {
+        200: jsonContent(
+          z.object({
+            success: z.boolean(),
+            data: z.any(), // File tree structure
+          }),
+          "File tree response"
+        ),
+        500: { description: "Error getting file tree" },
+      },
+    }),
+    zValidator(
+      "query",
+      z.object({
+        projectId: z.string(),
+      })
+    ),
+    async (c) => {
+      const { projectId } = c.req.valid("query")
+
+      const project = new Project(projectId)
+      await project.initialize()
+
+      try {
+        const fileTree = await project.fileManager?.getFileTree()
+        return c.json(
+          {
+            success: true,
+            data: fileTree,
+          },
+          200
+        )
+      } catch (error) {
+        console.error("Error getting file tree:", error)
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error"
+        return c.json(
+          {
+            success: false,
+            message: `Failed to get file tree: ${errorMessage}`,
+          },
+          500
+        )
+      } finally {
+        await project.disconnect()
+      }
+    }
+  )
