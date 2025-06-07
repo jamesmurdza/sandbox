@@ -13,12 +13,12 @@ const BEFORE_ALL_TIMEOUT = 30000 // 30 sec
 
 const PROJECT_TEMPLATES = ["reactjs", "vanillajs", "nextjs", "streamlit", "php"]
 let noOfSandboxes = 0
-describe("GET /api/sandbox", () => {
+describe("GET /api/project", () => {
   let mainResponse: Response
   let mainBody: Array<{ [key: string]: unknown }>
 
   beforeAll(async () => {
-    mainResponse = await api.get("/sandbox")
+    mainResponse = await api.get("/project")
     mainBody = await mainResponse.json()
   }, BEFORE_ALL_TIMEOUT)
 
@@ -36,16 +36,16 @@ describe("GET /api/sandbox", () => {
   })
   test("With query params", async () => {
     const firstItem = mainBody[0]
-    const response = await api.get(`/sandbox?id=${firstItem.id}`)
+    const response = await api.get(`/project?id=${firstItem.id}`)
     const body = await response.json()
     expect(body).toBeInstanceOf(Object)
   })
 })
 
 let createdSandboxId: string
-describe("PUT /api/sandbox", () => {
+describe("PUT /api/project", () => {
   test("Should create a sandbox", async () => {
-    const response = await api.put("/sandbox", {
+    const response = await api.put("/project", {
       body: {
         name: "Vitest Sandbox",
         userId: env.CLERK_TEST_USER_ID,
@@ -60,9 +60,9 @@ describe("PUT /api/sandbox", () => {
   })
 })
 
-describe("POST /api/sandbox", () => {
+describe("POST /api/project", () => {
   test("Should update sandbox by ID", async () => {
-    const response = await api.post(`/sandbox`, {
+    const response = await api.post(`/project`, {
       body: {
         id: createdSandboxId,
         name: "Updated Vitest Sandbox",
@@ -74,9 +74,9 @@ describe("POST /api/sandbox", () => {
   })
 })
 
-describe("POST /api/sandbox/like", () => {
+describe("POST /api/project/like", () => {
   test("Should return 400 for missing fields", async () => {
-    const response = await api.post("/sandbox/like", {
+    const response = await api.post("/project/like", {
       body: { sandboxId: createdSandboxId },
     })
     expect(response.status).toBe(400)
@@ -84,7 +84,7 @@ describe("POST /api/sandbox/like", () => {
 
   test("Should like and unlike sandbox", async () => {
     // Like
-    const likeResponse = await api.post("/sandbox/like", {
+    const likeResponse = await api.post("/project/like", {
       body: { sandboxId: createdSandboxId, userId: env.CLERK_TEST_USER_ID },
     })
     expect(likeResponse.status).toBe(200)
@@ -92,7 +92,7 @@ describe("POST /api/sandbox/like", () => {
     expect(likeBody.liked).toBe(true)
 
     // Unlike
-    const unlikeResponse = await api.post("/sandbox/like", {
+    const unlikeResponse = await api.post("/project/like", {
       body: { sandboxId: createdSandboxId, userId: env.CLERK_TEST_USER_ID },
     })
     expect(unlikeResponse.status).toBe(200)
@@ -101,23 +101,23 @@ describe("POST /api/sandbox/like", () => {
   })
 })
 
-describe("GET /api/sandbox/like", () => {
+describe("GET /api/project/like", () => {
   let createdSandboxId: string
 
   beforeAll(async () => {
-    const response = await api.get("/sandbox")
+    const response = await api.get("/project")
     const sandboxes = await response.json()
     createdSandboxId = sandboxes[0]?.id
   }, BEFORE_ALL_TIMEOUT)
 
   test("Should return 400 for missing params", async () => {
-    const response = await api.get("/sandbox/like?sandboxId=test")
+    const response = await api.get("/project/like?sandboxId=test")
     expect(response.status).toBe(400)
   })
 
   test("Should return like status", async () => {
     const response = await api.get(
-      `/sandbox/like?sandboxId=${createdSandboxId}&userId=${env.CLERK_TEST_USER_ID}`
+      `/project/like?sandboxId=${createdSandboxId}&userId=${env.CLERK_TEST_USER_ID}`
     )
     expect(response.status).toBe(200)
     const body = await response.json()
@@ -126,22 +126,22 @@ describe("GET /api/sandbox/like", () => {
   })
 })
 
-describe("DELETE /api/sandbox?id=xxx", () => {
+describe("DELETE /api/project?id=xxx", () => {
   test("Should delete a sandbox", async () => {
-    const response = await api.delete(`/sandbox?id=${createdSandboxId}`)
+    const response = await api.delete(`/project?id=${createdSandboxId}`)
     expect(response.status).toBe(200)
     expect(await response.text()).toBe("Success")
   })
 })
 
 const SANDBOX_LIMIT = 8
-describe("POST /api/sandbox (limit enforcement)", () => {
+describe("POST /api/project (limit enforcement)", () => {
   const sandboxIds: string[] = []
 
   beforeAll(async () => {
     const sandboxesToCreate = SANDBOX_LIMIT - noOfSandboxes
     for (let i = 0; i < sandboxesToCreate; i++) {
-      const res = await api.put("/sandbox", {
+      const res = await api.put("/project", {
         body: {
           name: `Box ${i}`,
           userId: env.CLERK_TEST_USER_ID,
@@ -155,7 +155,7 @@ describe("POST /api/sandbox (limit enforcement)", () => {
   }, BEFORE_ALL_TIMEOUT)
 
   test("Should reject sandbox creation beyond limit", async () => {
-    const response = await api.put("/sandbox", {
+    const response = await api.put("/project", {
       body: {
         name: "Overflow Box",
         userId: env.CLERK_TEST_USER_ID,
@@ -170,6 +170,6 @@ describe("POST /api/sandbox (limit enforcement)", () => {
   })
 
   afterAll(async () => {
-    await Promise.all(sandboxIds.map((id) => api.delete(`/sandbox?id=${id}`)))
+    await Promise.all(sandboxIds.map((id) => api.delete(`/project?id=${id}`)))
   })
 })
