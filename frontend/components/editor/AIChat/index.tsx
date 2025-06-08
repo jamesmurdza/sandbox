@@ -23,7 +23,10 @@ export default function AIChat({
   mergeDecorationsCollection,
   setMergeDecorationsCollection,
   projectName,
-  tabs
+  tabs,
+  handleAcceptAllChanges,
+  fileDiffStates,
+  activeFileId,
 }: AIChatProps) {
   // Initialize socket and messages
   const { socket } = useSocket()
@@ -227,6 +230,9 @@ export default function AIChat({
             setMergeDecorationsCollection={setMergeDecorationsCollection}
             selectFile={selectFile}
             tabs={tabs}
+            handleAcceptAllChanges={handleAcceptAllChanges}
+            fileDiffStates={fileDiffStates}
+            activeFileId={activeFileId}
           />
         ))}
         {isLoading && <LoadingDots />}

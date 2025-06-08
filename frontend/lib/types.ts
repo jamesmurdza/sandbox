@@ -92,8 +92,9 @@ export interface LineChange {
   type: 'added' | 'removed'
   content: string
   blockId: string // groups related changes together
-  accepted: boolean // whether this specific change is accepted
+  accepted: boolean | null // null = pending, true = accepted, false = rejected
   originalLineNumber?: number // original line number for tracking
+  timestamp?: number // when this change was processed
 }
 
 export interface DiffBlock {
@@ -102,6 +103,7 @@ export interface DiffBlock {
   endLine: number
   changes: LineChange[]
   type: 'modification' | 'addition' | 'deletion'
+  originalStartLine?: number // original line number where this block started
 }
 
 export interface GranularDiffState {
@@ -109,4 +111,7 @@ export interface GranularDiffState {
   originalCode: string
   mergedCode: string
   allAccepted: boolean
+  timestamp?: number // when this state was created
+  lineMapping?: Map<number, number> // original -> document line mapping
+  version?: number // state version for tracking changes
 }
