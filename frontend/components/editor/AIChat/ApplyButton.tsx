@@ -21,6 +21,9 @@ export default function ApplyButton({
   const [isApplying, setIsApplying] = useState(false)
 
   const handleApply = async () => {
+    // Note: File validation is now handled at the UI level in markdownComponents.tsx
+    // This button will only be enabled for appropriate files
+    
     setIsApplying(true)
     try {
       const response = await fetch("/api/merge", {
