@@ -687,22 +687,13 @@ export const fileRouter = createRouter()
     }
   )
 
-  // Download files
+  // Download files as archive
   .get(
     "/download",
     describeRoute({
-      operationId: "downloadFiles",
+      operationId: "downloadFilesArchive",
       tags: ["files"],
       parameters: [
-        {
-          in: "query",
-          name: "paths",
-          required: true,
-          schema: {
-            type: "array",
-            items: { type: "string" },
-          },
-        },
         {
           in: "query",
           name: "projectId",
@@ -712,22 +703,13 @@ export const fileRouter = createRouter()
       ],
       responses: {
         200: {
-          description: "Download files",
+          description: "Download files as archive",
           content: {
             "application/json": {
               schema: {
                 type: "object",
                 properties: {
-                  files: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        path: { type: "string" },
-                        content: { type: "string" },
-                      },
-                    },
-                  },
+                  archive: { type: "string" },
                 },
               },
             },
@@ -741,31 +723,21 @@ export const fileRouter = createRouter()
     zValidator(
       "query",
       z.object({
-        paths: z.array(z.string()),
         projectId: z.string(),
       })
     ),
     async (c) => {
-      try {
-        const { paths, projectId } = c.req.valid("query")
-        const project = new Project(projectId)
-        await project.initialize()
+      const { projectId } = c.req.valid("query")
+      const project = new Project(projectId)
+      await project.initialize()
 
-        const files = await project.fileManager?.getFilesForDownload()
-        if (!files || !Array.isArray(files)) {
-          return c.json({ error: "Failed to prepare files for download" }, 500)
+      try {
+        if (!project.fileManager) {
+          throw new Error("No file manager")
         }
 
-        // Convert files to a format suitable for download
-        const fileContents = files.map(
-          (file: { path: string; content: string }) => ({
-            path: file.path,
-            content: Buffer.from(file.content).toString("base64"),
-          })
-        )
-
-        // Return as JSON, the client can handle the base64 content
-        return c.json({ files: fileContents })
+        const archive = await project.fileManager.getFilesForDownload()
+        return c.json({ archive })
       } catch (error) {
         console.error("Error downloading files:", error)
         return c.json(
@@ -777,6 +749,8 @@ export const fileRouter = createRouter()
           },
           500
         )
+      } finally {
+        await project.disconnect()
       }
     }
   )

@@ -77,7 +77,10 @@ export default function Navbar({
                 <Users className="w-4 h-4 mr-2" />
                 Share
               </Button> */}
-              <DownloadButton name={sandboxData.name} />
+              <DownloadButton
+                name={sandboxData.name}
+                projectId={sandboxData.id}
+              />
             </>
           ) : null}
           <ThemeSwitcher />

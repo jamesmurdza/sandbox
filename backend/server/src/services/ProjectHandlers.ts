@@ -138,12 +138,6 @@ export const createProjectHandlers = (
     return project.terminalManager?.closeTerminal(id)
   }
 
-  // Handle downloading files by download button
-  const handleDownloadFiles: SocketHandler = async () => {
-    if (!project.fileManager) throw new Error("No file manager")
-    return { archive: await project.fileManager.getFilesForDownload() }
-  }
-
   // Return all handlers as a map of event names to handler functions
   return {
     listApps: handleListApps,
@@ -154,6 +148,5 @@ export const createProjectHandlers = (
     resizeTerminal: handleResizeTerminal,
     terminalData: handleTerminalData,
     closeTerminal: handleCloseTerminal,
-    downloadFiles: handleDownloadFiles,
   }
 }
