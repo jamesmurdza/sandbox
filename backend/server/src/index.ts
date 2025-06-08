@@ -96,8 +96,6 @@ io.on("connection", async (socket) => {
       userId: string
       projectId: string
       isOwner: boolean
-      containerId: string
-      type: string
     }
 
     // Register the connection
