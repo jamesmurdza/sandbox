@@ -39,6 +39,7 @@ export const projectRouter = createRouter()
     ),
     async (c) => {
       const { id } = c.req.valid("query")
+      const userId = c.get("user").id
       if (id) {
         const res = await db.query.sandbox.findFirst({
           where: (sandbox, { eq }) => eq(sandbox.id, id),
@@ -57,7 +58,10 @@ export const projectRouter = createRouter()
           200
         )
       } else {
-        const res = await db.select().from(sandbox)
+        const res = await db.select().from(sandbox).where(
+          // check for authed user
+          eq(sandbox.userId, userId)
+        )
         return c.json(res ?? {}, 200)
       }
     }

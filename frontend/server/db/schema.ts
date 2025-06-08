@@ -10,6 +10,7 @@ import {
   varchar,
 } from "drizzle-orm/pg-core"
 import { createInsertSchema, createUpdateSchema } from "drizzle-zod"
+import z from "zod"
 export const KNOWN_PLATFORMS = [
   "github",
   "twitter",
@@ -123,6 +124,9 @@ export const userUpdateSchema = createUpdateSchema(user, {
     schema.openapi({
       description: "Creation timestamp of the user",
     }),
+  lastResetDate: z.coerce.date().optional().openapi({
+    description: "Last reset date for the user",
+  }),
 })
 export const sandbox = pgTable("sandbox", {
   id: text("id")
@@ -205,6 +209,8 @@ export const sandboxUpdateSchema = createUpdateSchema(sandbox, {
     schema.openapi({
       description: "Repository ID for the sandbox",
     }),
+}).omit({
+  type: true, // Type is not updatable
 })
 
 export type Sandbox = typeof sandbox.$inferSelect
