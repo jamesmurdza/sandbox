@@ -161,10 +161,9 @@ export const sandboxInsertSchema = createInsertSchema(sandbox, {
     schema.openapi({
       description: "Visibility of the sandbox",
     }),
-  createdAt: (schema) =>
-    schema.openapi({
-      description: "Creation timestamp of the sandbox",
-    }),
+  createdAt: z.coerce.date().openapi({
+    description: "Creation timestamp of the sandbox",
+  }),
   userId: (schema) =>
     schema.openapi({
       description: "ID of the user who created the sandbox",
@@ -193,10 +192,9 @@ export const sandboxUpdateSchema = createUpdateSchema(sandbox, {
     schema.openapi({
       description: "Visibility of the sandbox",
     }),
-  createdAt: (schema) =>
-    schema.openapi({
-      description: "Creation timestamp of the sandbox",
-    }),
+  createdAt: z.coerce.date().optional().openapi({
+    description: "Creation timestamp of the sandbox",
+  }),
   userId: (schema) =>
     schema.openapi({
       description: "ID of the user who created the sandbox",
