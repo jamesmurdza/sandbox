@@ -1,16 +1,16 @@
 "use client"
 
 import { validateName } from "@/lib/utils"
+import { apiClient } from "@/server/client-side-client"
 import Image from "next/image"
 import { useEffect, useRef } from "react"
-import { Socket } from "socket.io-client"
 
 export default function New({
-  socket,
+  projectId,
   type,
   stopEditing,
 }: {
-  socket: Socket
+  projectId: string
   type: "file" | "folder"
   stopEditing: () => void
 }) {
@@ -23,9 +23,19 @@ export default function New({
       const valid = validateName(name, "", type)
       if (valid.status) {
         if (type === "file") {
-          socket.emit("createFile", { name })
+          apiClient.file.create.$post({
+            json: {
+              name,
+              projectId,
+            },
+          })
         } else {
-          socket.emit("createFolder", { name })
+          apiClient.file.folder.$post({
+            json: {
+              name,
+              projectId: projectId,
+            },
+          })
         }
       }
     }

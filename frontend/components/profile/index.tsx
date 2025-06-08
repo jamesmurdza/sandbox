@@ -100,7 +100,7 @@ export default function ProfilePage({
             username={profileOwner.username}
             avatarUrl={profileOwner.avatarUrl}
             sandboxes={sandboxes}
-            joinedDate={profileOwner.createdAt}
+            joinedDate={new Date(profileOwner.createdAt)}
             generations={isOwnProfile ? loggedInUser.generations : undefined}
             isOwnProfile={isOwnProfile}
             tier={profileOwner.tier}
@@ -572,9 +572,14 @@ function SandboxesPanel({
                         deletingId={deletingId}
                         isAuthenticated
                         {...sandbox}
+                        createdAt={new Date(sandbox.createdAt)}
                       />
                     ) : (
-                      <ProjectCard isAuthenticated={false} {...sandbox} />
+                      <ProjectCard
+                        isAuthenticated={false}
+                        {...sandbox}
+                        createdAt={new Date(sandbox.createdAt)}
+                      />
                     )}
                   </Fragment>
                 )
@@ -606,9 +611,14 @@ function SandboxesPanel({
                       deletingId={deletingId}
                       isAuthenticated
                       {...sandbox}
+                      createdAt={new Date(sandbox.createdAt)}
                     />
                   ) : (
-                    <ProjectCard isAuthenticated={false} {...sandbox} />
+                    <ProjectCard
+                      isAuthenticated={false}
+                      {...sandbox}
+                      createdAt={new Date(sandbox.createdAt)}
+                    />
                   )}
                 </Fragment>
               )
@@ -629,6 +639,7 @@ function SandboxesPanel({
                 deletingId={deletingId}
                 isAuthenticated
                 {...sandbox}
+                createdAt={new Date(sandbox.createdAt)}
               />
             ))}
           </div>

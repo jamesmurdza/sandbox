@@ -7,6 +7,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { apiClient } from "@/server/client-side-client"
 import { useClerk } from "@clerk/nextjs"
 import Editor, { BeforeMount, OnMount } from "@monaco-editor/react"
 import { AnimatePresence, motion } from "framer-motion"
@@ -89,17 +90,27 @@ export default function CodeEditor({
   // This heartbeat is critical to preventing the E2B sandbox from timing out
   useEffect(() => {
     // 10000 ms = 10 seconds
-    const interval = setInterval(
-      () =>
-        socket?.emit("heartbeat", {}, (success: boolean) => {
-          if (!success) {
+    const interval = setInterval(async () => {
+      try {
+        const response = await apiClient.file.heartbeat.$post({
+          json: {
+            projectId: sandboxData.id,
+            isOwner: sandboxData.userId === userData.id,
+          },
+        })
+        if (response.status === 200) {
+          const data = await response.json()
+          if (!data.success) {
             setTimeoutDialog(true)
           }
-        }),
-      10000
-    )
+        }
+      } catch (error) {
+        console.error("Heartbeat error:", error)
+        setTimeoutDialog(true)
+      }
+    }, 10000)
     return () => clearInterval(interval)
-  }, [socket])
+  }, [sandboxData.id, sandboxData.userId === userData.id])
 
   //Preview Button state
   const [isPreviewCollapsed, setIsPreviewCollapsed] = useState(true)
@@ -243,9 +254,18 @@ export default function CodeEditor({
     )
     const fetchFileContent = (fileId: string): Promise<string> => {
       return new Promise((resolve) => {
-        socket?.emit("getFile", { fileId }, (content: string) => {
-          resolve(content)
-        })
+        apiClient.file
+          .$get({
+            query: {
+              fileId,
+              projectId: sandboxData.id,
+            },
+          })
+          .then(async (res) => {
+            if (res.status === 200) {
+              resolve(await res.json())
+            }
+          })
       })
     }
     const loadTSConfig = async (files: (TFolder | TFile)[]) => {
@@ -714,7 +734,13 @@ export default function CodeEditor({
             tab.id === activeFileId ? { ...tab, saved: true } : tab
           )
         )
-        socket?.emit("saveFile", { fileId: activeFileId, body: content })
+        apiClient.file.save.$post({
+          json: {
+            fileId: activeFileId,
+            content: content,
+            projectId: sandboxData.id,
+          },
+        })
       }
     }, Number(process.env.FILE_SAVE_DEBOUNCE_DELAY) || 1000),
     [socket, fileContents]
@@ -744,83 +770,6 @@ export default function CodeEditor({
     }
   }, [activeFileId, tabs, debouncedSaveData, setIsAIChatOpen, editorRef])
 
-  // // Liveblocks live collaboration setup effect
-  // useEffect(() => {
-  //   const tab = tabs.find((t) => t.id === activeFileId)
-  //   const model = editorRef?.getModel()
-
-  //   if (!editorRef || !tab || !model) return
-
-  //   let providerData: ProviderData
-
-  //   // When a file is opened for the first time, create a new provider and store in providersMap.
-  //   if (!providersMap.current.has(tab.id)) {
-  //     const yDoc = new Y.Doc()
-  //     const yText = yDoc.getText(tab.id)
-  //     const yProvider = new LiveblocksProvider(room, yDoc)
-
-  //     // Inserts the file content into the editor once when the tab is changed.
-  //     const onSync = (isSynced: boolean) => {
-  //       if (isSynced) {
-  //         const text = yText.toString()
-  //         if (text === "") {
-  //           if (activeFileContent) {
-  //             yText.insert(0, activeFileContent)
-  //           } else {
-  //             setTimeout(() => {
-  //               yText.insert(0, editorRef.getValue())
-  //             }, 0)
-  //           }
-  //         }
-  //       }
-  //     }
-
-  //     yProvider.on("sync", onSync)
-
-  //     // Save the provider to the map.
-  //     providerData = { provider: yProvider, yDoc, yText, onSync }
-  //     providersMap.current.set(tab.id, providerData)
-  //   } else {
-  //     // When a tab is opened that has been open before, reuse the existing provider.
-  //     providerData = providersMap.current.get(tab.id)!
-  //   }
-
-  //   const binding = new MonacoBinding(
-  //     providerData.yText,
-  //     model,
-  //     new Set([editorRef]),
-  //     providerData.provider.awareness as unknown as Awareness
-  //   )
-
-  //   providerData.binding = binding
-  //   setProvider(providerData.provider)
-
-  //   return () => {
-  //     // Cleanup logic
-  //     if (binding) {
-  //       binding.destroy()
-  //     }
-  //     if (providerData.binding) {
-  //       providerData.binding = undefined
-  //     }
-  //   }
-  // }, [room, activeFileContent])
-
-  // // Added this effect to clean up when the component unmounts
-  // useEffect(() => {
-  //   return () => {
-  //     // Clean up all providers when the component unmounts
-  //     providersMap.current.forEach((data) => {
-  //       if (data.binding) {
-  //         data.binding.destroy()
-  //       }
-  //       data.provider.disconnect()
-  //       data.yDoc.destroy()
-  //     })
-  //     providersMap.current.clear()
-  //   }
-  // }, [])
-
   // Connection/disconnection effect
   useEffect(() => {
     socket?.connect()
@@ -830,6 +779,7 @@ export default function CodeEditor({
   }, [socket])
 
   // Socket event listener effect
+  const isFirstRun = useRef(true)
   useEffect(() => {
     const onConnect = () => {}
 
@@ -837,8 +787,28 @@ export default function CodeEditor({
       setTerminals([])
     }
 
-    const onLoadedEvent = (files: (TFolder | TFile)[]) => {
-      setFiles(files)
+    const onRefreshEvent = async () => {
+      try {
+        const response = await apiClient.file.tree.$get({
+          query: {
+            projectId: sandboxData.id,
+          },
+        })
+
+        if (response.status === 200) {
+          const data = await response.json()
+          if (data.success && data.data) {
+            setFiles(data.data as (TFolder | TFile)[])
+          } else {
+            toast.error("Failed to load file tree")
+          }
+        } else {
+          toast.error("Failed to load file tree")
+        }
+      } catch (error) {
+        console.error("Error loading file tree:", error)
+        toast.error("Failed to load file tree")
+      }
     }
 
     const onError = (message: string) => {
@@ -862,16 +832,21 @@ export default function CodeEditor({
 
     socket?.on("connect", onConnect)
     socket?.on("disconnect", onDisconnect)
-    socket?.on("loaded", onLoadedEvent)
     socket?.on("error", onError)
     socket?.on("terminalResponse", onTerminalResponse)
     socket?.on("disableAccess", onDisableAccess)
     socket?.on("previewURL", loadPreviewURL)
 
+    // Only run onRefreshEvent on first mount
+    if (isFirstRun.current) {
+      onRefreshEvent()
+      isFirstRun.current = false
+    }
+
     return () => {
       socket?.off("connect", onConnect)
       socket?.off("disconnect", onDisconnect)
-      socket?.off("loaded", onLoadedEvent)
+      socket?.off("refreshFiles", onRefreshEvent)
       socket?.off("error", onError)
       socket?.off("terminalResponse", onTerminalResponse)
       socket?.off("disableAccess", onDisableAccess)
@@ -895,7 +870,18 @@ export default function CodeEditor({
 
   // Debounced function to get file content
   const debouncedGetFile = (tabId: any, callback: any) => {
-    socket?.emit("getFile", { fileId: tabId }, callback)
+    apiClient.file
+      .$get({
+        query: {
+          fileId: tabId,
+          projectId: sandboxData.id,
+        },
+      })
+      .then(async (res) => {
+        if (res.status === 200) {
+          callback(await res.json())
+        }
+      })
   } // 300ms debounce delay, adjust as needed
 
   const selectFile = (tab: TTab) => {
@@ -1049,7 +1035,13 @@ export default function CodeEditor({
       return false
     }
 
-    socket?.emit("renameFile", { fileId: id, newName })
+    apiClient.file.rename.$post({
+      json: {
+        fileId: id,
+        newName,
+        projectId: sandboxData.id,
+      },
+    })
     setTabs((prev) =>
       prev.map((tab) => (tab.id === id ? { ...tab, name: newName } : tab))
     )
@@ -1058,7 +1050,12 @@ export default function CodeEditor({
   }
 
   const handleDeleteFile = (file: TFile) => {
-    socket?.emit("deleteFile", { fileId: file.id })
+    apiClient.file.$delete({
+      query: {
+        fileId: file.id,
+        projectId: sandboxData.id,
+      },
+    })
     closeTab(file.id)
   }
 
@@ -1066,17 +1063,33 @@ export default function CodeEditor({
     setDeletingFolderId(folder.id)
     console.log("deleting folder", folder.id)
 
-    socket?.emit("getFolder", { folderId: folder.id }, (response: string[]) =>
-      closeTabs(response)
-    )
+    apiClient.file.folder
+      .$get({
+        query: {
+          folderId: folder.id,
+          projectId: sandboxData.id,
+        },
+      })
+      .then(async (res) => {
+        if (res.status === 200) {
+          const data = await res.json()
+          closeTabs(data)
+        }
+      })
 
-    socket?.emit(
-      "deleteFolder",
-      { folderId: folder.id },
-      (response: (TFolder | TFile)[]) => {
-        setDeletingFolderId("")
-      }
-    )
+    apiClient.file.folder
+      .$delete({
+        query: {
+          folderId: folder.id,
+          projectId: sandboxData.id,
+        },
+      })
+      .then(async (res) => {
+        if (res.status === 200) {
+          const data = await res.json()
+          closeTabs(data.data?.map((item: any) => item.id) ?? [])
+        }
+      })
   }
 
   const togglePreviewPanel = () => {
@@ -1470,6 +1483,7 @@ export default function CodeEditor({
                   files={files}
                   templateType={sandboxData.type}
                   projectName={sandboxData.name}
+                  projectId={sandboxData.id}
                   handleApplyCode={handleApplyCode}
                   mergeDecorationsCollection={mergeDecorationsCollection}
                   setMergeDecorationsCollection={setMergeDecorationsCollection}
