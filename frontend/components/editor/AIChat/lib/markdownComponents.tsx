@@ -1,5 +1,5 @@
-import { useSocket } from "@/context/SocketContext"
 import { TTab } from "@/lib/types"
+import { apiClient } from "@/server/client-side-client"
 import hljs from "highlight.js"
 import "highlight.js/styles/github.css"
 import "highlight.js/styles/vs2015.css"
@@ -22,6 +22,7 @@ export const createMarkdownComponents = (
   handleApplyCode: (mergedCode: string, originalCode: string) => void,
   selectFile: (tab: TTab) => void,
   tabs: TTab[],
+  projectId: string,
   mergeDecorationsCollection?: monaco.editor.IEditorDecorationsCollection,
   setMergeDecorationsCollection?: (collection: undefined) => void
 ): Components => {
@@ -227,7 +228,6 @@ export const createMarkdownComponents = (
   // Render markdown elements
   p: ({ node, children, ...props }) => {
     const content = stringifyContent(children)
-    const { socket } = useSocket()
 
     if (isFilePath(content)) {
       const isNewFile = content.endsWith("(new file)")
@@ -243,13 +243,15 @@ export const createMarkdownComponents = (
 
       const handleFileClick = () => {
         if (isNewFile) {
-          socket?.emit(
-            "createFile",
-            {
-              name: filePath,
-            },
-            (response: any) => {
-              if (response.success) {
+          apiClient.file.create
+            .$post({
+              json: {
+                name: filePath,
+                projectId: projectId,
+              },
+            })
+            .then((res) => {
+              if (res.status === 200) {
                 const tab: TTab = {
                   id: filePath,
                   name: filePath.split("/").pop() || "",
@@ -258,8 +260,7 @@ export const createMarkdownComponents = (
                 }
                 selectFile(tab)
               }
-            }
-          )
+            })
         } else {
           // First check if the file exists in the current tabs
           const existingTab = tabs.find(

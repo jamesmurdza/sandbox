@@ -285,11 +285,7 @@ export class GitHubApiService {
       }
 
       // Get and prepare files
-      const project = new Project(
-        projectId,
-        projectData.type,
-        projectData.containerId || ""
-      )
+      const project = new Project(projectId)
       await project.initialize()
       const files = await this.collectFilesForCommit(project)
       if (files.length === 0) {
@@ -357,11 +353,7 @@ export class GitHubApiService {
       await this.updateSandboxWithRepoId(projectId, id.toString())
 
       // Create initial commit
-      const project = new Project(
-        projectId,
-        sandbox.type,
-        sandbox.containerId || ""
-      )
+      const project = new Project(projectId)
       await project.initialize()
       const files = await this.collectFilesForCommit(project)
       if (files.length === 0) {
@@ -439,7 +431,6 @@ export class GitHubApiService {
     return files
   }
   private async fetchSandboxData(projectId: string) {
-
     const sandboxData = await db
       .select()
       .from(sandbox)
@@ -459,7 +450,6 @@ export class GitHubApiService {
    * @returns Promise containing update result
    */
   private async updateSandboxWithRepoId(projectId: string, repoId: string) {
-
     await db
       .update(sandbox)
       .set({ repositoryId: repoId })

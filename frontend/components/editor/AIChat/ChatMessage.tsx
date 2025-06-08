@@ -22,6 +22,7 @@ export default function ChatMessage({
   setMergeDecorationsCollection,
   selectFile,
   tabs,
+  projectId,
 }: MessageProps) {
   const { resolvedTheme: theme } = useTheme()
   // State for expanded message index
@@ -122,6 +123,7 @@ export default function ChatMessage({
     handleApplyCode,
     selectFile,
     tabs,
+    projectId,
     mergeDecorationsCollection,
     setMergeDecorationsCollection
   )
