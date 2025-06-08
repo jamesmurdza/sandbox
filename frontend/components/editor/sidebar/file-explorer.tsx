@@ -67,7 +67,7 @@ export function FileExplorer({
       return dropTargetForElements({
         element: el,
         // TODO: LL
-        getData: () => ({ id: `projects/${sandboxData.id}` }),
+        getData: () => ({ id: `/` }),
         canDrop: ({ source }) => {
           const file = files.find((child) => child.id === source.data.id)
           return !file
