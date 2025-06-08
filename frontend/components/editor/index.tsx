@@ -90,17 +90,27 @@ export default function CodeEditor({
   // This heartbeat is critical to preventing the E2B sandbox from timing out
   useEffect(() => {
     // 10000 ms = 10 seconds
-    const interval = setInterval(
-      () =>
-        socket?.emit("heartbeat", {}, (success: boolean) => {
-          if (!success) {
+    const interval = setInterval(async () => {
+      try {
+        const response = await apiClient.file.heartbeat.$post({
+          json: {
+            projectId: sandboxData.id,
+            isOwner: sandboxData.userId === userData.id,
+          },
+        })
+        if (response.status === 200) {
+          const data = await response.json()
+          if (!data.success) {
             setTimeoutDialog(true)
           }
-        }),
-      10000
-    )
+        }
+      } catch (error) {
+        console.error("Heartbeat error:", error)
+        setTimeoutDialog(true)
+      }
+    }, 10000)
     return () => clearInterval(interval)
-  }, [socket])
+  }, [sandboxData.id, sandboxData.userId === userData.id])
 
   //Preview Button state
   const [isPreviewCollapsed, setIsPreviewCollapsed] = useState(true)

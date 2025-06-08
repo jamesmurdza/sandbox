@@ -1,5 +1,4 @@
 import { Socket } from "socket.io"
-import { CONTAINER_TIMEOUT } from "../utils/constants"
 import { LockManager } from "../utils/lock"
 import { Project } from "./Project"
 
@@ -30,20 +29,6 @@ export const createProjectHandlers = (
     const regex = /http:\/\/localhost:(\d+)/
     const match = cleanedString.match(regex)
     return match ? parseInt(match[1]) : null
-  }
-
-  // Handle heartbeat from a socket connection
-  const handleHeartbeat: SocketHandler = async () => {
-    // Only keep the container alive if the owner is still connected
-    if (connection.isOwner) {
-      try {
-        await project.container?.setTimeout(CONTAINER_TIMEOUT)
-      } catch (error) {
-        console.error("Failed to set container timeout:", error)
-        return false
-      }
-    }
-    return true
   }
 
   // Handle listing apps
@@ -161,7 +146,6 @@ export const createProjectHandlers = (
 
   // Return all handlers as a map of event names to handler functions
   return {
-    heartbeat: handleHeartbeat,
     listApps: handleListApps,
     getAppCreatedAt: handleGetAppCreatedAt,
     appExists: handleAppExists,

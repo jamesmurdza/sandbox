@@ -3,6 +3,7 @@ import jsonContent from "@/lib/server/utils"
 import { describeRoute } from "hono-openapi"
 import { validator as zValidator } from "hono-openapi/zod"
 import z from "zod"
+import { CONTAINER_TIMEOUT } from "../../../backend/server/src/utils/constants"
 
 import { Project } from "../../../backend/server/src/services/Project"
 
@@ -834,6 +835,77 @@ export const fileRouter = createRouter()
           {
             success: false,
             message: `Failed to get file tree: ${errorMessage}`,
+          },
+          500
+        )
+      } finally {
+        await project.disconnect()
+      }
+    }
+  )
+
+  // Handle heartbeat
+  .post(
+    "/heartbeat",
+    describeRoute({
+      tags: ["File"],
+      description: "Handle heartbeat from socket connection",
+      requestBody: {
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              properties: {
+                projectId: { type: "string" },
+                isOwner: { type: "boolean" },
+              },
+              required: ["projectId", "isOwner"],
+            },
+          },
+        },
+      },
+      responses: {
+        200: jsonContent(
+          z.object({
+            success: z.boolean(),
+          }),
+          "Heartbeat response"
+        ),
+        500: { description: "Error handling heartbeat" },
+      },
+    }),
+    zValidator(
+      "json",
+      z.object({
+        projectId: z.string(),
+        isOwner: z.boolean(),
+      })
+    ),
+    async (c) => {
+      const { projectId, isOwner } = c.req.valid("json")
+
+      const project = new Project(projectId)
+      await project.initialize()
+
+      try {
+        // Only keep the container alive if the owner is still connected
+        if (isOwner) {
+          try {
+            await project.container?.setTimeout(CONTAINER_TIMEOUT)
+          } catch (error) {
+            console.error("Failed to set container timeout:", error)
+            return c.json({ success: false }, 500)
+          }
+        }
+        return c.json({ success: true }, 200)
+      } catch (error) {
+        console.error("Error handling heartbeat:", error)
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error"
+        return c.json(
+          {
+            success: false,
+            message: `Failed to handle heartbeat: ${errorMessage}`,
           },
           500
         )
