@@ -5,8 +5,6 @@ import fs from "fs"
 import { createServer } from "http"
 import { Server, Socket } from "socket.io"
 import { GitHubApiRoutes } from "./routes/GitHubApiRoutes"
-import sandboxRoutes from "./routes/sandbox"
-import userRoutes from "./routes/user"
 
 import { attachAuthToken } from "./middleware/attachAuthToken"
 import { requireAuth } from "./middleware/clerkAuth"
@@ -170,8 +168,6 @@ io.on("connection", async (socket) => {
 app.use(express.json())
 const githubApi = new GitHubApiRoutes()
 app.use("/api/github", githubApi.router)
-app.use("/api/sandbox", sandboxRoutes)
-app.use("/api/user", userRoutes)
 
 // Start the server
 httpServer.listen(port, () => {
