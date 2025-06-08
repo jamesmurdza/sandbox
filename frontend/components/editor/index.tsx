@@ -1615,8 +1615,19 @@ export default function CodeEditor({
   const saveFile = useCallback((fileId: string | undefined) => {
     if (!fileId) return
     
-    // Get the current content of the file
-    const content = fileContents[fileId]
+    // Get the current content from the editor if it's the active file, otherwise from fileContents
+    let content: string;
+    if (fileId === activeFileId && editorRef) {
+      content = editorRef.getValue()
+    } else {
+      content = fileContents[fileId]
+    }
+    
+    // Ensure content is not undefined
+    if (content === undefined) {
+      console.warn(`No content found for file ${fileId}`)
+      return
+    }
 
     // Mark the file as saved in the tabs
     setTabs((prev) =>
@@ -1624,8 +1635,13 @@ export default function CodeEditor({
         tab.id === fileId ? { ...tab, saved: true } : tab
       )
     )
-    socket?.emit("saveFile", { fileId, body: content })
-  }, [socket, fileContents, setTabs])
+    
+    // Use socket for saving - Fixed: use 'body' instead of 'content'
+    socket?.emit("saveFile", {
+      fileId: fileId,
+      body: content
+    })
+  }, [fileContents, setTabs, sandboxData.id, activeFileId, editorRef])
 
   // Keydown event listener to trigger file save on Ctrl+S or Cmd+S, and toggle AI chat on Ctrl+L or Cmd+L
   useEffect(() => {
@@ -2439,6 +2455,7 @@ export default function CodeEditor({
                   files={files}
                   templateType={sandboxData.type}
                   projectName={sandboxData.name}
+                  projectId={sandboxData.id}
                   handleApplyCode={handleApplyCode}
                   mergeDecorationsCollection={mergeDecorationsCollection}
                   setMergeDecorationsCollection={setMergeDecorationsCollection}

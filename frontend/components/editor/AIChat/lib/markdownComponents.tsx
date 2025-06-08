@@ -23,6 +23,7 @@ export const createMarkdownComponents = (
   handleApplyCode: (mergedCode: string, originalCode: string) => void,
   selectFile: (tab: TTab) => void,
   tabs: TTab[],
+  projectId: string,
   mergeDecorationsCollection?: monaco.editor.IEditorDecorationsCollection,
   setMergeDecorationsCollection?: (collection: undefined) => void,
   handleAcceptAllChanges?: () => void,
@@ -306,23 +307,21 @@ export const createMarkdownComponents = (
 
         const handleFileClick = () => {
           if (isNewFile) {
-            socket?.emit(
-              "createFile",
-              {
-                name: filePath,
-              },
-              (response: any) => {
-                if (response.success) {
-                  const tab: TTab = {
-                    id: filePath,
-                    name: filePath.split("/").pop() || "",
-                    saved: true,
-                    type: "file",
-                  }
-                  selectFile(tab)
+            // Use socket for new file creation
+            socket?.emit("createFile", { 
+              name: filePath, 
+              projectId: projectId 
+            }, (success: boolean) => {
+              if (success) {
+                const tab: TTab = {
+                  id: filePath,
+                  name: filePath.split("/").pop() || "",
+                  saved: true,
+                  type: "file",
                 }
+                selectFile(tab)
               }
-            )
+            })
           } else {
             // First check if the file exists in the current tabs
             const existingTab = tabs.find(

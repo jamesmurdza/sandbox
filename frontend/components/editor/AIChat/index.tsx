@@ -24,6 +24,7 @@ export default function AIChat({
   setMergeDecorationsCollection,
   projectName,
   tabs,
+  projectId,
   handleAcceptAllChanges,
   fileDiffStates,
   activeFileId,
@@ -230,6 +231,7 @@ export default function AIChat({
             setMergeDecorationsCollection={setMergeDecorationsCollection}
             selectFile={selectFile}
             tabs={tabs}
+            projectId={projectId}
             handleAcceptAllChanges={handleAcceptAllChanges}
             fileDiffStates={fileDiffStates}
             activeFileId={activeFileId}
@@ -260,9 +262,10 @@ export default function AIChat({
           files={files}
           socket={socket}
           onFileSelect={(file: TFile) => {
-            socket?.emit("getFile", { fileId: file.id }, (response: string) => {
+            // Use socket to get file content instead of apiClient
+            socket?.emit("getFile", { fileId: file.id }, (fileData: string) => {
               const fileExt = file.name.split(".").pop() || "txt"
-              const formattedContent = `\`\`\`${fileExt}\n${response}\n\`\`\``
+              const formattedContent = `\`\`\`${fileExt}\n${fileData}\n\`\`\``
               addContextTab("file", file.name, formattedContent)
               if (textareaRef.current) {
                 textareaRef.current.focus()
