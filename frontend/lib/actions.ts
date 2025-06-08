@@ -25,7 +25,7 @@ export async function createSandbox(body: {
   if (!res.ok) {
     throw new Error("Failed to create sandbox")
   }
-  return (await res.json()).message
+  return (await res.json()).data.sandbox.id
 }
 
 export async function updateSandbox(body: {
