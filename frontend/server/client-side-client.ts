@@ -6,7 +6,11 @@ import type { AppType } from "."
  *
  * Note: This must be used in client components only.
  */
-export const apiClient = hc<AppType>("http://localhost:3000/", {
+if (!process.env.NEXT_PUBLIC_APP_URL) {
+  throw new Error("NEXT_PUBLIC_APP_URL environment variable is not defined")
+}
+
+export const apiClient = hc<AppType>(process.env.NEXT_PUBLIC_APP_URL, {
   headers() {
     return {
       Cookie: document.cookie,
