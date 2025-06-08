@@ -24,7 +24,11 @@ export const createMarkdownComponents = (
   tabs: TTab[],
   mergeDecorationsCollection?: monaco.editor.IEditorDecorationsCollection,
   setMergeDecorationsCollection?: (collection: undefined) => void
-): Components => ({
+): Components => {
+  // State to track the intended file for the next code block
+  let intendedFile: string | null = null
+
+  return {
   code: ({
     node,
     className,
@@ -63,13 +67,59 @@ export const createMarkdownComponents = (
             {renderCopyButton(stringifiedChildren)}
             <div className="w-px bg-input"></div>
             {!mergeDecorationsCollection ? (
-              <ApplyButton
-                code={stringifiedChildren}
-                activeFileName={activeFileName}
-                activeFileContent={activeFileContent}
-                editorRef={editorRef}
-                onApply={handleApplyCode}
-              />
+              (() => {
+                if (intendedFile) {
+                  const intendedFileName = intendedFile.split("/").pop()?.toLowerCase() || ""
+                  const currentFileName = activeFileName.toLowerCase()
+                  
+                  if (intendedFileName === currentFileName) {
+                    // Correct file - show normal apply
+                    return (
+                      <ApplyButton
+                        code={stringifiedChildren}
+                        activeFileName={activeFileName}
+                        activeFileContent={activeFileContent}
+                        editorRef={editorRef}
+                        onApply={handleApplyCode}
+                      />
+                    )
+                  } else {
+                    // Wrong file - show switch button
+                    return (
+                      <Button
+                        onClick={() => {
+                          const tab: TTab = {
+                            id: intendedFile!,
+                            name: intendedFileName,
+                            saved: true,
+                            type: "file",
+                          }
+                          selectFile(tab)
+                          // Apply will be available after file switch
+                        }}
+                        size="sm"
+                        variant="ghost"
+                        className="p-1 h-6 text-xs"
+                        title={`Switch to ${intendedFileName} to apply this code`}
+                      >
+                        <FileText className="w-3 h-3 mr-1" />
+                        {intendedFileName}
+                      </Button>
+                    )
+                  }
+                }
+                
+                // No intended file - show normal apply
+                return (
+                  <ApplyButton
+                    code={stringifiedChildren}
+                    activeFileName={activeFileName}
+                    activeFileContent={activeFileContent}
+                    editorRef={editorRef}
+                    onApply={handleApplyCode}
+                  />
+                )
+              })()
             ) : (
               <>
                 <Button
@@ -188,6 +238,9 @@ export const createMarkdownComponents = (
         .filter((part, index) => index !== 0)
         .join("/")
 
+      // Set the intended file for the next code blocks
+      intendedFile = filePath
+
       const handleFileClick = () => {
         if (isNewFile) {
           socket?.emit(
@@ -257,4 +310,5 @@ export const createMarkdownComponents = (
   ol: (props) => (
     <ol className="list-decimal pl-6 mb-4 space-y-2">{props.children}</ol>
   ),
-})
+  }
+}

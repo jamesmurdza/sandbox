@@ -75,6 +75,7 @@ describe("POST /logout", async () => {
     response = await apiClient.post("/github/logout", {
       userId: env.CLERK_TEST_USER_ID,
     })
+
   })
 
   test("Should have response status 200", () => {
@@ -93,3 +94,4 @@ describe("POST /logout", async () => {
     expect(userBody.githubToken).toBe("")
   })
 })
+

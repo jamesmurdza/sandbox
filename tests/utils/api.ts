@@ -2,6 +2,7 @@ import axios from "axios"
 import { getCachedToken } from "./auth"
 import { env } from "./env"
 
+
 export const apiClient = axios.create({
   baseURL: `${env.BACKEND_URL}/api`,
   validateStatus: () => true, // Accept all status codes
@@ -15,3 +16,4 @@ apiClient.interceptors.request.use(async (config) => {
   config.headers["Accept"] = "application/json"
   return config
 })
+
