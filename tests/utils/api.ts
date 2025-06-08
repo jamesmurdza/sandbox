@@ -1,4 +1,5 @@
-import { getJwtToken } from "./auth"
+import axios from "axios"
+import { getCachedToken, getJwtToken } from "./auth"
 import { env } from "./env"
 type HTTPMethod = "GET" | "POST" | "PUT" | "DELETE" | "PATCH"
 
@@ -42,6 +43,30 @@ export const api = {
   patch: <TBody>(url: string, options: RequestOptions<TBody>) =>
     request("PATCH", url, options),
 }
+export const apiClient = axios.create({
+  baseURL: `${env.BACKEND_URL}/api`,
+  validateStatus: () => true, // Accept all status codes
+  adapter: "fetch",
+})
+// Add request interceptor
+apiClient.interceptors.request.use(async (config) => {
+  const token = await getCachedToken()
+  config.headers.Authorization = `Bearer ${token}`
+  config.headers["Content-Type"] = "application/json"
+  config.headers["Accept"] = "application/json"
+  return config
+})
+// // Add response interceptor
+// apiClient.interceptors.response.use((response) => {
+//   try {
+//     if (typeof response.data === "string") {
+//       response.data = JSON.parse(response.data)
+//     }
+//   } catch {
+//     /* empty */
+//   }
+//   return response
+// })
 
 function joinUrl(...parts: string[]): string {
   return parts

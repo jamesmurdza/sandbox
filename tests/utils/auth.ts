@@ -113,3 +113,28 @@ export const getJwtToken = async () => {
   const jwt = await auth.getSessionToken(session.id)
   return jwt
 }
+
+// tokenManager.ts
+let cachedToken: string | null = null
+let tokenExpiresAt: number | null = null // Unix timestamp in ms
+
+export async function getCachedToken(): Promise<string> {
+  const now = Date.now()
+
+  // Return cached token if valid
+  if (cachedToken && tokenExpiresAt && now < tokenExpiresAt) {
+    return cachedToken
+  }
+
+  // Get a new token
+  const jwt = await getJwtToken()
+  console.log("Token fetched:", jwt)
+
+  // Set new expiration (buffered 5 seconds before actual expiry)
+  // Assume the token is valid for 60 seconds
+  const EXPIRES_IN_MS = 60 * 1000
+  tokenExpiresAt = now + EXPIRES_IN_MS - 5000
+  cachedToken = jwt
+
+  return jwt
+}
