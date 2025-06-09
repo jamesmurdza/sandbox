@@ -63,7 +63,7 @@ Create a database:
 psql postgres -c "CREATE DATABASE sandbox;"
 ```
 
-Update `backend/server/.env` with the database connection string.
+Update `frontend/.env` and `backend/server/.env` with the database connection string.
 
 ```
 DATABASE_URL=postgresql://localhost:5432/sandbox
@@ -86,7 +86,7 @@ npm run migrate
 
 Setup the E2B account.
 
-Update `/backend/server/.env`:
+Update `/frontend/.env` and `/backend/server/.env`:
 
 ```
 E2B_API_KEY='🔑'
