@@ -4,7 +4,6 @@ import { apiClient } from "@/server/client"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { editUserSchema } from "./schema"
-import { fetchWithAuth } from "./server-utils"
 import { UserLink } from "./types"
 import { parseSocialLink } from "./utils"
 
@@ -160,147 +159,71 @@ export async function updateUser(
     return { message: "An unexpected error occurred", fields: data }
   }
 }
-export type GithubUser = {
-  name: string
-  avatar_url: string
-  login: string
-  html_url: string
-  // ...the rest
-}
 
-export async function getGitHubUser({
-  code,
-  userId,
-}: {
-  code?: string
-  userId: string
-}) {
-  const res = await fetchWithAuth(
-    `${
-      process.env.NEXT_PUBLIC_SERVER_URL
-    }/api/github/user?${new URLSearchParams(
-      code ? { code, userId } : { userId }
-    )}`,
-    {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    }
-  )
-  const json = await res.json()
-  const data = json.data as GithubUser
-  if (res.status !== 200) {
+export async function getGitHubUser() {
+  const res = await apiClient.github.user.$get()
+  if (!res.ok) {
     return null
   }
+  const data = await res.json()
+
   return data
 }
+
+export type GithubUser = NonNullable<
+  Awaited<ReturnType<typeof getGitHubUser>>
+>["data"]
 
 export async function getGitHubAuthUrl() {
-  const res = await fetchWithAuth(
-    `${process.env.NEXT_PUBLIC_SERVER_URL}/api/github/authenticate/url`,
-    {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    }
-  )
-
-  const data = (await res.json()).data as {
-    auth_url: string
+  const res = await apiClient.github["auth_url"].$get()
+  if (!res.ok) {
+    throw new Error("Failed to get GitHub auth URL")
   }
-
-  if (res.status !== 200) {
-    throw new Error("No auth URL received")
-  }
+  const data = await res.json()
   return data
 }
 
-export async function githubLogin({
-  code,
-  userId,
-}: {
-  code: string
-  userId: string
-}) {
-  const res = await fetchWithAuth(
-    `${process.env.NEXT_PUBLIC_SERVER_URL}/api/github/login`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ code, userId }),
-    }
-  )
-  const data = (await res.json()).data as GithubUser
-  if (res.status !== 200) {
+export async function githubLogin({ code }: { code: string }) {
+  const res = await apiClient.github.login.$post({
+    query: { code },
+  })
+  if (!res.ok) {
     throw new Error("Login failed")
   }
+  const data = await res.json()
   return data
 }
 
-export async function githubLogout({ userId }: { userId: string }) {
-  const res = await fetchWithAuth(
-    `${process.env.NEXT_PUBLIC_SERVER_URL}/api/github/logout`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ userId }),
-    }
-  )
-  const data = (await res.json()).data as GithubUser
-
-  if (res.status !== 200) {
+export async function githubLogout() {
+  const res = await apiClient.github.logout.$post()
+  if (!res.ok) {
     throw new Error("Logout failed")
   }
+  const data = await res.json()
   return data
 }
 
 export async function getRepoStatus({ projectId }: { projectId: string }) {
-  const res = await fetchWithAuth(
-    `${
-      process.env.NEXT_PUBLIC_SERVER_URL
-    }/api/github/repo/status?${new URLSearchParams({ projectId })}`,
-    {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    }
-  )
-  const data = (await res.json()).data as {
-    existsInDB: boolean
-    existsInGitHub: boolean
-    repo?: {
-      id: string
-      name: string
-    }
+  const res = await apiClient.github.repo.status.$get({
+    query: { projectId },
+  })
+  if (!res.ok) {
+    throw new Error("Failed to get repo status")
   }
-  if (res.status !== 200) {
-    throw new Error("Repo status check failed")
-  }
+  const data = await res.json()
   return data
 }
 
 export async function createRepo({ projectId }: { projectId: string }) {
-  const res = await fetchWithAuth(
-    `${process.env.NEXT_PUBLIC_SERVER_URL}/api/github/repo/create`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ projectId }),
-    }
-  )
-  const data = (await res.json()).data as { repoUrl: string }
-  if (res.status !== 200) {
-    throw new Error("Repo creation failed")
+  const res = await apiClient.github.repo.create.$post({
+    json: {
+      projectId,
+    },
+  })
+  if (!res.ok) {
+    throw new Error("Failed to create repository")
   }
+  const data = await res.json()
   return data
 }
 
@@ -311,37 +234,26 @@ export async function createCommit({
   projectId: string
   message: string
 }) {
-  const res = await fetchWithAuth(
-    `${process.env.NEXT_PUBLIC_SERVER_URL}/api/github/repo/commit`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ projectId, message }),
-    }
-  )
-  const data = (await res.json()).data as { repoUrl: string }
-  if (res.status !== 200) {
-    throw new Error("Repo creation failed")
+  const res = await apiClient.github.repo.commit.$post({
+    json: {
+      projectId,
+      message,
+    },
+  })
+  if (!res.ok) {
+    throw new Error("Failed to commit changes")
   }
+  const data = await res.json()
   return data
 }
 
 export async function removeRepo({ projectId }: { projectId: string }) {
-  const res = await fetchWithAuth(
-    `${process.env.NEXT_PUBLIC_SERVER_URL}/api/github/repo/remove`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ projectId }),
-    }
-  )
-  const data = (await res.json()).data as null
-  if (res.status !== 200) {
-    throw new Error("Repo creation failed")
+  const res = await apiClient.github.repo.remove.$delete({
+    json: { projectId },
+  })
+  if (!res.ok) {
+    throw new Error("Failed to remove repository")
   }
+  const data = await res.json()
   return data
 }
