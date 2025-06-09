@@ -1,5 +1,6 @@
 import { useSocket } from "@/context/SocketContext"
 import { TFile } from "@/lib/types"
+import { apiClient } from "@/server/client-side-client"
 import { ChevronDown, X } from "lucide-react"
 import { nanoid } from "nanoid"
 import { useEffect, useRef, useState } from "react"
@@ -262,15 +263,22 @@ export default function AIChat({
           files={files}
           socket={socket}
           onFileSelect={(file: TFile) => {
-            // Use socket to get file content instead of apiClient
-            socket?.emit("getFile", { fileId: file.id }, (fileData: string) => {
-              const fileExt = file.name.split(".").pop() || "txt"
-              const formattedContent = `\`\`\`${fileExt}\n${fileData}\n\`\`\``
-              addContextTab("file", file.name, formattedContent)
-              if (textareaRef.current) {
-                textareaRef.current.focus()
-              }
-            })
+            apiClient.file
+              .$get({
+                query: {
+                  fileId: file.id,
+                  projectId: projectId,
+                },
+              })
+              .then(async (res) => {
+                const fileData = await res.json()
+                const fileExt = file.name.split(".").pop() || "txt"
+                const formattedContent = `\`\`\`${fileExt}\n${fileData}\n\`\`\``
+                addContextTab("file", file.name, formattedContent)
+                if (textareaRef.current) {
+                  textareaRef.current.focus()
+                }
+              })
           }}
         />
         {/* Render chat input component */}

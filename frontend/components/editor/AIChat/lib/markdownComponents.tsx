@@ -1,5 +1,5 @@
-import { useSocket } from "@/context/SocketContext"
 import { TTab } from "@/lib/types"
+import { apiClient } from "@/server/client-side-client"
 import hljs from "highlight.js"
 import "highlight.js/styles/github.css"
 import "highlight.js/styles/vs2015.css"
@@ -291,7 +291,6 @@ export const createMarkdownComponents = (
     // Render markdown elements
     p: ({ node, children, ...props }) => {
       const content = stringifyContent(children)
-      const { socket } = useSocket()
 
       if (isFilePath(content)) {
         const isNewFile = content.endsWith("(new file)")
@@ -302,17 +301,17 @@ export const createMarkdownComponents = (
           .filter((part, index) => index !== 0)
           .join("/")
 
-        // Set the intended file for the NEXT code blocks only
-        currentIntendedFile = filePath
-
-        const handleFileClick = () => {
-          if (isNewFile) {
-            // Use socket for new file creation
-            socket?.emit("createFile", { 
-              name: filePath, 
-              projectId: projectId 
-            }, (success: boolean) => {
-              if (success) {
+      const handleFileClick = () => {
+        if (isNewFile) {
+          apiClient.file.create
+            .$post({
+              json: {
+                name: filePath,
+                projectId: projectId,
+              },
+            })
+            .then((res) => {
+              if (res.status === 200) {
                 const tab: TTab = {
                   id: filePath,
                   name: filePath.split("/").pop() || "",

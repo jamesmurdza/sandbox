@@ -1,30 +1,31 @@
 "use server"
 
+import { apiClient } from "@/server/client"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { editUserSchema } from "./schema"
-import { UserLink } from "./types"
 import { fetchWithAuth } from "./server-utils"
+import { UserLink } from "./types"
 import { parseSocialLink } from "./utils"
 
 export async function createSandbox(body: {
   type: string
   name: string
   userId: string
-  visibility: string
+  visibility: "public" | "private"
 }) {
-  const res = await fetchWithAuth(
-    `${process.env.NEXT_PUBLIC_SERVER_URL}/api/sandbox`,
-    {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-    }
-  )
-
-  return await res.text()
+  const res = await apiClient.project.$post({
+    json: {
+      ...body,
+      repositoryId: null,
+      containerId: null,
+      createdAt: new Date(),
+    },
+  })
+  if (!res.ok) {
+    throw new Error("Failed to create sandbox")
+  }
+  return (await res.json()).data.sandbox.id
 }
 
 export async function updateSandbox(body: {
@@ -32,39 +33,25 @@ export async function updateSandbox(body: {
   name?: string
   visibility?: "public" | "private"
 }) {
-  await fetchWithAuth(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/sandbox`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
+  await apiClient.project.$patch({
+    json: body,
   })
 
   revalidatePath("/dashboard")
 }
 
 export async function deleteSandbox(id: string) {
-  await fetchWithAuth(
-    `${process.env.NEXT_PUBLIC_SERVER_URL}/api/sandbox?id=${id}`,
-    {
-      method: "DELETE",
-    }
-  )
+  await apiClient.project.$delete({
+    query: { id },
+  })
 
   revalidatePath("/dashboard")
 }
 
 export async function shareSandbox(sandboxId: string, email: string) {
-  const res = await fetchWithAuth(
-    `${process.env.NEXT_PUBLIC_SERVER_URL}/api/sandbox/share`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ sandboxId, email }),
-    }
-  )
+  const res = await apiClient.project.share.$post({
+    json: { sandboxId, email },
+  })
   const text = await res.text()
 
   if (res.status !== 200) {
@@ -76,31 +63,17 @@ export async function shareSandbox(sandboxId: string, email: string) {
 }
 
 export async function unshareSandbox(sandboxId: string, userId: string) {
-  await fetchWithAuth(
-    `${process.env.NEXT_PUBLIC_SERVER_URL}/api/sandbox/share`,
-    {
-      method: "DELETE",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ sandboxId, userId }),
-    }
-  )
+  await apiClient.project.share.$delete({
+    json: { sandboxId, userId },
+  })
 
   revalidatePath(`/code/${sandboxId}`)
 }
 
 export async function toggleLike(sandboxId: string, userId: string) {
-  const res = await fetchWithAuth(
-    `${process.env.NEXT_PUBLIC_SERVER_URL}/api/sandbox/like`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ sandboxId, userId }),
-    }
-  )
+  await apiClient.project.like.$post({
+    json: { sandboxId, userId },
+  })
   revalidatePath(`/[username]`, "page")
   revalidatePath(`/dashboard`, "page")
 }
@@ -145,23 +118,16 @@ export async function updateUser(
   try {
     const validatedData = editUserSchema.parse(data)
     const changedUsername = validatedData.username !== validatedData.oldUsername
-    const res = await fetchWithAuth(
-      `${process.env.NEXT_PUBLIC_SERVER_URL}/api/user`,
-      {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          id: validatedData.id,
-          username: data.username ?? undefined,
-          name: data.name ?? undefined,
-          bio: data.bio ?? undefined,
-          personalWebsite: data.personalWebsite ?? undefined,
-          links: data.links ?? undefined,
-        }),
-      }
-    )
+    const res = await apiClient.user.$patch({
+      json: {
+        id: validatedData.id,
+        username: validatedData.username ?? undefined,
+        name: validatedData.name ?? undefined,
+        bio: validatedData.bio ?? undefined,
+        personalWebsite: validatedData.personalWebsite ?? undefined,
+        links: validatedData.links ?? undefined,
+      },
+    })
 
     const responseData = await res.json()
 

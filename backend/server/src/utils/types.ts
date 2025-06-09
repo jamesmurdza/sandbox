@@ -1,4 +1,5 @@
 import { User as ClerkUser } from "@clerk/clerk-sdk-node"
+import { Socket as SocketIO } from "socket.io"
 
 // DB Types
 
@@ -86,6 +87,15 @@ declare module "socket.io" {
     }
   }
 }
+
+// Export a custom socket type that includes our auth property
+export type CustomSocket = SocketIO & {
+  auth?: {
+    userId: string
+    user: ClerkUser
+  }
+}
+
 export interface GitHubTokenResponse {
   access_token: string
 }
