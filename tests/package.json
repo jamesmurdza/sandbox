@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "vitest dev --testTimeout=30000",
+    "dev:hi": "vitest dev github.test.ts --testTimeout=30000",
     "test": "vitest run"
   },
   "author": "Your Name",
