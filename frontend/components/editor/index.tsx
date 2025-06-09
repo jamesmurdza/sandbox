@@ -87,6 +87,7 @@ export default function CodeEditor({
   // This dialog is used to alert the user that the project has timed out
   const [timeoutDialog, setTimeoutDialog] = useState(false)
 
+  // TODO: use tanstack query
   // This heartbeat is critical to preventing the E2B sandbox from timing out
   useEffect(() => {
     // 10000 ms = 10 seconds
