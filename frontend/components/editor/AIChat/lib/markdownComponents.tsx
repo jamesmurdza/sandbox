@@ -301,6 +301,9 @@ export const createMarkdownComponents = (
           .filter((part, index) => index !== 0)
           .join("/")
 
+        // Set the intended file for subsequent code blocks
+        currentIntendedFile = filePath
+
       const handleFileClick = () => {
         if (isNewFile) {
           apiClient.file.create
