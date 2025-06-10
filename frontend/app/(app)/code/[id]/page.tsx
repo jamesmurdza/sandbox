@@ -82,11 +82,7 @@ export default async function CodePage({
 
   const [shared] = await Promise.all([
     getSharedUsers(sandboxData.usersToSandboxes),
-    queryClient.prefetchQuery(
-      github.githubUser.getOptions({
-        userId: sandboxData.userId,
-      })
-    ),
+    queryClient.prefetchQuery(github.githubUser.getOptions()),
     queryClient.prefetchQuery(
       github.repoStatus.getOptions({
         projectId: sandboxData.id,

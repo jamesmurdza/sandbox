@@ -1,17 +1,16 @@
-import { type Octokit as OctokitType } from "@octokit/core"
+import { Octokit } from "@octokit/core"
 import { eq } from "drizzle-orm"
-import { drizzle } from "drizzle-orm/node-postgres"
-import { Request } from "express"
-import { createJiti } from "jiti"
-import * as schema from "../db/schema"
-import { user } from "../db/schema"
-import { GitHubTokenResponse, UserData } from "../utils/types"
-// Load the database credentials
-import "dotenv/config"
-const db = drizzle(process.env.DATABASE_URL as string, { schema })
-// Initialize jiti for dynamic imports
-const jiti = createJiti(__dirname)
-const { Octokit } = jiti("@octokit/core")
+// import { createJiti } from "jiti"
+import { db } from "@/server/db"
+import { user } from "@/server/db/schema"
+
+export interface GitHubTokenResponse {
+  access_token: string
+}
+
+export interface UserData {
+  githubToken: string
+}
 
 /**
  * Manages GitHub API interactions and authentication.
@@ -19,181 +18,78 @@ const { Octokit } = jiti("@octokit/core")
  */
 export class GitHubManager {
   // GitHub API client instance
-  public octokit: OctokitType | null = null
+  public _octokit: Octokit | null = null
   // Authenticated GitHub username
-  private username: string | null = null
-  // Express request object
-  private request: Request
+  private _username: string | null = null
+  // User GitHub token from the request
+  private githubToken: string
 
   /**
    * Creates a new GitHubManager instance
    * @param req - Express request object
    */
-  constructor(req: Request) {
-    this.octokit = null
-    this.username = null
-    this.request = req
-  }
-
-  /**
-   * Authenticates a user with GitHub
-   * @param code - GitHub OAuth code (optional)
-   * @param userId - User's ID in the system
-   * @returns GitHub user data or null if authentication fails
-   */
-  async authenticate(code: string | null, userId: string) {
-    try {
-      let accessToken = code ? await this.getAccessToken(code) : ""
-
-      if (accessToken) {
-        await this.updateUserToken(userId, accessToken)
-      }
-
-      const userData = await this.fetchUserData(userId)
-      accessToken = userData.githubToken
-
-      if (!accessToken) {
-        console.log("No GitHub token found for user. Skipping authentication.")
-        return null
-      }
-
-      this.octokit = new Octokit({ auth: accessToken })
-      const res = await this.octokit?.request("GET /user")
-      if (!res?.data) {
-        throw new Error("Failed to fetch user data from GitHub.")
-      }
-      this.username = res.data.login
-
-      return res.data
-    } catch (error) {
-      console.error("GitHub authentication failed:", error)
-      return null
-    }
-  }
-
-  /**
-   * Updates the user's GitHub token in the database
-   * @param userId - User's ID
-   * @param token - New GitHub token
-   */
-  private async updateUserToken(userId: string, token: string): Promise<void> {
-    await db.update(user).set({ githubToken: token }).where(eq(user.id, userId))
-  }
-  /**
-   * Fetches user data from the database
-   * @param userId - User's ID
-   * @returns User data including GitHub token
-   */
-  private async fetchUserData(userId: string): Promise<UserData> {
-    const userData = await db
-      .select()
-      .from(user)
-      .where(eq(user.id, userId))
-      .limit(1)
-
-    if (!userData || userData.length === 0) {
-      throw new Error(`User not found with ID: ${userId}`)
-    }
-
-    return userData[0] as UserData
-  }
-
-  /**
-   * Exchanges GitHub OAuth code for an access token
-   * @param code - GitHub OAuth code
-   * @returns GitHub access token
-   */
-  async getAccessToken(code: string): Promise<string> {
-    try {
-      const response = await fetch(
-        "https://github.com/login/oauth/access_token",
-        {
-          method: "POST",
-          headers: {
-            Accept: "application/json",
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            client_id: process.env.GITHUB_CLIENT_ID,
-            client_secret: process.env.GITHUB_CLIENT_SECRET,
-            code,
-          }),
-        }
-      )
-
-      const data = (await response.json()) as GitHubTokenResponse
-      return data.access_token
-    } catch (error) {
-      console.log("Error getting access token:", error)
-      throw error
-    }
-  }
-
-  /**
-   * Gets the authenticated user's GitHub username
-   * @returns GitHub username or empty string if not authenticated
-   */
-  getUsername() {
-    return this.username || ""
+  constructor({ token }: { token: string }) {
+    this.githubToken = token
   }
 
   /**
    * Initializes the Octokit instance with stored GitHub token
    * @param req - Express request object
    */
-  async initializeOctokitAndGitHubUser(req: Request) {
+  async init() {
     try {
-      const userId = req.auth?.userId
-      // Authenticate using stored token
-      if (!userId) {
-        throw new Error("User ID not found in request.")
-      }
-      const user = await this.fetchUserData(userId)
-      if (!user?.githubToken) {
-        throw new Error("GitHub authentication token not found for user.")
-      }
-      this.octokit = new Octokit({ auth: user.githubToken })
+      this._octokit = new Octokit({ auth: this.githubToken })
       // Fetch user data to set username
-      const res = await this.octokit?.request("GET /user")
+      const res = await this._octokit?.request("GET /user")
       // Check if user data not found
       if (!res?.data) {
         throw new Error("Failed to fetch user data from GitHub.")
       }
       // Set the username from the fetched user data
-      this.username = res.data.login
+      this._username = res.data.login
     } catch (error) {
       console.error("Error initializing Octokit:", error)
       // throw error
     }
   }
-
-  /**
-   * Ensures Octokit is initialized before making GitHub API calls
-   * @returns Initialized Octokit instance
-   * @throws Error if initialization fails
-   */
-  private async ensureInitialized(): Promise<OctokitType> {
-    if (!this.octokit) {
-      await this.initializeOctokitAndGitHubUser(this.request)
-      if (!this.octokit) {
-        throw new Error("Octokit initialization failed.")
-      }
+  // Public getter guarantees octokit is available after init
+  get octokit(): Octokit {
+    if (!this._octokit) {
+      throw new Error(
+        "GitHubManager.init() must be called before using octokit."
+      )
     }
-    return this.octokit as OctokitType
+    return this._octokit
+  }
+  // Public getter guarantees octokit is available after init
+  get username(): string {
+    if (!this._username) {
+      throw new Error(
+        "GitHubManager.init() must be called before using octokit."
+      )
+    }
+    return this._username
   }
 
   /**
    * Fetches GitHub user data for the authenticated user
    * @returns GitHub user data
    */
-  async getGithubUser() {
+  async getUser() {
     try {
-      await this.ensureInitialized()
-      const response = await this.octokit?.request("GET /user")
+      const response = await this.octokit.request("GET /user")
       return response?.data
     } catch (error) {
       throw error
     }
+  }
+
+  /**
+   * Gets the authenticated user's GitHub username
+   * @returns GitHub username
+   */
+  getUsername() {
+    return this.username
   }
 
   /**
@@ -203,14 +99,10 @@ export class GitHubManager {
    */
   async repoExistsByName(repoName: string): Promise<{ exists: boolean }> {
     try {
-      await this.ensureInitialized()
-      const repoData = await this.octokit?.request(
-        "GET /repos/{owner}/{repo}",
-        {
-          owner: this.username || "",
-          repo: repoName,
-        }
-      )
+      const repoData = await this.octokit.request("GET /repos/{owner}/{repo}", {
+        owner: this.username || "",
+        repo: repoName,
+      })
       return {
         exists: !!repoData,
       }
@@ -230,8 +122,7 @@ export class GitHubManager {
    * @returns Object containing the new repository's ID
    */
   async createRepo(repoName: string): Promise<{ id: string }> {
-    await this.ensureInitialized()
-    const response = await this.octokit?.request("POST /user/repos", {
+    const response = await this.octokit.request("POST /user/repos", {
       name: repoName,
       auto_init: true,
       private: false,
@@ -258,7 +149,7 @@ export class GitHubManager {
     files: Array<{ id: string; data: string }>,
     message: string
   ) {
-    const username = this.getUsername()
+    const username = this.username
     // First get repo name from ID
     const repoInfo = await this.repoExistsByID(repoID)
     if (!repoInfo.exists) {
@@ -266,9 +157,8 @@ export class GitHubManager {
     }
     const repoName = repoInfo.repoName
 
-    await this.ensureInitialized()
     // Get the current commit SHA
-    const refResponse = await this.octokit?.request(
+    const refResponse = await this.octokit.request(
       "GET /repos/{owner}/{repo}/git/ref/{ref}",
       {
         owner: username,
@@ -282,7 +172,7 @@ export class GitHubManager {
       throw new Error("Failed to fetch reference for the main branch.")
     }
 
-    const baseTreeResponse = await this.octokit?.request(
+    const baseTreeResponse = await this.octokit.request(
       "GET /repos/{owner}/{repo}/git/commits/{commit_sha}",
       {
         owner: username,
@@ -311,7 +201,7 @@ export class GitHubManager {
       // Process each file in the batch sequentially
       for (const file of batch) {
         try {
-          const blobResponse = await this.octokit?.request(
+          const blobResponse = await this.octokit.request(
             "POST /repos/{owner}/{repo}/git/blobs",
             {
               owner: username,
@@ -344,7 +234,7 @@ export class GitHubManager {
     }
 
     // Create a new tree
-    const treeResponse = await this.octokit?.request(
+    const treeResponse = await this.octokit.request(
       "POST /repos/{owner}/{repo}/git/trees",
       {
         owner: username,
@@ -359,7 +249,7 @@ export class GitHubManager {
     const tree = treeResponse.data
 
     // Create a new commit
-    const newCommitResponse = await this.octokit?.request(
+    const newCommitResponse = await this.octokit.request(
       "POST /repos/{owner}/{repo}/git/commits",
       {
         owner: username,
@@ -375,13 +265,13 @@ export class GitHubManager {
     const newCommit = newCommitResponse.data
 
     // Update the reference
-    await this.octokit?.request("PATCH /repos/{owner}/{repo}/git/refs/{ref}", {
+    await this.octokit.request("PATCH /repos/{owner}/{repo}/git/refs/{ref}", {
       owner: username,
       repo: repoName,
       ref: "heads/main",
       sha: newCommit.sha,
     })
-    return { repoName }
+    return { repoName, commitUrl: newCommit.html_url }
   }
 
   /**
@@ -399,8 +289,7 @@ export class GitHubManager {
     { exists: boolean; repoId: string; repoName: string } | { exists: false }
   > {
     try {
-      await this.ensureInitialized()
-      const response = await this.octokit?.request("GET /repositories/:id", {
+      const response = await this.octokit.request("GET /repositories/:id", {
         id: repoId,
       })
       const githubRepo = response?.data
@@ -420,14 +309,34 @@ export class GitHubManager {
       }
     }
   }
-
+  // add a removeRepo
+  /**
+   * Removes a repository by its GitHub repository ID
+   * @param repoId - GitHub repository ID to remove
+   * @returns Object indicating success of the removal operation
+   */
+  async removeRepo(repoId: string): Promise<{ success: boolean }> {
+    try {
+      const response = await this.octokit.request("DELETE /repositories/:id", {
+        id: repoId,
+      })
+      if (response.status === 204) {
+        return { success: true }
+      } else {
+        throw new Error("Failed to delete repository")
+      }
+    } catch (error) {
+      console.error(`Error removing repo "${repoId}":`, error)
+      return { success: false }
+    }
+  }
   /**
    * Logs out a user from GitHub by clearing their GitHub token
    * @param userId - ID of the user to log out
    * @returns Object indicating success of the logout operation
    */
-  async logoutGithubUser(userId: string) {
-    this.octokit = null
+  async logoutUser(userId: string) {
+    this._octokit = null
     // Update user's GitHub token in database
 
     await db.update(user).set({ githubToken: null }).where(eq(user.id, userId))

@@ -6,8 +6,8 @@ import packageJSON from "../../package.json"
 import { env } from "../env"
 import type { AppBindings } from "./types"
 
-export function createRouter() {
-  return new Hono<AppBindings>({
+export function createRouter<T extends AppBindings = AppBindings>() {
+  return new Hono<T>({
     strict: false,
   })
 }
@@ -27,6 +27,7 @@ export default function createApp() {
 
   // Not Found
   app.onError((err, c) => {
+    console.error("Error occurred: ", err)
     const currentStatus =
       "status" in err ? err.status : c.newResponse(null).status
     const statusCode =

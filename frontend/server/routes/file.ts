@@ -13,7 +13,7 @@ export const fileRouter = createRouter()
     "/",
     describeRoute({
       operationId: "getFile",
-      tags: ["files"],
+      tags: ["File"],
       parameters: [
         {
           in: "query",
@@ -692,7 +692,7 @@ export const fileRouter = createRouter()
     "/download",
     describeRoute({
       operationId: "downloadFilesArchive",
-      tags: ["files"],
+      tags: ["File"],
       parameters: [
         {
           in: "query",

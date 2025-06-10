@@ -24,6 +24,7 @@
     "@liveblocks/react": "^2.24.2",
     "@liveblocks/yjs": "^2.24.2",
     "@monaco-editor/react": "^4.6.0",
+    "@octokit/core": "^7.0.2",
     "@paralleldrive/cuid2": "^2.2.2",
     "@radix-ui/react-alert-dialog": "^1.0.5",
     "@radix-ui/react-avatar": "^1.1.1",
