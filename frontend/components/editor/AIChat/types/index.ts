@@ -127,6 +127,7 @@ export interface MessageProps {
   handleAcceptAllChanges?: () => void
   fileDiffStates?: React.MutableRefObject<Map<string, { granularState: any; decorationsCollection: monaco.editor.IEditorDecorationsCollection | undefined }>>
   activeFileId?: string
+  isStreaming?: boolean
 }
 
 // Context tabs props interface

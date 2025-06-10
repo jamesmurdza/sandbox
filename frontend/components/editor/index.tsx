@@ -1796,7 +1796,16 @@ export default function CodeEditor({
       .then(async (res) => {
         if (res.status === 200) {
           callback(await res.json())
+        } else {
+          console.error(`Failed to load file ${tabId}: ${res.status}`)
+          // Set empty content for failed files to prevent infinite loading
+          callback("")
         }
+      })
+      .catch((error) => {
+        console.error(`Error loading file ${tabId}:`, error)
+        // Set empty content for failed files to prevent infinite loading
+        callback("")
       })
   } // 300ms debounce delay, adjust as needed
 
@@ -1805,13 +1814,20 @@ export default function CodeEditor({
 
     setGenerate((prev) => ({ ...prev, show: false }))
     
-    // Clean up current file's diff state before switching
+    // CRITICAL: Save decoration recreation data before switching (not collection reference!)
     if (activeFileId && editorRef) {
-      cleanupBlockWidgets()
-      if (mergeDecorationsCollection) {
-        mergeDecorationsCollection.clear()
-        setMergeDecorationsCollection(undefined)
+      const model = editorRef.getModel()
+      const currentFileState = fileDiffStates.current.get(activeFileId)
+      
+      if (currentFileState && model && (model as any).granularDiffState) {
+        console.log(`💾 Saving decoration recreation data for: ${activeFileId}`)
+        // Save the granular state - this contains everything needed to recreate decorations
+        currentFileState.granularState = (model as any).granularDiffState
       }
+      
+      // Clean up widgets and clear global decoration state
+      cleanupBlockWidgets()
+      setMergeDecorationsCollection(undefined)
     }
 
     // Normalize the file path and name for comparison
@@ -1849,13 +1865,29 @@ export default function CodeEditor({
         setActiveFileId(tab.id)
         setEditorLanguage(processFileType(tab.name))
       } else {
+        // Set the file as active immediately to prevent "No file selected" state
+        setActiveFileId(tab.id)
+        setEditorLanguage(processFileType(tab.name))
+        
         // Fetch content if not cached
         if (!fileContents[tab.id]) {
+          // Set a more appropriate loading state based on file type
+          const fileExtension = tab.name.split('.').pop()?.toLowerCase()
+          const loadingContent = fileExtension === 'css' 
+            ? '/* Loading stylesheet... */' 
+            : fileExtension === 'html' 
+            ? '<!-- Loading... -->'
+            : fileExtension === 'js' || fileExtension === 'ts'
+            ? '// Loading...'
+            : 'Loading...'
+          
+          setActiveFileContent(loadingContent)
           debouncedGetFile(tab.id, (response: string) => {
-            setActiveFileId(tab.id)
             setFileContents((prev) => ({ ...prev, [tab.id]: response }))
-            setActiveFileContent(response)
-            setEditorLanguage(processFileType(tab.name))
+            // Only update active content if this tab is still active
+            setActiveFileContent(prevContent => 
+              prevContent.includes("Loading") ? response : prevContent
+            )
             
             // Restore diff state after content is loaded
             requestAnimationFrame(() => {
@@ -1863,9 +1895,7 @@ export default function CodeEditor({
             })
           })
         } else {
-          setActiveFileId(tab.id)
           setActiveFileContent(fileContents[tab.id])
-          setEditorLanguage(processFileType(tab.name))
           
           // Restore diff state for the new file after switching
           requestAnimationFrame(() => {
@@ -2073,37 +2103,52 @@ export default function CodeEditor({
 
   // Helper function to properly restore diff state for a file
   const restoreDiffStateForFile = useCallback((fileId: string) => {
-    if (!editorRef) return
+    console.log(`🔄 Restoring diff state for file: ${fileId}`)
+    
+    if (!editorRef) {
+      console.warn('❌ No editor reference for restoration')
+      return
+    }
     
     const fileState = fileDiffStates.current.get(fileId)
     const model = editorRef.getModel()
     
     if (fileState?.granularState && model) {
-      // Restore diff state for this file
+      console.log(`✅ Found granular state for ${fileId}, rebuilding decorations from saved state`)
+      
+      // Restore the granular state to the editor model
       ;(model as any).granularDiffState = fileState.granularState
       
-      // Restore decorations
-      if (fileState.decorationsCollection) {
-        setMergeDecorationsCollection(fileState.decorationsCollection)
-      } else {
-        // If there's granular state but no decorations, rebuild them
-        rebuildEditorFromBlockState(fileState.granularState)
-      }
+      // CRITICAL: Always rebuild decorations from granular state (never reuse old collections)
+      console.log(`🔨 Rebuilding decorations from ${fileState.granularState.blocks?.length || 0} blocks`)
       
-      // Re-add widgets for this file's pending changes
+      // Clear any existing decorations first
+      cleanupBlockWidgets()
+      if (mergeDecorationsCollection) {
+        mergeDecorationsCollection.clear()
+      }
+      setMergeDecorationsCollection(undefined)
+      
+      // Rebuild the entire diff state from the granular state
+      rebuildEditorFromBlockState(fileState.granularState)
+      
+      // Re-add widgets after decorations are rebuilt
       requestAnimationFrame(() => {
-        addBlockControlWidgets(fileState.granularState!, handleBlockAction)
+        if (fileState.granularState) {
+          console.log(`🎛️ Adding block control widgets for ${fileId}`)
+          addBlockControlWidgets(fileState.granularState, handleBlockAction)
+        }
       })
     } else {
-      // No diff state for this file - ensure everything is clean
+      console.log(`🧹 No diff state to restore for ${fileId}, cleaning up`)
+      cleanupBlockWidgets()
+      setMergeDecorationsCollection(undefined)
       if (model) {
         ;(model as any).granularDiffState = undefined
         ;(model as any).originalContent = undefined
       }
-      setMergeDecorationsCollection(undefined)
-      cleanupBlockWidgets()
     }
-  }, [editorRef, addBlockControlWidgets, handleBlockAction, rebuildEditorFromBlockState, cleanupBlockWidgets])
+  }, [editorRef, addBlockControlWidgets, handleBlockAction, rebuildEditorFromBlockState, cleanupBlockWidgets, mergeDecorationsCollection])
 
   // On disabled access for shared users, show un-interactable loading placeholder + info modal
   if (disableAccess.isDisabled)

@@ -29,7 +29,14 @@ export const createMarkdownComponents = (
   handleAcceptAllChanges?: () => void,
   // Add these new parameters to track per-file diff states
   fileDiffStates?: React.MutableRefObject<Map<string, { granularState: any; decorationsCollection: monaco.editor.IEditorDecorationsCollection | undefined }>>,
-  activeFileId?: string
+  activeFileId?: string,
+  // New parameter for Apply All functionality
+  codeBlocksRef?: React.MutableRefObject<Array<{
+    code: string
+    intendedFile: string
+    fileName: string
+    isNewFile: boolean
+  }>>
 ): Components => {
   // Use a local variable to track intended file per render cycle
   let currentIntendedFile: string | null = null
@@ -65,7 +72,33 @@ export const createMarkdownComponents = (
 
       // Determine which file this code block is for
       const targetFile = currentIntendedFile || activeFileId || activeFileName
-      const targetFileName = targetFile.split("/").pop()?.toLowerCase() || ""
+      const targetFileName = currentIntendedFile ? 
+        (currentIntendedFile.includes('(new file)') ? 
+          currentIntendedFile.replace(' (new file)', '').split("/").pop() || 'unknown' : 
+          currentIntendedFile.split("/").pop() || 'unknown') : 
+        activeFileName || 'unknown'
+      
+      // Track this code block for Apply All functionality
+      if (codeBlocksRef && match) {
+        // Use currentIntendedFile if available, otherwise fall back to activeFileId/activeFileName
+        const intendedFile = currentIntendedFile || activeFileId || activeFileName
+        const isNewFile = currentIntendedFile ? currentIntendedFile.includes('(new file)') : false
+        const blockData = {
+          code: stringifiedChildren,
+          intendedFile: intendedFile,
+          fileName: targetFileName,
+          isNewFile
+        }
+        // Only track if this exact block isn't already tracked to prevent duplicates
+        const isDuplicate = codeBlocksRef.current.some(existing => 
+          existing.code === blockData.code && 
+          existing.intendedFile === blockData.intendedFile
+        )
+        
+        if (!isDuplicate) {
+          codeBlocksRef.current.push(blockData)
+        }
+      }
       
       // Check if THIS SPECIFIC FILE has active diffs
       const fileHasActiveDiff = fileDiffStates?.current?.has(targetFile) && 
@@ -100,7 +133,7 @@ export const createMarkdownComponents = (
                             id: intendedFilePath,
                             name: targetFileName,
                             saved: true,
-                            type: "file",
+                            type: "file" as const,
                           }
                           selectFile(tab)
                           // Add a small delay to allow file content to load before user can apply code
@@ -301,44 +334,42 @@ export const createMarkdownComponents = (
           .filter((part, index) => index !== 0)
           .join("/")
 
-        // Set the intended file for subsequent code blocks
+        // Set the intended file for the NEXT code blocks only
         currentIntendedFile = filePath
 
-      const handleFileClick = () => {
-        if (isNewFile) {
-          apiClient.file.create
-            .$post({
-              json: {
-                name: filePath,
-                projectId: projectId,
-              },
-            })
-            .then((res) => {
-              if (res.status === 200) {
-                const tab: TTab = {
-                  id: filePath,
-                  name: filePath.split("/").pop() || "",
-                  saved: true,
-                  type: "file",
+        const handleFileClick = () => {
+          if (isNewFile) {
+            apiClient.file.create
+              .$post({
+                json: {
+                  name: filePath,
+                  projectId: projectId,
+                },
+              })
+              .then((res) => {
+                if (res.status === 200) {
+                  const tab: TTab = {
+                    id: filePath,
+                    name: filePath.split("/").pop() || "",
+                    saved: true,
+                    type: "file",
+                  }
+                  selectFile(tab)
                 }
-                selectFile(tab)
-              }
-            })
+              })
           } else {
-            // First check if the file exists in the current tabs
-            const existingTab = tabs.find(
-              (t) => t.id === filePath || t.name === filePath.split("/").pop()
-            )
+            // Find existing tab by filename only (since AI suggestions are unreliable for paths)
+            const fileName = filePath.split("/").pop() || filePath
+            const existingTab = tabs.find((t) => {
+              const tabFileName = t.name.split("/").pop() || t.name
+              return tabFileName === fileName
+            })
+            
             if (existingTab) {
               selectFile(existingTab)
             } else {
-              const tab: TTab = {
-                id: filePath,
-                name: filePath.split("/").pop() || "",
-                saved: true,
-                type: "file",
-              }
-              selectFile(tab)
+              // This shouldn't happen for existing files, but fallback gracefully
+              console.warn(`No existing tab found for file: ${fileName}`)
             }
           }
         }

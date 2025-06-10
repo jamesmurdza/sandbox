@@ -236,6 +236,7 @@ export default function AIChat({
             handleAcceptAllChanges={handleAcceptAllChanges}
             fileDiffStates={fileDiffStates}
             activeFileId={activeFileId}
+            isStreaming={isGenerating && messageIndex === messages.length - 1}
           />
         ))}
         {isLoading && <LoadingDots />}
