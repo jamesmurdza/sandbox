@@ -10,6 +10,7 @@ import {
 import { apiClient } from "@/server/client-side-client"
 import { useClerk } from "@clerk/nextjs"
 import Editor, { BeforeMount, OnMount } from "@monaco-editor/react"
+import { diffLines } from 'diff'
 import { AnimatePresence, motion } from "framer-motion"
 import { X } from "lucide-react"
 import * as monaco from "monaco-editor"
@@ -31,10 +32,9 @@ import {
 import { PreviewProvider, usePreview } from "@/context/PreviewContext"
 import { useSocket } from "@/context/SocketContext"
 import { parseTSConfigToMonacoOptions } from "@/lib/tsconfig"
-import { Sandbox, TFile, TFolder, TTab, User } from "@/lib/types"
+import { DiffBlock, GranularDiffState, LineChange, Sandbox, TFile, TFolder, TTab, User } from "@/lib/types"
 import {
   cn,
-  debounce,
   deepMerge,
   processFileType,
   validateName,
@@ -46,7 +46,7 @@ import {
   FileJson,
   Loader2,
   Sparkles,
-  TerminalSquare,
+  TerminalSquare
 } from "lucide-react"
 import { useTheme } from "next-themes"
 import React from "react"
@@ -130,6 +130,9 @@ export default function CodeEditor({
   // AI Chat state
   const [isAIChatOpen, setIsAIChatOpen] = useState(false)
 
+  // Animation frame management to prevent race conditions
+  const animationFrameRef = useRef<number>()
+
   // File state
   const [files, setFiles] = useState<(TFolder | TFile)[]>([])
   const [tabs, setTabs] = useState<TTab[]>([])
@@ -139,12 +142,18 @@ export default function CodeEditor({
   // Added this state to track the most recent content for each file
   const [fileContents, setFileContents] = useState<Record<string, string>>({})
 
-  // Apply Button merger decoration state
+  // Apply Button merger decoration state - now per file
   const [mergeDecorations, setMergeDecorations] = useState<
     monaco.editor.IModelDeltaDecoration[]
   >([])
   const [mergeDecorationsCollection, setMergeDecorationsCollection] =
     useState<monaco.editor.IEditorDecorationsCollection>()
+  
+  // Per-file diff state storage
+  const fileDiffStates = useRef<Map<string, {
+    granularState: GranularDiffState | undefined
+    decorationsCollection: monaco.editor.IEditorDecorationsCollection | undefined
+  }>>(new Map())
 
   // Editor state
   const [editorLanguage, setEditorLanguage] = useState("plaintext")
@@ -221,11 +230,10 @@ export default function CodeEditor({
     endLine: number
   } | null>(null)
 
-  const debouncedSetIsSelected = useRef(
-    debounce((value: boolean) => {
-      setIsSelected(value)
-    }, 800) //
-  ).current
+  // Direct selection setting without debouncing  
+  const setSelectionState = (value: boolean) => {
+    setIsSelected(value)
+  }
   // Pre-mount editor keybindings
   const handleEditorWillMount: BeforeMount = (monaco) => {
     monaco.editor.addKeybindingRules([
@@ -333,7 +341,7 @@ export default function CodeEditor({
       const selection = editor.getSelection()
       if (selection !== null) {
         const hasSelection = !selection.isEmpty()
-        debouncedSetIsSelected(hasSelection)
+        setSelectionState(hasSelection)
         setShowSuggestion(hasSelection)
       }
       const { column, lineNumber } = e.position
@@ -426,133 +434,1024 @@ export default function CodeEditor({
     [editorRef]
   )
 
-  // handle apply code
+  // Handle block accept/reject actions with event sourcing pattern
+  const handleBlockAction = useCallback(
+    (blockId: string, action: 'accept' | 'reject') => {
+      if (!editorRef || !activeFileId) return
+      const model = editorRef.getModel()
+      if (!model) return
+
+      // Get diff state for current file
+      const fileState = fileDiffStates.current.get(activeFileId)
+      const granularState = fileState?.granularState
+      if (!granularState) return
+
+      // Create command object for undo/redo capability
+      const command = {
+        id: `${action}-${blockId}`,
+        timestamp: Date.now(),
+        blockId,
+        action,
+        previousState: granularState
+      }
+
+      try {
+        // Process changes in dependency order to maintain consistency
+        const updatedBlocks = granularState.blocks.map(block => {
+          if (block.id === blockId) {
+            return {
+              ...block,
+              changes: block.changes.map(change => ({
+                ...change, 
+                accepted: action === 'accept',
+                timestamp: command.timestamp
+              }))
+            }
+          }
+          return block
+        })
+
+        // Calculate line number offsets for subsequent blocks
+        let lineOffset = 0
+        const processedBlocks = updatedBlocks.map(block => {
+          if (block.id === blockId) {
+            // Calculate offset based on accepted/rejected changes
+            const addedLines = block.changes.filter(c => c.type === 'added').length
+            const removedLines = block.changes.filter(c => c.type === 'removed').length
+            
+            if (action === 'accept') {
+              // Accept: remove old lines, keep new lines
+              lineOffset += addedLines - removedLines
+            } else {
+              // Reject: keep old lines, remove new lines
+              lineOffset -= addedLines  // Don't add the new lines
+              // Removed lines stay in place, so no adjustment needed for them
+            }
+          } else {
+            // Adjust line numbers for blocks after the current one
+            const adjustedChanges = block.changes.map(change => ({
+              ...change,
+              lineNumber: change.lineNumber + lineOffset
+            }))
+            
+            return {
+              ...block,
+              changes: adjustedChanges,
+              startLine: block.startLine + lineOffset,
+              endLine: block.endLine + lineOffset
+            }
+          }
+          return block
+        })
+
+        // Create new immutable state
+        const updatedState: GranularDiffState = {
+          ...granularState,
+          blocks: processedBlocks,
+          allAccepted: processedBlocks.every(block => 
+            block.changes.every(change => change.accepted === true)
+          )
+        }
+
+        // Store state atomically per file
+        ;(model as any).granularDiffState = updatedState
+        
+        // Update per-file state
+        const currentFileState = fileDiffStates.current.get(activeFileId)
+        if (currentFileState) {
+          currentFileState.granularState = updatedState
+        }
+
+        // Rebuild editor content using optimized algorithm
+        rebuildEditorFromBlockState(updatedState)
+        
+        // Check for remaining pending blocks
+        const hasPendingBlocks = processedBlocks.some(block => 
+          block.changes.some(c => c.accepted === null)
+        )
+
+        // Use requestAnimationFrame for smooth UI updates with race condition protection
+        if (animationFrameRef.current) {
+          cancelAnimationFrame(animationFrameRef.current)
+        }
+        const currentFileVersion = (model as any).fileVersion
+        animationFrameRef.current = requestAnimationFrame(() => {
+          // Verify we're still on the same file version to prevent race conditions
+          if ((model as any).fileVersion === currentFileVersion) {
+            if (hasPendingBlocks) {
+              // Re-add widgets only for pending blocks
+              addBlockControlWidgets(updatedState, handleBlockAction)
+            } else {
+              // Clean up all widgets when complete
+              cleanupBlockWidgets()
+              
+              // Trigger completion callback if all changes accepted
+              if (updatedState.allAccepted) {
+                onDiffComplete?.(model.getValue())
+              }
+            }
+          }
+          animationFrameRef.current = undefined
+        })
+
+        // Update file state efficiently
+        updateFileState(model.getValue())
+        
+      } catch (error) {
+        console.error('Failed to process block action:', error)
+        // Rollback on error
+        ;(model as any).granularDiffState = granularState
+        toast.error('Failed to apply changes. Please try again.')
+      }
+    },
+    [editorRef, activeFileId]
+  )
+
+  // Enhanced handle apply code with granular diff tracking using proven diff algorithms
   const handleApplyCode = useCallback(
     (mergedCode: string, originalCode: string) => {
       if (!editorRef) return
       const model = editorRef.getModel()
       if (!model) return
+      
+      // Store original content for rollback capability
       ;(model as any).originalContent = originalCode
 
-      const originalLines = originalCode.split("\n")
-      const mergedLines = mergedCode.split("\n")
+      // Normalize line endings for cross-platform compatibility
+      const normalizeLineEndings = (str: string) => str.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+      const normalizedOriginal = normalizeLineEndings(originalCode)
+      const normalizedMerged = normalizeLineEndings(mergedCode)
+
+      // Use Myers algorithm through diffLines for optimal performance
+      const changes = diffLines(normalizedOriginal, normalizedMerged, { ignoreWhitespace: false })
+      
+      // Coordinate system management: separate document from viewport coordinates
       const decorations: monaco.editor.IModelDeltaDecoration[] = []
-      const combinedLines: string[] = []
+      const documentLines: string[] = []
+      const diffBlocks: DiffBlock[] = []
+      const lineMapping = new Map<number, number>() // original -> document line mapping
+      
+      let documentLineNumber = 1
+      let originalLineNumber = 1
+      let currentBlockId = ""
+      let currentBlock: LineChange[] = []
+      let blockStartOriginalLine = 1
 
-      let i = 0
-      let inDiffBlock = false
-      let diffBlockStart = 0
-      let originalBlock: string[] = []
-      let mergedBlock: string[] = []
+      const generateId = () => `block-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
 
-      while (i < Math.max(originalLines.length, mergedLines.length)) {
-        if (originalLines[i] !== mergedLines[i]) {
-          if (!inDiffBlock) {
-            inDiffBlock = true
-            diffBlockStart = combinedLines.length
-            originalBlock = []
-            mergedBlock = []
+      // Helper to finalize current block
+              const finalizeCurrentBlock = () => {
+          if (currentBlock.length > 0) {
+            const blockType = currentBlock.some(c => c.type === 'added') && currentBlock.some(c => c.type === 'removed') 
+              ? 'modification' 
+              : currentBlock[0].type === 'added' ? 'addition' : 'deletion'
+              
+            // Calculate the start/end lines based on what's actually in the document
+            const allDocumentLines = currentBlock
+              .filter(c => c.lineNumber > 0)
+              .map(c => c.lineNumber)
+            
+            let startLine: number, endLine: number
+            
+            if (allDocumentLines.length > 0) {
+              startLine = Math.min(...allDocumentLines)
+              endLine = Math.max(...allDocumentLines)
+            } else {
+              // For blocks with only removed content (that might be re-added later)
+              startLine = documentLineNumber
+              endLine = documentLineNumber
+            }
+            
+            const diffBlock: DiffBlock = {
+              id: currentBlockId,
+              startLine,
+              endLine,
+              changes: currentBlock,
+              type: blockType,
+              originalStartLine: blockStartOriginalLine
+            }
+            diffBlocks.push(diffBlock)
+            currentBlock = []
+            currentBlockId = ""
           }
-
-          if (i < originalLines.length) originalBlock.push(originalLines[i])
-          if (i < mergedLines.length) mergedBlock.push(mergedLines[i])
-        } else {
-          if (inDiffBlock) {
-            // Add the entire original block with deletion decoration
-            originalBlock.forEach((line) => {
-              combinedLines.push(line)
-              decorations.push({
-                range: new monaco.Range(
-                  combinedLines.length,
-                  1,
-                  combinedLines.length,
-                  1
-                ),
-                options: {
-                  isWholeLine: true,
-                  className: "removed-line-decoration",
-                  glyphMarginClassName: "removed-line-glyph",
-                  linesDecorationsClassName: "removed-line-number",
-                  minimap: { color: "rgb(255, 0, 0, 0.2)", position: 2 },
-                },
-              })
-            })
-
-            // Add the entire merged block with addition decoration
-            mergedBlock.forEach((line) => {
-              combinedLines.push(line)
-              decorations.push({
-                range: new monaco.Range(
-                  combinedLines.length,
-                  1,
-                  combinedLines.length,
-                  1
-                ),
-                options: {
-                  isWholeLine: true,
-                  className: "added-line-decoration",
-                  glyphMarginClassName: "added-line-glyph",
-                  linesDecorationsClassName: "added-line-number",
-                  minimap: { color: "rgb(0, 255, 0, 0.2)", position: 2 },
-                },
-              })
-            })
-
-            inDiffBlock = false
-          }
-
-          combinedLines.push(originalLines[i])
         }
-        i++
-      }
 
-      // Handle any remaining diff block at the end
-      if (inDiffBlock) {
-        originalBlock.forEach((line) => {
-          combinedLines.push(line)
-          decorations.push({
-            range: new monaco.Range(
-              combinedLines.length,
-              1,
-              combinedLines.length,
-              1
-            ),
-            options: {
-              isWholeLine: true,
-              className: "removed-line-decoration",
-              glyphMarginClassName: "removed-line-glyph",
-              linesDecorationsClassName: "removed-line-number",
-              minimap: { color: "rgb(255, 0, 0, 0.2)", position: 2 },
-            },
-          })
+      // Process changes in order to maintain dependency chain
+      for (let i = 0; i < changes.length; i++) {
+        const change = changes[i]
+        const lines = change.value.split('\n')
+        // Only remove the last empty line if it's from a trailing newline
+        if (lines.length > 1 && lines[lines.length - 1] === '') {
+          lines.pop()
+        }
+
+        if (change.added || change.removed) {
+          // Check if we need to start a new block
+          const isNewBlock = currentBlock.length === 0 || 
+            (i > 0 && changes[i-1].added === undefined && changes[i-1].removed === undefined)
+          
+          if (isNewBlock) {
+            finalizeCurrentBlock() // Finalize any existing block
+            currentBlockId = generateId()
+            blockStartOriginalLine = originalLineNumber
+          }
+
+                  // Process each line with proper coordinate tracking
+        lines.forEach((line: string, lineIdx: number) => {
+          if (change.removed) {
+            // ADD REMOVED LINES TO THE DOCUMENT SO THEY'RE VISIBLE!
+            documentLines.push(line)
+            
+            const lineChange: LineChange = {
+              id: `${currentBlockId}-del-${lineIdx}`,
+              lineNumber: documentLineNumber, // Now has a real line number
+              type: 'removed',
+              content: line,
+              blockId: currentBlockId,
+              accepted: null,
+              originalLineNumber: originalLineNumber + lineIdx
+            }
+            currentBlock.push(lineChange)
+            
+            // Add red decoration for removed line
+            decorations.push({
+              range: new monaco.Range(documentLineNumber, 1, documentLineNumber, Math.max(1, line.length)),
+              options: {
+                isWholeLine: true,
+                className: "removed-line-decoration",
+                glyphMarginClassName: "removed-line-glyph",
+                linesDecorationsClassName: "removed-line-number",
+                minimap: { color: "rgba(255, 0, 0, 0.3)", position: 2 },
+                hoverMessage: { value: `Removed line ${lineIdx + 1} in block ${currentBlock.length}` }
+              }
+            })
+            
+            lineMapping.set(originalLineNumber + lineIdx, documentLineNumber)
+            documentLineNumber++
+          } else if (change.added) {
+            documentLines.push(line)
+            
+            const lineChange: LineChange = {
+              id: `${currentBlockId}-add-${lineIdx}`,
+              lineNumber: documentLineNumber,
+              type: 'added',
+              content: line,
+              blockId: currentBlockId,
+              accepted: null,
+              originalLineNumber: originalLineNumber
+            }
+            currentBlock.push(lineChange)
+            
+            decorations.push({
+              range: new monaco.Range(documentLineNumber, 1, documentLineNumber, Math.max(1, line.length)),
+              options: {
+                isWholeLine: true,
+                className: "added-line-decoration",
+                glyphMarginClassName: "added-line-glyph",
+                linesDecorationsClassName: "added-line-number",
+                minimap: { color: "rgba(0, 255, 0, 0.3)", position: 2 },
+                hoverMessage: { value: `Added line ${lineIdx + 1} in block ${currentBlock.length}` }
+              }
+            })
+            documentLineNumber++
+          }
         })
 
-        mergedBlock.forEach((line) => {
-          combinedLines.push(line)
-          decorations.push({
-            range: new monaco.Range(
-              combinedLines.length,
-              1,
-              combinedLines.length,
-              1
-            ),
-            options: {
-              isWholeLine: true,
-              className: "added-line-decoration",
-              glyphMarginClassName: "added-line-glyph",
-              linesDecorationsClassName: "added-line-number",
-              minimap: { color: "rgb(0, 255, 0, 0.2)", position: 2 },
-            },
+          // Update original line counter only for removed lines
+          if (change.removed) {
+            originalLineNumber += lines.length
+          }
+          // Note: We don't increment for added lines since they don't consume original line numbers
+          
+        } else {
+          // Unchanged content - finalize any current block first
+          finalizeCurrentBlock()
+
+          // Add unchanged lines with proper mapping
+          lines.forEach((line: string, idx: number) => {
+            documentLines.push(line)
+            lineMapping.set(originalLineNumber + idx, documentLineNumber)
+            documentLineNumber++
           })
-        })
+          originalLineNumber += lines.length
+        }
       }
 
-      model.setValue(combinedLines.join("\n"))
-      const newDecorations = editorRef.createDecorationsCollection(decorations)
-      setMergeDecorationsCollection(newDecorations)
+      // Handle final block if exists
+      finalizeCurrentBlock()
+
+      // Merge adjacent blocks that should be grouped together
+      const mergedBlocks: DiffBlock[] = []
+      let currentMergedBlock: DiffBlock | null = null
+
+      for (let i = 0; i < diffBlocks.length; i++) {
+        const block = diffBlocks[i]
+        
+        // Check if this block should be merged with the previous one
+        if (currentMergedBlock && shouldMergeBlocks(currentMergedBlock, block)) {
+          // Merge blocks
+          currentMergedBlock.changes.push(...block.changes)
+          currentMergedBlock.endLine = Math.max(currentMergedBlock.endLine, block.endLine)
+          
+          // Update block type for merged blocks
+          const hasAdded = currentMergedBlock.changes.some(c => c.type === 'added')
+          const hasRemoved = currentMergedBlock.changes.some(c => c.type === 'removed')
+          
+          if (hasAdded && hasRemoved) {
+            currentMergedBlock.type = 'modification'
+          } else if (hasAdded) {
+            currentMergedBlock.type = 'addition'
+          } else {
+            currentMergedBlock.type = 'deletion'
+          }
+        } else {
+          // Start a new merged block
+          if (currentMergedBlock) {
+            mergedBlocks.push(currentMergedBlock)
+          }
+          currentMergedBlock = { ...block, changes: [...block.changes] }
+        }
+      }
+
+      // Add the last block
+      if (currentMergedBlock) {
+        mergedBlocks.push(currentMergedBlock)
+      }
+
+      // Helper function to determine if blocks should be merged
+      function shouldMergeBlocks(block1: DiffBlock, block2: DiffBlock): boolean {
+        // Merge if blocks are within 3 lines of each other and both are small changes
+        const distance = block2.startLine - block1.endLine
+        const block1Size = block1.changes.length
+        const block2Size = block2.changes.length
+        
+        // Add context check - don't merge if there's meaningful unchanged content between
+        if (distance > 1) {
+          // Check if the lines between blocks are just whitespace
+          const linesBetween = documentLines.slice(block1.endLine, block2.startLine - 1)
+          const hasContentBetween = linesBetween.some(line => line.trim().length > 0)
+          if (hasContentBetween) return false
+        }
+        
+        return (
+          distance <= 3 && // Close proximity
+          (block1Size <= 5 || block2Size <= 5) && // At least one block is small
+          block1Size + block2Size <= 10 // Combined size is reasonable
+        )
+      }
+
+      // Create immutable granular diff state using event sourcing pattern
+      const granularDiffState: GranularDiffState = {
+        blocks: mergedBlocks,
+        originalCode: normalizedOriginal,
+        mergedCode: normalizedMerged,
+        allAccepted: false,
+        timestamp: Date.now(),
+        lineMapping,
+        version: 1
+      }
+      
+      // Add file version for race condition protection
+      const fileVersion = Date.now()
+      ;(model as any).fileVersion = fileVersion
+      
+      // Store state per file instead of globally
+      fileDiffStates.current.set(activeFileId, {
+        granularState: granularDiffState,
+        decorationsCollection: undefined // Will be set below
+      })
+      
+      // Also store on model for backward compatibility
+      ;(model as any).granularDiffState = granularDiffState
+      ;(model as any).diffVersion = granularDiffState.version
+
+      // Apply content and decorations atomically
+      model.setValue(documentLines.join("\n"))
+      
+      // Use Monaco's decoration system for efficient updates
+      const decorationsCollection = editorRef.createDecorationsCollection(decorations)
+      setMergeDecorationsCollection(decorationsCollection)
+      
+      // Store decorations collection per file
+      const fileState = fileDiffStates.current.get(activeFileId)
+      if (fileState) {
+        fileState.decorationsCollection = decorationsCollection
+      }
+
+      // Add widget controls with proper positioning and race condition protection
+      requestAnimationFrame(() => {
+        // Verify we're still on the same file version to prevent race conditions
+        if ((model as any).fileVersion === fileVersion) {
+          addBlockControlWidgets(granularDiffState, handleBlockAction)
+        }
+      })
     },
-    [editorRef]
+    [editorRef, handleBlockAction]
   )
+
+  // Helper function to clean up block widgets
+  const cleanupBlockWidgets = useCallback(() => {
+    if (!editorRef) return
+    const existingWidgets = (editorRef as any).blockControlWidgets || []
+    existingWidgets.forEach((widget: any) => {
+      const domNode = widget.getDomNode()
+      if (domNode && domNode.parentNode) {
+        // Clean up event listeners on buttons to prevent memory leaks
+        const buttons = domNode.querySelectorAll('button')
+        buttons.forEach((button: any) => {
+          if (button.cleanup) {
+            button.cleanup()
+          }
+        })
+        domNode.parentNode.removeChild(domNode)
+      }
+      editorRef.removeContentWidget(widget)
+    })
+    ;(editorRef as any).blockControlWidgets = []
+  }, [editorRef])
+
+  // Helper function to update file state
+  const updateFileState = useCallback((content: string) => {
+    if (!activeFileId) return
+    
+    // Batch state updates for performance
+    setFileContents((prev) => ({
+      ...prev,
+      [activeFileId]: content,
+    }))
+    
+    setActiveFileContent(content)
+    
+    setTabs((prev) =>
+      prev.map((tab) =>
+        tab.id === activeFileId ? { ...tab, saved: false } : tab
+      )
+    )
+  }, [activeFileId, setFileContents, setActiveFileContent, setTabs])
+
+  // Optional completion callback
+  const onDiffComplete = useCallback((finalContent: string) => {
+    console.log('Diff process completed with final content length:', finalContent.length)
+  }, [])
+
+
+
+  // Helper function to find a line in the editor by content
+  const findLineInEditor = (lines: string[], content: string, hint: number): number => {
+    console.log(`Searching for content: "${content.substring(0, 50)}..." with hint ${hint}`)
+    
+    // First try exact match near hint
+    const searchRadius = 5
+    const startSearch = Math.max(0, hint - searchRadius - 1)
+    const endSearch = Math.min(lines.length, hint + searchRadius)
+    
+    for (let i = startSearch; i < endSearch; i++) {
+      if (lines[i] === content) {
+        console.log(`Found exact match at line ${i + 1} (near hint)`)
+        return i + 1
+      }
+    }
+    
+    // Try exact match globally
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i] === content) {
+        console.log(`Found exact match at line ${i + 1} (global)`)
+        return i + 1
+      }
+    }
+    
+    // Try trimmed match
+    const trimmedContent = content.trim()
+    if (trimmedContent) {
+      for (let i = 0; i < lines.length; i++) {
+        if (lines[i].trim() === trimmedContent) {
+          console.log(`Found trimmed match at line ${i + 1}`)
+          return i + 1
+        }
+      }
+    }
+    
+    // Try partial match only for meaningful content (avoid false positives with "...")
+    if (trimmedContent && trimmedContent.length > 5) {
+      for (let i = 0; i < lines.length; i++) {
+        if (lines[i].includes(trimmedContent) && lines[i].trim().length > 5) {
+          console.log(`Found partial match at line ${i + 1}`)
+          return i + 1
+        }
+      }
+    }
+    
+    console.log(`No match found for content: "${content.substring(0, 30)}..."`)
+    return -1
+  }
+
+  // Add floating block control widgets with improved positioning and anchoring
+  const addBlockControlWidgets = useCallback(
+    (granularState: GranularDiffState, blockActionHandler: (blockId: string, action: 'accept' | 'reject') => void) => {
+      if (!editorRef || !monacoRef.current) return
+
+      // Clean up existing widgets using batched operations
+      cleanupBlockWidgets()
+
+      const widgets: any[] = []
+      const model = editorRef.getModel()
+      if (!model) return
+
+      const currentContent = model.getValue()
+      const currentLines = currentContent.split('\n')
+
+      granularState.blocks.forEach((block, index) => {
+        // Check if block needs processing (has pending changes)
+        const hasPendingChanges = block.changes.some(c => c.accepted === null)
+        
+        if (hasPendingChanges) {
+          // Find ANY visible change from this block to position the widget
+          let targetLineNumber = -1
+          
+          // Position widget strategically based on block type
+          if (block.type === 'modification') {
+            // For modification blocks, position after the last removed line for clarity
+            const removedLines = block.changes
+              .filter(c => c.type === 'removed' && c.accepted === null && c.lineNumber > 0)
+              .map(c => c.lineNumber)
+            
+            if (removedLines.length > 0) {
+              targetLineNumber = Math.max(...removedLines)
+              console.log(`Positioning widget for modification block ${block.id} after last removed line: ${targetLineNumber}`)
+            }
+          }
+          
+          // If not positioned yet, look for any visible change
+          if (targetLineNumber === -1) {
+            const meaningfulChanges = block.changes
+              .filter(c => c.accepted === null && c.lineNumber > 0)
+              .sort((a, b) => {
+                // Prioritize non-empty, non-whitespace content
+                const aScore = a.content.trim().length
+                const bScore = b.content.trim().length
+                return bScore - aScore
+              })
+
+            for (const change of meaningfulChanges) {
+              // Skip empty or very generic content
+              const trimmedContent = change.content.trim()
+              if (!trimmedContent || trimmedContent === '...' || trimmedContent.length < 3) {
+                continue
+              }
+
+              // Use the direct line number since all changes now have real positions
+              if (change.lineNumber > 0) {
+                targetLineNumber = change.lineNumber
+                console.log(`Using direct line number for ${change.type} content in block ${block.id}: line ${targetLineNumber}`)
+                break
+              }
+
+              // Fallback: search for the content
+              const foundLine = findLineInEditor(currentLines, change.content, 1)
+              if (foundLine !== -1) {
+                targetLineNumber = foundLine
+                console.log(`Found line for block ${block.id}: content="${change.content.substring(0, 50)}..." at line ${foundLine}`)
+                break // Use the first match we find
+              }
+            }
+          }
+
+          // If no meaningful content found, try any pending change
+          if (targetLineNumber === -1) {
+            for (const change of block.changes) {
+              if (change.accepted === null && change.lineNumber > 0) {
+                targetLineNumber = change.lineNumber
+                console.log(`Found fallback line for block ${block.id}: content="${change.content.substring(0, 30)}..." at line ${targetLineNumber}`)
+                break
+              }
+            }
+          }
+
+          // Fallback: if we can't find any content, use the block's recorded position
+          if (targetLineNumber === -1) {
+            // For blocks with only removed lines, find the insertion point based on original line numbers
+            const removedChanges = block.changes.filter(c => c.type === 'removed')
+            if (removedChanges.length > 0) {
+              // Use the minimum original line number as a reference point
+              const originalLineNumbers = removedChanges.map(c => c.originalLineNumber).filter(n => n !== undefined) as number[]
+              if (originalLineNumbers.length > 0) {
+                const minOriginalLine = Math.min(...originalLineNumbers)
+                // Try to find a reasonable insertion point near the original location
+                targetLineNumber = Math.max(1, Math.min(minOriginalLine, currentLines.length))
+                console.log(`Using original line reference for removed content in block ${block.id}: line ${targetLineNumber}`)
+              } else {
+                targetLineNumber = Math.max(1, Math.min(block.startLine, currentLines.length))
+                console.log(`Using fallback position for block ${block.id}: line ${targetLineNumber}`)
+              }
+            } else {
+              targetLineNumber = Math.max(1, Math.min(block.startLine, currentLines.length))
+              console.log(`Using fallback position for block ${block.id}: line ${targetLineNumber}`)
+            }
+          }
+
+          // Create widget with proper positioning
+          const widgetElement = createBlockWidget(block, index, blockActionHandler)
+          
+          // Create the widget with smart positioning
+          const widget = {
+            getDomNode: () => widgetElement,
+            getId: () => `block-control-${block.id}`,
+            getPosition: () => {
+              try {
+                const currentModel = editorRef.getModel()
+                if (!currentModel) return null
+                
+                // Ensure we're within bounds
+                const lineCount = currentModel.getLineCount()
+                const actualLine = Math.max(1, Math.min(targetLineNumber, lineCount))
+                const lineContent = currentModel.getLineContent(actualLine) || ''
+                
+                // Position widget right after the line content with minimal padding
+                const contentLength = lineContent.length
+                const column = Math.max(contentLength + 3, 10) // Just 3 spaces after content
+                
+                console.log(`Positioning widget for block ${block.id} at line ${actualLine}, column ${column} (content length: ${contentLength})`)
+                
+                return {
+                  position: {
+                    lineNumber: actualLine,
+                    column: column
+                  },
+                  preference: [
+                    monaco.editor.ContentWidgetPositionPreference.BELOW,
+                    monaco.editor.ContentWidgetPositionPreference.ABOVE,
+                    monaco.editor.ContentWidgetPositionPreference.EXACT
+                  ]
+                }
+              } catch (error) {
+                console.warn('Widget positioning error:', error)
+                return {
+                  position: { lineNumber: 1, column: 80 },
+                  preference: [monaco.editor.ContentWidgetPositionPreference.EXACT]
+                }
+              }
+            },
+            allowEditorOverflow: true,
+            suppressMouseDown: false
+          }
+
+          // Add widget with error handling
+          try {
+            editorRef.addContentWidget(widget)
+            widgets.push(widget)
+            console.log(`Added widget for block ${block.id} at target line ${targetLineNumber}`)
+          } catch (error) {
+            console.error(`Failed to add widget for block ${block.id}:`, error)
+          }
+        }
+      })
+
+      // Store widgets for cleanup with metadata
+      ;(editorRef as any).blockControlWidgets = widgets
+      ;(editorRef as any).widgetMetadata = {
+        timestamp: Date.now(),
+        count: widgets.length,
+        stateVersion: granularState.version || 1
+      }
+    },
+    [editorRef, monacoRef, cleanupBlockWidgets]
+  )
+
+  // Create block widget DOM element with optimized styling
+  const createBlockWidget = useCallback((
+    block: DiffBlock, 
+    index: number, 
+    blockActionHandler: (blockId: string, action: 'accept' | 'reject') => void
+  ) => {
+    const widgetElement = document.createElement('div')
+    widgetElement.className = 'block-controls-widget'
+    widgetElement.style.cssText = `
+      display: inline-flex;
+      flex-direction: row;
+      align-items: center;
+      border: 1px solid hsl(var(--border));
+      background: hsl(var(--background));
+      border-radius: 4px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+      padding: 2px;
+      font-family: var(--font-sans);
+      z-index: 1000;
+      user-select: none;
+      pointer-events: auto;
+      font-size: 11px;
+      white-space: nowrap;
+      gap: 2px;
+      min-width: fit-content;
+    `
+
+    // Create buttons with improved accessibility
+    const acceptBtn = createActionButton('accept', block.id, index + 1, blockActionHandler)
+    const rejectBtn = createActionButton('reject', block.id, index + 1, blockActionHandler)
+    
+    widgetElement.appendChild(acceptBtn)
+    widgetElement.appendChild(rejectBtn)
+    
+    return widgetElement
+  }, [])
+
+  // Create action button with consistent styling and behavior
+  const createActionButton = useCallback((
+    action: 'accept' | 'reject',
+    blockId: string,
+    blockNumber: number,
+    handler: (blockId: string, action: 'accept' | 'reject') => void
+  ) => {
+    const button = document.createElement('button')
+    const isAccept = action === 'accept'
+    const color = isAccept ? '#22c55e' : '#ef4444'
+    const icon = isAccept 
+      ? 'M5 13l4 4L19 7' // checkmark
+      : 'M6 18L18 6M6 6l12 12' // x mark
+    
+    button.className = `${action}-block-btn`
+    button.dataset.blockId = blockId
+    button.title = `${isAccept ? 'Accept' : 'Reject'} Block ${blockNumber}`
+    button.style.cssText = `
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 6px;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      border-radius: 4px;
+      font-size: 12px;
+      color: hsl(var(--foreground));
+      transition: background-color 0.15s ease;
+      white-space: nowrap;
+      flex-shrink: 0;
+    `
+    
+    button.innerHTML = `
+      <svg style="width: 14px; height: 14px; color: ${color}; flex-shrink: 0;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${icon}"></path>
+      </svg>
+      <span style="margin-left: 3px; font-weight: 500; flex-shrink: 0;">${blockNumber}</span>
+    `
+    
+    // Create event handler functions to store references for cleanup
+    const handleClick = (e: Event) => {
+      e.preventDefault()
+      e.stopPropagation()
+      try {
+        handler(blockId, action)
+      } catch (error) {
+        console.error(`Failed to ${action} block:`, error)
+        toast.error(`Failed to ${action} changes. Please try again.`)
+      }
+    }
+
+    const handleMouseEnter = () => {
+      button.style.backgroundColor = `rgba(${isAccept ? '34, 197, 94' : '239, 68, 68'}, 0.1)`
+    }
+
+    const handleMouseLeave = () => {
+      button.style.backgroundColor = 'transparent'
+    }
+
+    // Add event listeners
+    button.addEventListener('click', handleClick)
+    button.addEventListener('mouseenter', handleMouseEnter)
+    button.addEventListener('mouseleave', handleMouseLeave)
+
+    // Store cleanup function on the button element for memory management
+    ;(button as any).cleanup = () => {
+      button.removeEventListener('click', handleClick)
+      button.removeEventListener('mouseenter', handleMouseEnter)
+      button.removeEventListener('mouseleave', handleMouseLeave)
+    }
+    
+    return button
+  }, [])
+
+  // Updated rebuild function that properly shows all pending changes
+  const rebuildEditorFromBlockState = useCallback(
+    (granularState: GranularDiffState) => {
+      if (!editorRef || !monacoRef.current) return
+      const model = editorRef.getModel()
+      if (!model) return
+
+      try {
+        // Build content by processing the original diff and applying block states
+        const visibleLines: Array<{content: string, decoration?: monaco.editor.IModelDecorationOptions}> = []
+        
+        // Re-run the diff to get the original change structure
+        const changes = diffLines(granularState.originalCode, granularState.mergedCode, { ignoreWhitespace: false })
+        
+        // Create a map of all changes by unique ID for reliable lookup
+        const changeMap = new Map<string, LineChange>()
+        granularState.blocks.forEach(block => {
+          block.changes.forEach(change => {
+            changeMap.set(change.id, change)
+          })
+        })
+        
+        for (const change of changes) {
+          const lines = change.value.split('\n')
+          // Only remove the last empty line if it's from a trailing newline
+          if (lines.length > 1 && lines[lines.length - 1] === '') {
+            lines.pop()
+          }
+          
+          if (change.removed) {
+            // For removed lines, always show them when pending or rejected
+            lines.forEach(line => {
+              // Find matching change by content and type
+              const lineChange = Array.from(changeMap.values()).find(c => 
+                c.type === 'removed' && c.content === line
+              )
+              
+              if (lineChange?.accepted === true) {
+                // Accepted removal - don't show the line
+                return
+              } else if (lineChange?.accepted === false) {
+                // Rejected removal - show without decoration
+                visibleLines.push({ content: line })
+              } else {
+                // Pending removal - show with red decoration
+                visibleLines.push({
+                  content: line,
+                  decoration: {
+                    isWholeLine: true,
+                    className: "removed-line-decoration",
+                    glyphMarginClassName: "removed-line-glyph", 
+                    linesDecorationsClassName: "removed-line-number",
+                    minimap: { color: "rgba(255, 0, 0, 0.3)", position: 2 },
+                    hoverMessage: { value: "Pending removal - click to accept/reject" }
+                  }
+                })
+              }
+            })
+          } else if (change.added) {
+            // For added lines, show them when pending or accepted
+            lines.forEach(line => {
+              // Find matching change by content and type
+              const lineChange = Array.from(changeMap.values()).find(c => 
+                c.type === 'added' && c.content === line
+              )
+              
+              if (lineChange?.accepted === false) {
+                // Rejected addition - don't show the line
+                return
+              } else if (lineChange?.accepted === true) {
+                // Accepted addition - show without decoration
+                visibleLines.push({ content: line })
+              } else {
+                // Pending addition - show with green decoration
+                visibleLines.push({
+                  content: line,
+                  decoration: {
+                    isWholeLine: true,
+                    className: "added-line-decoration",
+                    glyphMarginClassName: "added-line-glyph",
+                    linesDecorationsClassName: "added-line-number", 
+                    minimap: { color: "rgba(0, 255, 0, 0.3)", position: 2 },
+                    hoverMessage: { value: "Pending addition - click to accept/reject" }
+                  }
+                })
+              }
+            })
+          } else {
+            // Unchanged lines - always show them
+            lines.forEach(line => {
+              visibleLines.push({ content: line })
+            })
+          }
+        }
+
+        // Build final content and decorations
+        const finalContent: string[] = []
+        const decorations: monaco.editor.IModelDeltaDecoration[] = []
+        
+        visibleLines.forEach((line, index) => {
+          finalContent.push(line.content)
+          if (line.decoration) {
+            decorations.push({
+              range: new monaco.Range(index + 1, 1, index + 1, Math.max(1, line.content.length + 1)),
+              options: line.decoration
+            })
+          }
+        })
+
+              // Apply content and decorations atomically
+      model.setValue(finalContent.join('\n'))
+      
+      // FIXED: Properly clear and update decorations
+      // First, clear the existing collection completely
+      if (mergeDecorationsCollection) {
+        mergeDecorationsCollection.clear()
+        // Force Monaco to update by setting to undefined first
+        setMergeDecorationsCollection(undefined)
+      }
+      
+      // Then, create new decorations only if there are pending changes
+      if (decorations.length > 0) {
+        // Use requestAnimationFrame to ensure the clear has been processed
+        requestAnimationFrame(() => {
+          const newDecorations = editorRef.createDecorationsCollection(decorations)
+          setMergeDecorationsCollection(newDecorations)
+        })
+      }
+
+        // Update state metadata
+        ;(model as any).diffVersion = (granularState.version || 1) + 1
+        
+      } catch (error) {
+        console.error('Failed to rebuild editor content:', error)
+        toast.error('Failed to update editor content. Please refresh and try again.')
+        
+        // Fallback: restore original content with all changes visible
+        const fallbackContent = granularState.originalCode + '\n\n--- DIFF PROCESSING ERROR ---\n' + granularState.mergedCode
+        model.setValue(fallbackContent)
+      }
+    },
+    [editorRef, monacoRef, mergeDecorationsCollection, setMergeDecorationsCollection]
+  )
+
+  // Handle accepting all changes from AI chat
+  const handleAcceptAllChanges = useCallback(() => {
+    if (!editorRef || !activeFileId) return
+    
+    const model = editorRef.getModel()
+    if (!model) return
+
+    // Get diff state for current file
+    const fileState = fileDiffStates.current.get(activeFileId)
+    const granularState = fileState?.granularState
+    
+    if (granularState) {
+      // Accept all changes in granular mode by updating the state
+      const updatedBlocks = granularState.blocks.map((block: any) => ({
+        ...block,
+        changes: block.changes.map((change: any) => ({
+          ...change,
+          accepted: true
+        }))
+      }))
+
+      // Create updated state
+      const updatedState = {
+        ...granularState,
+        blocks: updatedBlocks,
+        allAccepted: true
+      }
+
+      // Store the updated state temporarily
+      ;(model as any).granularDiffState = updatedState
+
+      // Use the existing rebuild function which properly handles decorations
+      rebuildEditorFromBlockState(updatedState)
+      
+      // Clean up widgets since all changes are accepted
+      cleanupBlockWidgets()
+      
+      // Clean up diff state for current file ONLY
+      requestAnimationFrame(() => {
+        ;(model as any).granularDiffState = undefined
+        ;(model as any).originalContent = undefined
+        
+        // Clear ONLY the current file's state
+        fileDiffStates.current.delete(activeFileId)
+        
+        // Clear decorations for current file
+        if (mergeDecorationsCollection) {
+          mergeDecorationsCollection.clear()
+          setMergeDecorationsCollection(undefined)
+        }
+      })
+    } else if (mergeDecorationsCollection) {
+      // Fallback to old behavior
+      const lines = model.getValue().split("\n")
+      const removedLines = new Set()
+
+      for (let i = 1; i <= lines.length; i++) {
+        const lineDecorations = model.getLineDecorations(i)
+        if (
+          lineDecorations?.some(
+            (d: any) => d.options.className === "removed-line-decoration"
+          )
+        ) {
+          removedLines.add(i)
+        }
+      }
+
+      const finalLines = lines.filter(
+        (_: string, index: number) => !removedLines.has(index + 1)
+      )
+      model.setValue(finalLines.join("\n"))
+      
+      // Clean up decorations for current file only
+      mergeDecorationsCollection.clear()
+      setMergeDecorationsCollection(undefined)
+      
+      // Remove the current file from diff states
+      fileDiffStates.current.delete(activeFileId)
+    }
+  }, [editorRef, mergeDecorationsCollection, setMergeDecorationsCollection, cleanupBlockWidgets, rebuildEditorFromBlockState, activeFileId])
 
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -566,6 +1465,18 @@ export default function CodeEditor({
     window.addEventListener("beforeunload", handleBeforeUnload)
     return () => window.removeEventListener("beforeunload", handleBeforeUnload)
   }, [hasUnsavedFiles])
+
+  // Cleanup on component unmount
+  useEffect(() => {
+    return () => {
+      // Cancel any pending animation frames
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current)
+      }
+      // Clean up block widgets
+      cleanupBlockWidgets()
+    }
+  }, [cleanupBlockWidgets])
 
   // Generate widget effect
   useEffect(() => {
@@ -721,13 +1632,23 @@ export default function CodeEditor({
     }
   }, [decorations.options])
 
-  // Save file keybinding logic effect
-  // Function to save the file content after a debounce period
-  const debouncedSaveData = useCallback(
-    debounce((activeFileId: string | undefined) => {
-      if (activeFileId) {
-        // Get the current content of the file
-        const content = fileContents[activeFileId]
+  // Manual save function - only triggered by user action (Ctrl+S)
+  const saveFile = useCallback((fileId: string | undefined) => {
+    if (!fileId) return
+    
+    // Get the current content from the editor if it's the active file, otherwise from fileContents
+    let content: string;
+    if (fileId === activeFileId && editorRef) {
+      content = editorRef.getValue()
+    } else {
+      content = fileContents[fileId]
+    }
+    
+    // Ensure content is not undefined
+    if (content === undefined) {
+      console.warn(`No content found for file ${fileId}`)
+      return
+    }
 
         // Mark the file as saved in the tabs
         setTabs((prev) =>
@@ -742,8 +1663,7 @@ export default function CodeEditor({
             projectId: sandboxData.id,
           },
         })
-      }
-    }, Number(process.env.FILE_SAVE_DEBOUNCE_DELAY) || 1000),
+      },
     [socket, fileContents]
   )
 
@@ -752,7 +1672,7 @@ export default function CodeEditor({
     const down = (e: KeyboardEvent) => {
       if (e.key === "s" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault()
-        debouncedSaveData(activeFileId)
+        saveFile(activeFileId)
       } else if (e.key === "l" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault()
         setIsAIChatOpen((prev) => !prev)
@@ -769,14 +1689,10 @@ export default function CodeEditor({
     return () => {
       document.removeEventListener("keydown", down)
     }
-  }, [activeFileId, tabs, debouncedSaveData, setIsAIChatOpen, editorRef])
+  }, [activeFileId, saveFile, setIsAIChatOpen, editorRef])
 
   // Connection/disconnection effect
   useEffect(() => {
-    socket?.connect()
-    return () => {
-      socket?.disconnect()
-    }
   }, [socket])
 
   // Socket event listener effect
@@ -889,6 +1805,15 @@ export default function CodeEditor({
     if (tab.id === activeFileId) return
 
     setGenerate((prev) => ({ ...prev, show: false }))
+    
+    // Clean up current file's diff state before switching
+    if (activeFileId && editorRef) {
+      cleanupBlockWidgets()
+      if (mergeDecorationsCollection) {
+        mergeDecorationsCollection.clear()
+        setMergeDecorationsCollection(undefined)
+      }
+    }
 
     // Normalize the file path and name for comparison
     const normalizedId = tab.id.replace(/^\/+/, "") // Remove leading slashes
@@ -909,6 +1834,11 @@ export default function CodeEditor({
       if (fileContents[existingTab.id] !== undefined) {
         setActiveFileContent(fileContents[existingTab.id])
       }
+      
+      // Restore diff state for the new file after switching
+      requestAnimationFrame(() => {
+        restoreDiffStateForFile(existingTab.id)
+      })
     } else {
       // If the tab doesn't exist, add it to the list and make it active
       setTabs((prev) => [...prev, tab])
@@ -927,11 +1857,21 @@ export default function CodeEditor({
             setFileContents((prev) => ({ ...prev, [tab.id]: response }))
             setActiveFileContent(response)
             setEditorLanguage(processFileType(tab.name))
+            
+            // Restore diff state after content is loaded
+            requestAnimationFrame(() => {
+              restoreDiffStateForFile(tab.id)
+            })
           })
         } else {
           setActiveFileId(tab.id)
           setActiveFileContent(fileContents[tab.id])
           setEditorLanguage(processFileType(tab.name))
+          
+          // Restore diff state for the new file after switching
+          requestAnimationFrame(() => {
+            restoreDiffStateForFile(tab.id)
+          })
         }
       }
     }
@@ -958,6 +1898,8 @@ export default function CodeEditor({
     }
   }, [activeFileContent, activeFileId])
 
+  // Restore diff state when switching files - will be moved to selectFile function
+
   // Close tab and remove from tabs
   const closeTab = (id: string) => {
     const numTabs = tabs.length
@@ -983,6 +1925,9 @@ export default function CodeEditor({
         : activeFileId
 
     setTabs((prev) => prev.filter((t) => t.id !== id))
+    
+    // Clean up diff state for closed tab
+    fileDiffStates.current.delete(id)
 
     if (!nextId) {
       setActiveFileId("")
@@ -1010,6 +1955,9 @@ export default function CodeEditor({
 
     const newTabs = tabs.filter((t) => !ids.includes(t.id))
     setTabs(newTabs)
+    
+    // Clean up diff states for closed tabs
+    ids.forEach(id => fileDiffStates.current.delete(id))
 
     if (indexes.length === numTabs) {
       setActiveFileId("")
@@ -1123,6 +2071,40 @@ export default function CodeEditor({
   const toggleAIChat = () => {
     setIsAIChatOpen((prev) => !prev)
   }
+
+  // Helper function to properly restore diff state for a file
+  const restoreDiffStateForFile = useCallback((fileId: string) => {
+    if (!editorRef) return
+    
+    const fileState = fileDiffStates.current.get(fileId)
+    const model = editorRef.getModel()
+    
+    if (fileState?.granularState && model) {
+      // Restore diff state for this file
+      ;(model as any).granularDiffState = fileState.granularState
+      
+      // Restore decorations
+      if (fileState.decorationsCollection) {
+        setMergeDecorationsCollection(fileState.decorationsCollection)
+      } else {
+        // If there's granular state but no decorations, rebuild them
+        rebuildEditorFromBlockState(fileState.granularState)
+      }
+      
+      // Re-add widgets for this file's pending changes
+      requestAnimationFrame(() => {
+        addBlockControlWidgets(fileState.granularState!, handleBlockAction)
+      })
+    } else {
+      // No diff state for this file - ensure everything is clean
+      if (model) {
+        ;(model as any).granularDiffState = undefined
+        ;(model as any).originalContent = undefined
+      }
+      setMergeDecorationsCollection(undefined)
+      cleanupBlockWidgets()
+    }
+  }, [editorRef, addBlockControlWidgets, handleBlockAction, rebuildEditorFromBlockState, cleanupBlockWidgets])
 
   // On disabled access for shared users, show un-interactable loading placeholder + info modal
   if (disableAccess.isDisabled)
@@ -1490,6 +2472,9 @@ export default function CodeEditor({
                   setMergeDecorationsCollection={setMergeDecorationsCollection}
                   selectFile={selectFile}
                   tabs={tabs}
+                  handleAcceptAllChanges={handleAcceptAllChanges}
+                  fileDiffStates={fileDiffStates}
+                  activeFileId={activeFileId}
                 />
               </ResizablePanel>
             </>

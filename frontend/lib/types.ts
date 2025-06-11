@@ -84,3 +84,34 @@ export type TFileData = {
   id: string
   data: string
 }
+
+// Granular diff types for line-by-line change management
+export interface LineChange {
+  id: string // unique identifier for this change
+  lineNumber: number // line number in the combined view
+  type: 'added' | 'removed'
+  content: string
+  blockId: string // groups related changes together
+  accepted: boolean | null // null = pending, true = accepted, false = rejected
+  originalLineNumber?: number // original line number for tracking
+  timestamp?: number // when this change was processed
+}
+
+export interface DiffBlock {
+  id: string
+  startLine: number
+  endLine: number
+  changes: LineChange[]
+  type: 'modification' | 'addition' | 'deletion'
+  originalStartLine?: number // original line number where this block started
+}
+
+export interface GranularDiffState {
+  blocks: DiffBlock[]
+  originalCode: string
+  mergedCode: string
+  allAccepted: boolean
+  timestamp?: number // when this state was created
+  lineMapping?: Map<number, number> // original -> document line mapping
+  version?: number // state version for tracking changes
+}

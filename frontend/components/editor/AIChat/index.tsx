@@ -26,6 +26,9 @@ export default function AIChat({
   projectName,
   tabs,
   projectId,
+  handleAcceptAllChanges,
+  fileDiffStates,
+  activeFileId,
 }: AIChatProps) {
   // Initialize socket and messages
   const { socket } = useSocket()
@@ -230,6 +233,9 @@ export default function AIChat({
             selectFile={selectFile}
             tabs={tabs}
             projectId={projectId}
+            handleAcceptAllChanges={handleAcceptAllChanges}
+            fileDiffStates={fileDiffStates}
+            activeFileId={activeFileId}
           />
         ))}
         {isLoading && <LoadingDots />}
