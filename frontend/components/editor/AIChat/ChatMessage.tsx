@@ -1,5 +1,5 @@
 import { apiClient } from "@/server/client-side-client"
-import { Check, Copy, CornerUpLeft, Loader2, Sparkles } from "lucide-react"
+import { Check, Copy, CornerUpLeft, Loader2 } from "lucide-react"
 import { useTheme } from "next-themes"
 import React, { useEffect, useRef, useState } from "react"
 import ReactMarkdown from "react-markdown"
@@ -685,10 +685,11 @@ export default function ChatMessage({
               if (!showApplyAll && !showSaveAll) return null
 
               return (
-                <div className="mt-4 pt-4 border-t border-border/30">
+                // <div className="mt-4 pt-4 border-t border-border/30">
+                <>
                   {showApplyAll && (
                     <>
-                      <Button
+                      {/* <Button
                         onClick={async () => {
                           await applyAllCodeBlocks(codeBlocksRef.current)
                         }}
@@ -717,10 +718,10 @@ export default function ChatMessage({
                             {uniqueFileCount === 1 ? "file" : "files"})
                           </>
                         )}
-                      </Button>
+                      </Button> */}
 
                       {/* File preview */}
-                      {!applyingAll && (
+                      {/* {!applyingAll && (
                         <p className="text-xs text-muted-foreground mt-2 text-center">
                           Will apply changes to:{" "}
                           {[...uniqueFilePaths]
@@ -730,7 +731,7 @@ export default function ChatMessage({
                             })
                             .join(", ")}
                         </p>
-                      )}
+                      )} */}
 
                       {/* Progress indicator */}
                       {applyingAll && applyProgress.total > 0 && (
@@ -805,7 +806,7 @@ export default function ChatMessage({
                         )}
                       </div>
                     )}
-                </div>
+                </>
               )
             })()}
           </>

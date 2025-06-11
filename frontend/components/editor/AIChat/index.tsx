@@ -56,10 +56,11 @@ export default function AIChat({
 
   // scroll to bottom of chat when messages change
   useEffect(() => {
-    if (autoScroll) {
+    // Don't auto-scroll if user has manually scrolled and AI is generating
+    if (autoScroll && !isGenerating) {
       scrollToBottom()
     }
-  }, [messages, autoScroll])
+  }, [messages, autoScroll, isGenerating])
 
   // scroll to bottom of chat when messages change
   const scrollToBottom = (force: boolean = false) => {

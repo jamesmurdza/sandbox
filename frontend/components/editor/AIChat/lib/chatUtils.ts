@@ -166,7 +166,7 @@ export const handleSend = async (
 
     // Initialize buffer for chat message component
     let buffer = ""
-    const updateInterval = 100
+    const updateInterval = 200
     let lastUpdateTime = Date.now()
 
     // Read response from reader for chat message component
@@ -177,7 +177,7 @@ export const handleSend = async (
         buffer += decoder.decode(value, { stream: true })
 
         const currentTime = Date.now()
-        if (currentTime - lastUpdateTime > updateInterval) {
+        if (currentTime - lastUpdateTime > updateInterval || done) {
           setMessages((prev) => {
             const updatedMessages = [...prev]
             const lastMessage = updatedMessages[updatedMessages.length - 1]
@@ -264,18 +264,18 @@ export const nonFileLanguages = new Set([
 
 // Common shell command patterns
 export const shellPatterns = [
-    /^(npm|yarn|pnpm)\s+/, // Package managers
-    /^(git)\s+/, // Git commands
-    /^(cd|ls|mkdir|rm|cp|mv|chmod|chown)\s+/, // Basic shell commands
-    /^(curl|wget)\s+/, // Network commands
-    /^(pip|conda)\s+/, // Python package managers
-    /^(node|python|java|go|rust)\s+/, // Runtime commands
-    /^(docker|kubectl)\s+/, // Container/k8s commands
-    /^(sudo|su)\s+/, // Admin commands
-    /^(echo|cat|grep|find|which)\s+/, // Text/file commands
-    /^\$\s*/, // Commands starting with $
-    /^#.*$/, // Shell comments (single line)
-  ]
+  /^(npm|yarn|pnpm)\s+/, // Package managers
+  /^(git)\s+/, // Git commands
+  /^(cd|ls|mkdir|rm|cp|mv|chmod|chown)\s+/, // Basic shell commands
+  /^(curl|wget)\s+/, // Network commands
+  /^(pip|conda)\s+/, // Python package managers
+  /^(node|python|java|go|rust)\s+/, // Runtime commands
+  /^(docker|kubectl)\s+/, // Container/k8s commands
+  /^(sudo|su)\s+/, // Admin commands
+  /^(echo|cat|grep|find|which)\s+/, // Text/file commands
+  /^\$\s*/, // Commands starting with $
+  /^#.*$/, // Shell comments (single line)
+]
 
 // Add this new function after looksLikeCode function
 export const isFilePath = (text: string): boolean => {

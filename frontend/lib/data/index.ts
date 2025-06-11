@@ -67,11 +67,11 @@ export const projectTemplates: {
     description: "A faster way to build and share data apps",
     disabled: false,
   },
-  {
-    id: "php",
-    name: "PHP",
-    description: "PHP development environment",
-    icon: "/project-icons/php.svg",
-    disabled: false,
-  },
+  // {
+  //   id: "php",
+  //   name: "PHP",
+  //   description: "PHP development environment",
+  //   icon: "/project-icons/php.svg",
+  //   disabled: false,
+  // },
 ]

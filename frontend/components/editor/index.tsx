@@ -2408,6 +2408,13 @@ export default function CodeEditor({
                           scrollBeyondLastLine: false,
                           fixedOverflowWidgets: true,
                           fontFamily: "var(--font-geist-mono)",
+                          hideCursorInOverviewRuler: true,
+                          overviewRulerBorder: false,
+                          overviewRulerLanes: 0,
+                          renderValidationDecorations: "off",
+                          renderWhitespace: "none",
+                          renderControlCharacters: false,
+                          renderLineHighlight: "none",
                         }}
                         value={activeFileContent}
                       />

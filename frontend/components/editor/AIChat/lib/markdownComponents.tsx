@@ -9,7 +9,12 @@ import React from "react"
 import { Components } from "react-markdown"
 import { Button } from "../../../ui/button"
 import ApplyButton from "../ApplyButton"
-import { isFilePath, nonFileLanguages, shellPatterns, stringifyContent } from "./chatUtils"
+import {
+  isFilePath,
+  nonFileLanguages,
+  shellPatterns,
+  stringifyContent,
+} from "./chatUtils"
 
 export const createMarkdownComponents = (
   theme: string,
@@ -393,7 +398,7 @@ export const createMarkdownComponents = (
             </div>
           </div>
           <pre
-            className={`hljs ${theme === "light" ? "hljs-light" : "hljs-dark"}`}
+            className="hljs"
             style={{
               margin: 0,
               padding: "0.5rem",
