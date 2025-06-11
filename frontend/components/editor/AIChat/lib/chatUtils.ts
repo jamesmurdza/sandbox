@@ -244,6 +244,39 @@ export const looksLikeCode = (text: string): boolean => {
   return codeIndicators.some((pattern) => pattern.test(text))
 }
 
+// Define languages that shouldn't be tracked for Apply All
+export const nonFileLanguages = new Set([
+  "bash",
+  "sh",
+  "shell",
+  "powershell",
+  "cmd",
+  "sql",
+  "json",
+  "yaml",
+  "yml",
+  "toml",
+  "ini",
+  "env",
+  "dockerfile",
+  "makefile",
+])
+
+// Common shell command patterns
+export const shellPatterns = [
+    /^(npm|yarn|pnpm)\s+/, // Package managers
+    /^(git)\s+/, // Git commands
+    /^(cd|ls|mkdir|rm|cp|mv|chmod|chown)\s+/, // Basic shell commands
+    /^(curl|wget)\s+/, // Network commands
+    /^(pip|conda)\s+/, // Python package managers
+    /^(node|python|java|go|rust)\s+/, // Runtime commands
+    /^(docker|kubectl)\s+/, // Container/k8s commands
+    /^(sudo|su)\s+/, // Admin commands
+    /^(echo|cat|grep|find|which)\s+/, // Text/file commands
+    /^\$\s*/, // Commands starting with $
+    /^#.*$/, // Shell comments (single line)
+  ]
+
 // Add this new function after looksLikeCode function
 export const isFilePath = (text: string): boolean => {
   // Match patterns like next/styles/SignIn.module.css or path/to/file.ext (new file)

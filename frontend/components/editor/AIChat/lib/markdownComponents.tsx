@@ -9,9 +9,8 @@ import React from "react"
 import { Components } from "react-markdown"
 import { Button } from "../../../ui/button"
 import ApplyButton from "../ApplyButton"
-import { isFilePath, stringifyContent } from "./chatUtils"
+import { isFilePath, nonFileLanguages, shellPatterns, stringifyContent } from "./chatUtils"
 
-// Create markdown components for chat message component
 export const createMarkdownComponents = (
   theme: string,
   renderCopyButton: (text: any) => JSX.Element,
@@ -27,16 +26,27 @@ export const createMarkdownComponents = (
   mergeDecorationsCollection?: monaco.editor.IEditorDecorationsCollection,
   setMergeDecorationsCollection?: (collection: undefined) => void,
   handleAcceptAllChanges?: () => void,
-  // Add these new parameters to track per-file diff states
-  fileDiffStates?: React.MutableRefObject<Map<string, { granularState: any; decorationsCollection: monaco.editor.IEditorDecorationsCollection | undefined }>>,
+  fileDiffStates?: React.MutableRefObject<
+    Map<
+      string,
+      {
+        granularState: any
+        decorationsCollection:
+          | monaco.editor.IEditorDecorationsCollection
+          | undefined
+      }
+    >
+  >,
   activeFileId?: string,
   // New parameter for Apply All functionality
-  codeBlocksRef?: React.MutableRefObject<Array<{
-    code: string
-    intendedFile: string
-    fileName: string
-    isNewFile: boolean
-  }>>
+  codeBlocksRef?: React.MutableRefObject<
+    Array<{
+      code: string
+      intendedFile: string
+      fileName: string
+      isNewFile: boolean
+    }>
+  >
 ): Components => {
   // Use a local variable to track intended file per render cycle
   let currentIntendedFile: string | null = null
@@ -56,11 +66,33 @@ export const createMarkdownComponents = (
       const match = /language-(\w+)/.exec(className || "")
       const stringifiedChildren = stringifyContent(children)
 
+      // Auto-detect shell commands if no language is specified
+      let detectedLanguage = match ? match[1] : null
+
+      // If no language specified, try to auto-detect common patterns
+      if (!detectedLanguage) {
+        const trimmedCode = stringifiedChildren.trim()
+
+        // Multi-line check: if it contains shell-like patterns
+        const lines = trimmedCode.split("\n")
+        const hasShellCommands = lines.some((line) => {
+          const trimmedLine = line.trim()
+          return shellPatterns.some((pattern) => pattern.test(trimmedLine))
+        })
+
+        if (
+          hasShellCommands ||
+          shellPatterns.some((pattern) => pattern.test(trimmedCode))
+        ) {
+          detectedLanguage = "bash"
+        }
+      }
+
       let highlightedCode = stringifiedChildren
-      if (match && match[1]) {
+      if (detectedLanguage) {
         try {
           highlightedCode = hljs.highlight(stringifiedChildren, {
-            language: match[1],
+            language: detectedLanguage,
             ignoreIllegals: true,
           }).value
         } catch (error) {
@@ -72,218 +104,278 @@ export const createMarkdownComponents = (
 
       // Determine which file this code block is for
       const targetFile = currentIntendedFile || activeFileId || activeFileName
-      const targetFileName = currentIntendedFile ? 
-        (currentIntendedFile.includes('(new file)') ? 
-          currentIntendedFile.replace(' (new file)', '').split("/").pop() || 'unknown' : 
-          currentIntendedFile.split("/").pop() || 'unknown') : 
-        activeFileName || 'unknown'
-      
-      // Track this code block for Apply All functionality
-      if (codeBlocksRef && match) {
-        // Use currentIntendedFile if available, otherwise fall back to activeFileId/activeFileName
-        const intendedFile = currentIntendedFile || activeFileId || activeFileName
-        const isNewFile = currentIntendedFile ? currentIntendedFile.includes('(new file)') : false
-        const blockData = {
-          code: stringifiedChildren,
-          intendedFile: intendedFile,
-          fileName: targetFileName,
-          isNewFile
-        }
-        // Only track if this exact block isn't already tracked to prevent duplicates
-        const isDuplicate = codeBlocksRef.current.some(existing => 
-          existing.code === blockData.code && 
-          existing.intendedFile === blockData.intendedFile
+      const targetFileName = currentIntendedFile
+        ? currentIntendedFile.includes("(new file)")
+          ? currentIntendedFile
+              .replace(" (new file)", "")
+              .split("/")
+              .pop()
+              ?.toLowerCase() || "unknown"
+          : currentIntendedFile.split("/").pop()?.toLowerCase() || "unknown"
+        : activeFileName?.split("/").pop()?.toLowerCase() || "unknown"
+
+      // Track this code block for Apply All functionality (only for code that can be applied to files)
+      if (codeBlocksRef && (match || detectedLanguage)) {
+        // Check if this is a shell command using the imported shellPatterns
+        const isShellCommand = shellPatterns.some((pattern) =>
+          pattern.test(stringifiedChildren.trim())
         )
-        
-        if (!isDuplicate) {
-          codeBlocksRef.current.push(blockData)
+
+        // Skip shell commands and bash language blocks
+        if (!isShellCommand && !nonFileLanguages.has(detectedLanguage || "")) {
+          // Use currentIntendedFile if available, otherwise fall back to activeFileId/activeFileName
+          const intendedFile =
+            currentIntendedFile || activeFileId || activeFileName
+
+          // Only track if we have a valid file path
+          if (intendedFile && intendedFile.trim() !== "") {
+            const isNewFile = currentIntendedFile
+              ? currentIntendedFile.includes("(new file)")
+              : false
+            const blockData = {
+              code: stringifiedChildren,
+              intendedFile: intendedFile,
+              fileName:
+                targetFileName !== "unknown" ? targetFileName : "current file",
+              isNewFile,
+            }
+            // Only track if this exact block isn't already tracked to prevent duplicates
+            const isDuplicate = codeBlocksRef.current.some(
+              (existing) =>
+                existing.code === blockData.code &&
+                existing.intendedFile === blockData.intendedFile
+            )
+
+            if (!isDuplicate) {
+              codeBlocksRef.current.push(blockData)
+            }
+          }
         }
       }
-      
+
       // Check if THIS SPECIFIC FILE has active diffs
-      const fileHasActiveDiff = fileDiffStates?.current?.has(targetFile) && 
+      const fileHasActiveDiff =
+        fileDiffStates?.current?.has(targetFile) &&
         fileDiffStates.current.get(targetFile)?.granularState != null
-      
+
       // Only show accept/reject if:
       // 1. This code block is for the current active file
       // 2. AND that file has an active diff
-      const showDiffControls = fileHasActiveDiff && 
-        targetFileName === activeFileName.toLowerCase() && 
+      const normalizedActiveFileName =
+        activeFileName?.split("/").pop()?.toLowerCase() || ""
+      const showDiffControls =
+        fileHasActiveDiff &&
+        targetFileName === normalizedActiveFileName &&
         mergeDecorationsCollection
 
-      return match ? (
+      // Use enhanced formatting for any detected language (including auto-detected ones)
+      return match || detectedLanguage ? (
         <div className="relative border border-input rounded-md mt-8 my-2 translate-y-[-1rem]">
           <div className="absolute top-0 left-0 px-2 py-1 text-xs font-semibold text-foreground/70 rounded-tl">
-            {match[1]}
+            {detectedLanguage || "code"}
           </div>
           <div className="sticky top-0 right-0 flex justify-end z-10">
             <div className="flex flex-row items-center border border-input shadow-lg bg-background rounded-md">
               {renderCopyButton(stringifiedChildren)}
-              <div className="w-px bg-input"></div>
-              {!showDiffControls ? (
-                (() => {
-                  if (currentIntendedFile && targetFileName !== activeFileName.toLowerCase()) {
-                    // Wrong file - show switch button
-                    // Capture the intended file value to avoid race conditions
-                    const intendedFilePath = currentIntendedFile
-                    return (
+              {/* Only show apply/diff controls for non-shell commands */}
+              {detectedLanguage !== "bash" && (
+                <>
+                  <div className="w-px bg-input"></div>
+                  {!showDiffControls ? (
+                    (() => {
+                      if (
+                        currentIntendedFile &&
+                        targetFileName !== activeFileName.toLowerCase()
+                      ) {
+                        // Wrong file - show switch button
+                        // Capture the intended file value to avoid race conditions
+                        const intendedFilePath = currentIntendedFile
+                        return (
+                          <Button
+                            onClick={async () => {
+                              const tab: TTab = {
+                                id: intendedFilePath,
+                                name: targetFileName,
+                                saved: true,
+                                type: "file" as const,
+                              }
+                              selectFile(tab)
+                              // Add a small delay to allow file content to load before user can apply code
+                              await new Promise((resolve) =>
+                                setTimeout(resolve, 100)
+                              )
+                            }}
+                            size="sm"
+                            variant="ghost"
+                            className="p-1 h-6 text-xs"
+                            title={`Switch to ${targetFileName} to apply this code`}
+                          >
+                            <FileText className="w-3 h-3 mr-1" />
+                            {targetFileName}
+                          </Button>
+                        )
+                      }
+
+                      // Show apply button
+                      return (
+                        <ApplyButton
+                          code={stringifiedChildren}
+                          activeFileName={activeFileName}
+                          activeFileContent={activeFileContent}
+                          editorRef={editorRef}
+                          onApply={handleApplyCode}
+                        />
+                      )
+                    })()
+                  ) : (
+                    // Show diff controls only for the active file with diffs
+                    <div className="flex flex-row items-center">
                       <Button
-                        onClick={async () => {
-                          const tab: TTab = {
-                            id: intendedFilePath,
-                            name: targetFileName,
-                            saved: true,
-                            type: "file" as const,
+                        onClick={() => {
+                          if (handleAcceptAllChanges) {
+                            handleAcceptAllChanges()
+                          } else {
+                            // Fallback to old implementation if the new prop isn't available
+                            if (
+                              setMergeDecorationsCollection &&
+                              mergeDecorationsCollection &&
+                              editorRef?.current
+                            ) {
+                              const model = editorRef.current?.getModel()
+                              if (model) {
+                                const granularState = (model as any)
+                                  .granularDiffState
+
+                                if (granularState) {
+                                  // Accept all changes in granular mode
+                                  const updatedBlocks =
+                                    granularState.blocks.map((block: any) => ({
+                                      ...block,
+                                      changes: block.changes.map(
+                                        (change: any) => ({
+                                          ...change,
+                                          accepted: true,
+                                        })
+                                      ),
+                                    }))
+
+                                  const updatedState = {
+                                    ...granularState,
+                                    blocks: updatedBlocks,
+                                    allAccepted: true,
+                                  }
+
+                                  // Apply only the accepted additions, remove all removals
+                                  const finalLines: string[] = []
+                                  const originalLines =
+                                    granularState.originalCode.split("\n")
+                                  let originalIndex = 0
+
+                                  for (const block of updatedBlocks) {
+                                    // Add unchanged lines before this block
+                                    while (
+                                      originalIndex <
+                                      Math.min(
+                                        originalLines.length,
+                                        block.startLine - 1
+                                      )
+                                    ) {
+                                      finalLines.push(
+                                        originalLines[originalIndex]
+                                      )
+                                      originalIndex++
+                                    }
+
+                                    // Add only accepted additions (removals are skipped)
+                                    const additions = block.changes.filter(
+                                      (c: any) =>
+                                        c.type === "added" && c.accepted
+                                    )
+                                    additions.forEach((change: any) => {
+                                      finalLines.push(change.content)
+                                    })
+
+                                    // Skip removed lines
+                                    const removals = block.changes.filter(
+                                      (c: any) => c.type === "removed"
+                                    )
+                                    originalIndex += removals.length
+                                  }
+
+                                  // Add remaining unchanged lines
+                                  while (originalIndex < originalLines.length) {
+                                    finalLines.push(
+                                      originalLines[originalIndex]
+                                    )
+                                    originalIndex++
+                                  }
+
+                                  model.setValue(finalLines.join("\n"))
+                                } else {
+                                  // Fallback to old behavior for backward compatibility
+                                  const lines = model.getValue().split("\n")
+                                  const removedLines = new Set()
+
+                                  for (let i = 1; i <= lines.length; i++) {
+                                    const lineDecorations =
+                                      model.getLineDecorations(i)
+                                    if (
+                                      lineDecorations?.some(
+                                        (d: any) =>
+                                          d.options.className ===
+                                          "removed-line-decoration"
+                                      )
+                                    ) {
+                                      removedLines.add(i)
+                                    }
+                                  }
+
+                                  const finalLines = lines.filter(
+                                    (_: string, index: number) =>
+                                      !removedLines.has(index + 1)
+                                  )
+                                  model.setValue(finalLines.join("\n"))
+                                }
+                              }
+                              mergeDecorationsCollection.clear()
+                              setMergeDecorationsCollection(undefined)
+                            }
                           }
-                          selectFile(tab)
-                          // Add a small delay to allow file content to load before user can apply code
-                          await new Promise(resolve => setTimeout(resolve, 100))
                         }}
                         size="sm"
                         variant="ghost"
-                        className="p-1 h-6 text-xs"
-                        title={`Switch to ${targetFileName} to apply this code`}
+                        className="p-1 h-6 min-w-0 flex-shrink-0"
+                        title="Accept All Changes"
                       >
-                        <FileText className="w-3 h-3 mr-1" />
-                        {targetFileName}
+                        <Check className="w-4 h-4 text-green-500" />
                       </Button>
-                    )
-                  }
-                  
-                  // Show apply button
-                  return (
-                    <ApplyButton
-                      code={stringifiedChildren}
-                      activeFileName={activeFileName}
-                      activeFileContent={activeFileContent}
-                      editorRef={editorRef}
-                      onApply={handleApplyCode}
-                    />
-                  )
-                })()
-              ) : (
-                // Show diff controls only for the active file with diffs
-                <div className="flex flex-row items-center">
-                  <Button
-                    onClick={() => {
-                      if (handleAcceptAllChanges) {
-                        handleAcceptAllChanges()
-                      } else {
-                        // Fallback to old implementation if the new prop isn't available
-                        if (
-                          setMergeDecorationsCollection &&
-                          mergeDecorationsCollection &&
-                          editorRef?.current
-                        ) {
-                          const model = editorRef.current?.getModel()
-                          if (model) {
-                            const granularState = (model as any).granularDiffState
-                            
-                            if (granularState) {
-                              // Accept all changes in granular mode
-                              const updatedBlocks = granularState.blocks.map((block: any) => ({
-                                ...block,
-                                changes: block.changes.map((change: any) => ({
-                                  ...change,
-                                  accepted: true
-                                }))
-                              }))
-
-                              const updatedState = {
-                                ...granularState,
-                                blocks: updatedBlocks,
-                                allAccepted: true
-                              }
-
-                              // Apply only the accepted additions, remove all removals
-                              const finalLines: string[] = []
-                              const originalLines = granularState.originalCode.split("\n")
-                              let originalIndex = 0
-
-                              for (const block of updatedBlocks) {
-                                // Add unchanged lines before this block
-                                while (originalIndex < Math.min(originalLines.length, block.startLine - 1)) {
-                                  finalLines.push(originalLines[originalIndex])
-                                  originalIndex++
-                                }
-
-                                // Add only accepted additions (removals are skipped)
-                                const additions = block.changes.filter((c: any) => c.type === 'added' && c.accepted)
-                                additions.forEach((change: any) => {
-                                  finalLines.push(change.content)
-                                })
-
-                                // Skip removed lines
-                                const removals = block.changes.filter((c: any) => c.type === 'removed')
-                                originalIndex += removals.length
-                              }
-
-                              // Add remaining unchanged lines
-                              while (originalIndex < originalLines.length) {
-                                finalLines.push(originalLines[originalIndex])
-                                originalIndex++
-                              }
-
-                              model.setValue(finalLines.join("\n"))
-                            } else {
-                              // Fallback to old behavior for backward compatibility
-                              const lines = model.getValue().split("\n")
-                              const removedLines = new Set()
-
-                              for (let i = 1; i <= lines.length; i++) {
-                                const lineDecorations = model.getLineDecorations(i)
-                                if (
-                                  lineDecorations?.some(
-                                    (d: any) =>
-                                      d.options.className ===
-                                      "removed-line-decoration"
-                                  )
-                                ) {
-                                  removedLines.add(i)
-                                }
-                              }
-
-                              const finalLines = lines.filter(
-                                (_: string, index: number) =>
-                                  !removedLines.has(index + 1)
+                      <div className="w-px bg-input"></div>
+                      <Button
+                        onClick={() => {
+                          if (
+                            editorRef?.current &&
+                            mergeDecorationsCollection
+                          ) {
+                            const model = editorRef.current.getModel()
+                            if (model && (model as any).originalContent) {
+                              editorRef.current?.setValue(
+                                (model as any).originalContent
                               )
-                              model.setValue(finalLines.join("\n"))
+                              mergeDecorationsCollection.clear()
+                              setMergeDecorationsCollection?.(undefined)
                             }
                           }
-                          mergeDecorationsCollection.clear()
-                          setMergeDecorationsCollection(undefined)
-                        }
-                      }
-                    }}
-                    size="sm"
-                    variant="ghost"
-                    className="p-1 h-6 min-w-0 flex-shrink-0"
-                    title="Accept All Changes"
-                  >
-                    <Check className="w-4 h-4 text-green-500" />
-                  </Button>
-                  <div className="w-px bg-input"></div>
-                  <Button
-                    onClick={() => {
-                      if (editorRef?.current && mergeDecorationsCollection) {
-                        const model = editorRef.current.getModel()
-                        if (model && (model as any).originalContent) {
-                          editorRef.current?.setValue(
-                            (model as any).originalContent
-                          )
-                          mergeDecorationsCollection.clear()
-                          setMergeDecorationsCollection?.(undefined)
-                        }
-                      }
-                    }}
-                    size="sm"
-                    variant="ghost"
-                    className="p-1 h-6 min-w-0 flex-shrink-0"
-                    title="Discard Changes"
-                  >
-                    <X className="w-4 h-4 text-red-500" />
-                  </Button>
-                </div>
+                        }}
+                        size="sm"
+                        variant="ghost"
+                        className="p-1 h-6 min-w-0 flex-shrink-0"
+                        title="Discard Changes"
+                      >
+                        <X className="w-4 h-4 text-red-500" />
+                      </Button>
+                    </div>
+                  )}
+                </>
               )}
               <div className="w-px bg-input"></div>
               <Button
@@ -310,7 +402,7 @@ export const createMarkdownComponents = (
             }}
           >
             <code
-              className={`language-${match[1]}`}
+              className={`language-${detectedLanguage || "text"}`}
               dangerouslySetInnerHTML={{ __html: highlightedCode }}
             />
           </pre>
@@ -331,7 +423,7 @@ export const createMarkdownComponents = (
           isNewFile ? content.replace(" (new file)", "") : content
         )
           .split("/")
-          .filter((part, index) => index !== 0)
+          .filter((_, index) => index !== 0)
           .join("/")
 
         // Set the intended file for the NEXT code blocks only
@@ -364,12 +456,18 @@ export const createMarkdownComponents = (
               const tabFileName = t.name.split("/").pop() || t.name
               return tabFileName === fileName
             })
-            
+
             if (existingTab) {
               selectFile(existingTab)
             } else {
-              // This shouldn't happen for existing files, but fallback gracefully
-              console.warn(`No existing tab found for file: ${fileName}`)
+              // Create a new tab for the existing file
+              const tab: TTab = {
+                id: filePath,
+                name: fileName,
+                saved: true,
+                type: "file",
+              }
+              selectFile(tab)
             }
           }
         }
