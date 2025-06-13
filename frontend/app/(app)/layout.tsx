@@ -18,11 +18,6 @@ export default async function AppAuthLayout({
     query: {},
   })
   if (!dbUser.ok) {
-    redirect("/?error=User not found or not authenticated")
-  }
-  const dbUserJSON = (await dbUser.json()).data
-
-  if (!dbUserJSON.id) {
     // Try to get GitHub username if available
     const githubUsername = user.externalAccounts.find(
       (account) => account.provider === "github"
