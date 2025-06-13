@@ -90,7 +90,7 @@ export const userInsertSchema = createInsertSchema(user, {
       description: "GitHub token for the user",
     }),
   createdAt: (schema) =>
-    schema.openapi({
+    z.coerce.date().openapi({
       description: "Creation timestamp of the user",
     }),
 })
