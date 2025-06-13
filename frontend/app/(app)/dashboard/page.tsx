@@ -1,16 +1,9 @@
 import Dashboard from "@/components/dashboard"
 import Navbar from "@/components/dashboard/navbar"
 import { apiClient } from "@/server/client"
-import { currentUser } from "@clerk/nextjs/server"
 import { redirect } from "next/navigation"
 
 export default async function DashboardPage() {
-  const user = await currentUser()
-
-  if (!user) {
-    redirect("/")
-  }
-
   const [userRes, sharedRes] = await Promise.all([
     apiClient.user.$get({
       query: {},
