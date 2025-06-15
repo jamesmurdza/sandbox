@@ -1,14 +1,11 @@
-import { drizzle } from "drizzle-orm/node-postgres"
 import { Socket } from "socket.io"
 import { z } from "zod"
-import * as schema from "../db/schema"
 import { isClerkConfigured, verifyClerkToken } from "../utils/clerk"
-
 // Load the database credentials
 import "dotenv/config"
+import { db } from "../db"
 
 // Initialize database
-const db = drizzle(process.env.DATABASE_URL as string, { schema })
 
 // Middleware for socket authentication
 export const socketAuth = async (socket: Socket, next: Function) => {
