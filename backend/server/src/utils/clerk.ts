@@ -1,4 +1,4 @@
-import { Clerk } from "@clerk/clerk-sdk-node"
+import { createClerkClient, verifyToken } from "@clerk/backend"
 import "dotenv/config"
 
 const clerkSecretKey = process.env.CLERK_SECRET_KEY
@@ -9,7 +9,7 @@ if (!clerkSecretKey) {
 }
 
 export const clerkClient = clerkSecretKey
-  ? Clerk({ secretKey: clerkSecretKey })
+  ? createClerkClient({ secretKey: clerkSecretKey })
   : null
 
 // Helper to check if Clerk is configured
@@ -21,7 +21,9 @@ export const verifyClerkToken = async (token: string) => {
     throw new Error("Clerk is not configured or token is missing")
   }
 
-  const decoded = await clerkClient.verifyToken(token)
+  const decoded = await verifyToken(token, {
+    secretKey: clerkSecretKey,
+  })
   const user = await clerkClient.users.getUser(decoded.sub)
   return { decoded, user }
 }

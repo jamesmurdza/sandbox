@@ -1,4 +1,4 @@
-import { User as ClerkUser } from "@clerk/clerk-sdk-node"
+import { User as ClerkUser } from "@clerk/backend"
 import { Socket as SocketIO } from "socket.io"
 
 // DB Types

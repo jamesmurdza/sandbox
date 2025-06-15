@@ -3,19 +3,16 @@ import { CONTAINER_TIMEOUT } from "../utils/constants"
 import { LockManager } from "../utils/lock"
 import { FileManager } from "./FileManager"
 import { TerminalManager } from "./TerminalManager"
-
 // Database imports
-import { eq } from "drizzle-orm"
-import { drizzle } from "drizzle-orm/node-postgres"
-import * as schema from "../db/schema"
 
 // Load the database credentials
 import "dotenv/config"
+import { eq } from "drizzle-orm"
+import { db, schema } from "../db"
 
 const lockManager = new LockManager()
 
 // Initialize database
-const db = drizzle(process.env.DATABASE_URL as string, { schema })
 
 export class Project {
   // Project properties:
