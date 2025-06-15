@@ -63,6 +63,9 @@ export interface AIChatProps {
   setMergeDecorationsCollection?: (collection: undefined) => void
   selectFile: (tab: TTab) => void
   tabs: TTab[]
+  handleAcceptAllChanges?: () => void
+  fileDiffStates?: React.MutableRefObject<Map<string, { granularState: any; decorationsCollection: monaco.editor.IEditorDecorationsCollection | undefined }>>
+  activeFileId?: string
 }
 
 // Chat input props interface
@@ -121,6 +124,9 @@ export interface MessageProps {
   selectFile: (tab: TTab) => void
   tabs: TTab[]
   projectId: string
+  handleAcceptAllChanges?: () => void
+  fileDiffStates?: React.MutableRefObject<Map<string, { granularState: any; decorationsCollection: monaco.editor.IEditorDecorationsCollection | undefined }>>
+  activeFileId?: string
 }
 
 // Context tabs props interface
