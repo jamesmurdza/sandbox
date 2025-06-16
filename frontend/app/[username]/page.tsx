@@ -42,7 +42,7 @@ export default async function Page({
       <section>
         <ProfileNavbar />
         <ProfilePage
-          publicSandboxes={[]}
+          publicSandboxes={publicSandboxes}
           privateSandboxes={[]}
           profileOwner={profileOwner}
           loggedInUser={null}
