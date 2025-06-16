@@ -4,12 +4,13 @@ import { clerkAuth } from "./middlewares/clerkAuth"
 import { fileRouter } from "./routes/file"
 import { githubRouter } from "./routes/github"
 import { projectRouter } from "./routes/project"
-import { userRouter } from "./routes/user"
+import { openUserRouter, userRouter } from "./routes/user"
 
 const app = createApp()
+  .route("/user", openUserRouter)
   .use(clerkAuth)
-  .route("/project", projectRouter)
   .route("/user", userRouter)
+  .route("/project", projectRouter)
   .route("/file", fileRouter)
   .route("/github", githubRouter)
 

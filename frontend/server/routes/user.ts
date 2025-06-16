@@ -16,6 +16,57 @@ import {
 interface SandboxWithLiked extends Sandbox {
   liked: boolean
 }
+export const openUserRouter = createRouter().get(
+  "/profile",
+  describeRoute({
+    tags: ["User"],
+    description: "Get user profile",
+    responses: {
+      200: jsonContent(z.object({}), "User profile response"),
+    },
+  }),
+  zValidator(
+    "query",
+    z.object({
+      username: z.string().optional(),
+    })
+  ),
+  async (c) => {
+    const { username } = c.req.valid("query")
+    if (!username) {
+      return c.json({ success: false, message: "Username is required" }, 400)
+    }
+    const res = await db.query.user.findFirst({
+      where: (user, { eq }) => eq(user.username, username),
+      with: {
+        sandbox: {
+          orderBy: (sandbox: any, { desc }) => [desc(sandbox.createdAt)],
+          with: {
+            likes: true,
+          },
+        },
+        usersToSandboxes: true,
+      },
+    })
+    if (!res) {
+      return c.json({ success: false, message: "User not found" }, 404)
+    }
+    const transformedUser = {
+      ...res,
+      usersToSandboxes: res.usersToSandboxes as UsersToSandboxes[],
+      sandbox: (res.sandbox as Sandbox[]).map(
+        (sb: any): SandboxWithLiked => ({
+          ...sb,
+          liked: sb.likes.some((like: any) => like.userId === res.id),
+        })
+      ),
+    }
+    return c.json(
+      { success: true, message: "User found", data: transformedUser },
+      200
+    )
+  }
+)
 export const userRouter = createRouter()
   // #region GET /
   .get(
