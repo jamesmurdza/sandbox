@@ -46,21 +46,18 @@ export function GitHubSync({
     reset: resetGithubLogin,
   } = github.login.useMutation({
     onSuccess: () => {
-      return queryClient.invalidateQueries(
-        github.githubUser.getOptions({
-          userId,
-        })
-      )
+      return queryClient.invalidateQueries(github.githubUser.getOptions())
     },
   })
   const { mutate: getAuthUrl, isPending: isGettingAuthUrl } =
     github.gethAuthUrl.useMutation({
-      onSuccess({ auth_url }) {
+      onSuccess({ data: { auth_url } }) {
         const tracker = createPopupTracker()
 
         return new Promise<{ code: string }>((resolve, reject) => {
           tracker.openPopup(auth_url, {
             onUrlChange(newUrl) {
+              console.log("New URL:", newUrl)
               if (newUrl.includes(REDIRECT_URI)) {
                 const urlParams = new URLSearchParams(new URL(newUrl).search)
                 const code = urlParams.get("code")
@@ -79,7 +76,7 @@ export function GitHubSync({
           })
         })
           .then(({ code }) => {
-            handleGithubLogin({ code, userId })
+            handleGithubLogin({ code })
           })
           .catch((error) => {
             console.error("Error during authentication:", error)
@@ -88,13 +85,16 @@ export function GitHubSync({
       },
     })
   const { data: githubUser } = github.githubUser.useQuery({
-    variables: {
-      userId,
+    select(data) {
+      return data?.data
     },
   })
   const { data: repoStatus } = github.repoStatus.useQuery({
     variables: {
       projectId: sandboxId,
+    },
+    select(data) {
+      return data.data
     },
   })
   const { mutate: syncToGithub, isPending: isSyncingToGithub } =
@@ -172,7 +172,7 @@ export function GitHubSync({
             </p>
             <div className="flex items-center justify-between bg-muted/50 px-2 py-1 rounded-sm">
               <div className="flex items-center gap-2">
-                <GithubUserButton userId={userId} {...githubUser} />
+                <GithubUserButton {...githubUser} />
                 <div>
                   <a
                     href={`${githubUser.html_url}/${repoStatus?.repo?.name}`}
@@ -249,7 +249,7 @@ export function GitHubSync({
               You can create one to sync your code with GitHub.
             </p>
             <div className="flex gap-1 mt-4">
-              <GithubUserButton userId={userId} {...githubUser} rounded="sm" />
+              <GithubUserButton {...githubUser} rounded="sm" />
               <Button
                 variant="secondary"
                 size="xs"
@@ -307,23 +307,19 @@ export function GitHubSync({
   )
 }
 
-interface GithubUserButtonProps extends GithubUser {
+interface GithubUserButtonProps {
   rounded?: "full" | "sm"
-  userId: string
 }
 
 function GithubUserButton({
   rounded,
-  userId,
   ...githubUser
-}: GithubUserButtonProps) {
+}: GithubUserButtonProps & GithubUser) {
   const queryClient = useQueryClient()
   const { mutate: handleGithubLogout, isPending: isLoggingOut } =
     github.logout.useMutation({
       onSuccess: () => {
-        return queryClient.invalidateQueries(
-          github.githubUser.getOptions({ userId })
-        )
+        return queryClient.invalidateQueries(github.githubUser.getOptions())
       },
     })
 
@@ -333,7 +329,7 @@ function GithubUserButton({
         <Button variant="ghost" size="smIcon" className="size-6">
           <Avatar
             className={cn("size-6", rounded === "sm" && "rounded-sm")}
-            name={githubUser.name}
+            name={githubUser.name ?? ""}
             avatarUrl={githubUser.avatar_url}
           />
         </Button>
@@ -343,7 +339,7 @@ function GithubUserButton({
           <DropdownMenuSubTrigger>
             <Avatar
               className="size-6"
-              name={githubUser.name}
+              name={githubUser.name ?? ""}
               avatarUrl={githubUser.avatar_url}
             />
             <div className="grid flex-1 text-left text-sm leading-tight ml-2">
@@ -360,9 +356,7 @@ function GithubUserButton({
               <DropdownMenuItem
                 onSelect={(e) => {
                   e.preventDefault()
-                  handleGithubLogout({
-                    userId,
-                  })
+                  handleGithubLogout()
                 }}
               >
                 {isLoggingOut && (

@@ -22,7 +22,7 @@ export default function DashboardSharedWithMe({
     type: string
     author: string
     authorAvatarUrl: string
-    sharedOn: Date
+    sharedOn: string
   }[]
 }) {
   return (

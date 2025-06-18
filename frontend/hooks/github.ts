@@ -12,10 +12,7 @@ import { router } from "react-query-kit"
 
 export const github = router("github", {
   githubUser: router.query({
-    fetcher: async (data: { code?: string; userId: string }) => {
-      const res = await getGitHubUser(data)
-      return res
-    },
+    fetcher: getGitHubUser,
   }),
   login: router.mutation({
     mutationFn: githubLogin,
@@ -36,9 +33,6 @@ export const github = router("github", {
     mutationFn: removeRepo,
   }),
   repoStatus: router.query({
-    fetcher: async (data: { projectId: string }) => {
-      const res = await getRepoStatus(data)
-      return res
-    },
+    fetcher: getRepoStatus,
   }),
 })

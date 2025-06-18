@@ -1,12 +1,21 @@
-import {
-  Sandbox as Container,
-  FilesystemEvent,
-  FilesystemEventType,
-  WatchHandle,
-} from "e2b"
+import { Sandbox as Container, FilesystemEvent, WatchHandle } from "e2b"
 import path from "path"
 import { MAX_BODY_SIZE } from "../utils/ratelimit"
 import { TFile, TFolder } from "../utils/types"
+
+// Local enum to avoid issues with const enums and isolatedModules
+enum LocalFilesystemEventType {
+  CREATE = "CREATE",
+  REMOVE = "REMOVE",
+  RENAME = "RENAME",
+}
+
+// Type guard to check if the event type is one we care about
+function isRelevantEventType(
+  type: string
+): type is "CREATE" | "REMOVE" | "RENAME" {
+  return type === "CREATE" || type === "REMOVE" || type === "RENAME"
+}
 
 // FileManager class to handle file operations in a container
 export class FileManager {
@@ -102,11 +111,7 @@ export class FileManager {
         async (event: FilesystemEvent) => {
           try {
             // Tell the client to reload the file list
-            if (
-              event.type === FilesystemEventType.CREATE ||
-              event.type === FilesystemEventType.REMOVE ||
-              event.type === FilesystemEventType.RENAME
-            ) {
+            if (isRelevantEventType(event.type)) {
               this.fileWatchCallback?.(await this.getFileTree())
             }
           } catch (error) {

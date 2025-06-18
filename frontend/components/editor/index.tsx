@@ -37,6 +37,7 @@ export default function CodeEditor({
   userData: User
   sandboxData: Sandbox
 }) {
+
   // Alert State
   const [showAlert, setShowAlert] = useState<AlertState>(null)
 
@@ -77,7 +78,6 @@ export default function CodeEditor({
     setDisableAccess,
     loadPreviewURL,
   })
-
   // Socket management
   const { socket, timeoutDialog, setTimeoutDialog } = useEditorSocket({
     userData,
@@ -112,6 +112,7 @@ export default function CodeEditor({
       } else {
         setIsAIChatOpen(value)
       }
+
     },
   })
 

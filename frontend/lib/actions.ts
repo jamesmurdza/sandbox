@@ -1,30 +1,30 @@
 "use server"
 
+import { apiClient } from "@/server/client"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { editUserSchema } from "./schema"
 import { UserLink } from "./types"
-import { fetchWithAuth } from "./server-utils"
 import { parseSocialLink } from "./utils"
 
 export async function createSandbox(body: {
   type: string
   name: string
   userId: string
-  visibility: string
+  visibility: "public" | "private"
 }) {
-  const res = await fetchWithAuth(
-    `${process.env.NEXT_PUBLIC_SERVER_URL}/api/sandbox`,
-    {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-    }
-  )
-
-  return await res.text()
+  const res = await apiClient.project.$post({
+    json: {
+      ...body,
+      repositoryId: null,
+      containerId: null,
+      createdAt: new Date(),
+    },
+  })
+  if (!res.ok) {
+    throw new Error("Failed to create sandbox")
+  }
+  return (await res.json()).data.sandbox.id
 }
 
 export async function updateSandbox(body: {
@@ -32,39 +32,25 @@ export async function updateSandbox(body: {
   name?: string
   visibility?: "public" | "private"
 }) {
-  await fetchWithAuth(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/sandbox`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
+  await apiClient.project.$patch({
+    json: body,
   })
 
   revalidatePath("/dashboard")
 }
 
 export async function deleteSandbox(id: string) {
-  await fetchWithAuth(
-    `${process.env.NEXT_PUBLIC_SERVER_URL}/api/sandbox?id=${id}`,
-    {
-      method: "DELETE",
-    }
-  )
+  await apiClient.project.$delete({
+    query: { id },
+  })
 
   revalidatePath("/dashboard")
 }
 
 export async function shareSandbox(sandboxId: string, email: string) {
-  const res = await fetchWithAuth(
-    `${process.env.NEXT_PUBLIC_SERVER_URL}/api/sandbox/share`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ sandboxId, email }),
-    }
-  )
+  const res = await apiClient.project.share.$post({
+    json: { sandboxId, email },
+  })
   const text = await res.text()
 
   if (res.status !== 200) {
@@ -76,31 +62,17 @@ export async function shareSandbox(sandboxId: string, email: string) {
 }
 
 export async function unshareSandbox(sandboxId: string, userId: string) {
-  await fetchWithAuth(
-    `${process.env.NEXT_PUBLIC_SERVER_URL}/api/sandbox/share`,
-    {
-      method: "DELETE",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ sandboxId, userId }),
-    }
-  )
+  await apiClient.project.share.$delete({
+    json: { sandboxId, userId },
+  })
 
   revalidatePath(`/code/${sandboxId}`)
 }
 
 export async function toggleLike(sandboxId: string, userId: string) {
-  const res = await fetchWithAuth(
-    `${process.env.NEXT_PUBLIC_SERVER_URL}/api/sandbox/like`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ sandboxId, userId }),
-    }
-  )
+  await apiClient.project.like.$post({
+    json: { sandboxId, userId },
+  })
   revalidatePath(`/[username]`, "page")
   revalidatePath(`/dashboard`, "page")
 }
@@ -145,23 +117,16 @@ export async function updateUser(
   try {
     const validatedData = editUserSchema.parse(data)
     const changedUsername = validatedData.username !== validatedData.oldUsername
-    const res = await fetchWithAuth(
-      `${process.env.NEXT_PUBLIC_SERVER_URL}/api/user`,
-      {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          id: validatedData.id,
-          username: data.username ?? undefined,
-          name: data.name ?? undefined,
-          bio: data.bio ?? undefined,
-          personalWebsite: data.personalWebsite ?? undefined,
-          links: data.links ?? undefined,
-        }),
-      }
-    )
+    const res = await apiClient.user.$patch({
+      json: {
+        id: validatedData.id,
+        username: validatedData.username ?? undefined,
+        name: validatedData.name ?? undefined,
+        bio: validatedData.bio ?? undefined,
+        personalWebsite: validatedData.personalWebsite ?? undefined,
+        links: validatedData.links ?? undefined,
+      },
+    })
 
     const responseData = await res.json()
 
@@ -194,147 +159,71 @@ export async function updateUser(
     return { message: "An unexpected error occurred", fields: data }
   }
 }
-export type GithubUser = {
-  name: string
-  avatar_url: string
-  login: string
-  html_url: string
-  // ...the rest
-}
 
-export async function getGitHubUser({
-  code,
-  userId,
-}: {
-  code?: string
-  userId: string
-}) {
-  const res = await fetchWithAuth(
-    `${
-      process.env.NEXT_PUBLIC_SERVER_URL
-    }/api/github/user?${new URLSearchParams(
-      code ? { code, userId } : { userId }
-    )}`,
-    {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    }
-  )
-  const json = await res.json()
-  const data = json.data as GithubUser
-  if (res.status !== 200) {
+export async function getGitHubUser() {
+  const res = await apiClient.github.user.$get()
+  if (!res.ok) {
     return null
   }
+  const data = await res.json()
+
   return data
 }
+
+export type GithubUser = NonNullable<
+  Awaited<ReturnType<typeof getGitHubUser>>
+>["data"]
 
 export async function getGitHubAuthUrl() {
-  const res = await fetchWithAuth(
-    `${process.env.NEXT_PUBLIC_SERVER_URL}/api/github/authenticate/url`,
-    {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    }
-  )
-
-  const data = (await res.json()).data as {
-    auth_url: string
+  const res = await apiClient.github["auth_url"].$get()
+  if (!res.ok) {
+    throw new Error("Failed to get GitHub auth URL")
   }
-
-  if (res.status !== 200) {
-    throw new Error("No auth URL received")
-  }
+  const data = await res.json()
   return data
 }
 
-export async function githubLogin({
-  code,
-  userId,
-}: {
-  code: string
-  userId: string
-}) {
-  const res = await fetchWithAuth(
-    `${process.env.NEXT_PUBLIC_SERVER_URL}/api/github/login`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ code, userId }),
-    }
-  )
-  const data = (await res.json()).data as GithubUser
-  if (res.status !== 200) {
+export async function githubLogin({ code }: { code: string }) {
+  const res = await apiClient.github.login.$post({
+    query: { code },
+  })
+  if (!res.ok) {
     throw new Error("Login failed")
   }
+  const data = await res.json()
   return data
 }
 
-export async function githubLogout({ userId }: { userId: string }) {
-  const res = await fetchWithAuth(
-    `${process.env.NEXT_PUBLIC_SERVER_URL}/api/github/logout`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ userId }),
-    }
-  )
-  const data = (await res.json()).data as GithubUser
-
-  if (res.status !== 200) {
+export async function githubLogout() {
+  const res = await apiClient.github.logout.$post()
+  if (!res.ok) {
     throw new Error("Logout failed")
   }
+  const data = await res.json()
   return data
 }
 
 export async function getRepoStatus({ projectId }: { projectId: string }) {
-  const res = await fetchWithAuth(
-    `${
-      process.env.NEXT_PUBLIC_SERVER_URL
-    }/api/github/repo/status?${new URLSearchParams({ projectId })}`,
-    {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    }
-  )
-  const data = (await res.json()).data as {
-    existsInDB: boolean
-    existsInGitHub: boolean
-    repo?: {
-      id: string
-      name: string
-    }
+  const res = await apiClient.github.repo.status.$get({
+    query: { projectId },
+  })
+  if (!res.ok) {
+    throw new Error("Failed to get repo status")
   }
-  if (res.status !== 200) {
-    throw new Error("Repo status check failed")
-  }
+  const data = await res.json()
   return data
 }
 
 export async function createRepo({ projectId }: { projectId: string }) {
-  const res = await fetchWithAuth(
-    `${process.env.NEXT_PUBLIC_SERVER_URL}/api/github/repo/create`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ projectId }),
-    }
-  )
-  const data = (await res.json()).data as { repoUrl: string }
-  if (res.status !== 200) {
-    throw new Error("Repo creation failed")
+  const res = await apiClient.github.repo.create.$post({
+    json: {
+      projectId,
+    },
+  })
+  if (!res.ok) {
+    throw new Error("Failed to create repository")
   }
+  const data = await res.json()
   return data
 }
 
@@ -345,37 +234,26 @@ export async function createCommit({
   projectId: string
   message: string
 }) {
-  const res = await fetchWithAuth(
-    `${process.env.NEXT_PUBLIC_SERVER_URL}/api/github/repo/commit`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ projectId, message }),
-    }
-  )
-  const data = (await res.json()).data as { repoUrl: string }
-  if (res.status !== 200) {
-    throw new Error("Repo creation failed")
+  const res = await apiClient.github.repo.commit.$post({
+    json: {
+      projectId,
+      message,
+    },
+  })
+  if (!res.ok) {
+    throw new Error("Failed to commit changes")
   }
+  const data = await res.json()
   return data
 }
 
 export async function removeRepo({ projectId }: { projectId: string }) {
-  const res = await fetchWithAuth(
-    `${process.env.NEXT_PUBLIC_SERVER_URL}/api/github/repo/remove`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ projectId }),
-    }
-  )
-  const data = (await res.json()).data as null
-  if (res.status !== 200) {
-    throw new Error("Repo creation failed")
+  const res = await apiClient.github.repo.remove.$delete({
+    json: { projectId },
+  })
+  if (!res.ok) {
+    throw new Error("Failed to remove repository")
   }
+  const data = await res.json()
   return data
 }

@@ -76,6 +76,7 @@ export default function DashboardProjects({
                   deletingId={deletingId}
                   isAuthenticated
                   {...sandbox}
+                  createdAt={new Date(sandbox.createdAt)}
                 />
               )
             })}

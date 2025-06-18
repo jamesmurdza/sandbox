@@ -1,4 +1,4 @@
-import { fetchWithAuth } from "@/lib/server-utils"
+import { apiClient } from "@/server/client"
 import { currentUser } from "@clerk/nextjs/server"
 
 export async function POST(request: Request) {
@@ -12,20 +12,13 @@ export async function POST(request: Request) {
 
     // handle payment processing here
 
-    const response = await fetchWithAuth(
-      `${process.env.NEXT_PUBLIC_SERVER_URL}/api/user/update-tier`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          userId: user.id,
-          tier,
-          tierExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
-        }),
-      }
-    )
+    const response = await apiClient.user["update-tier"].$post({
+      json: {
+        userId: user.id,
+        tier,
+        tierExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+      },
+    })
 
     if (!response.ok) {
       throw new Error("Failed to upgrade tier")
