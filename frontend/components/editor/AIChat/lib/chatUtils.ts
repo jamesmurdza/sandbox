@@ -247,7 +247,8 @@ export const looksLikeCode = (text: string): boolean => {
 // Add this new function after looksLikeCode function
 export const isFilePath = (text: string): boolean => {
   // Match patterns like next/styles/SignIn.module.css or path/to/file.ext (new file)
+  // Updated to allow spaces in file and folder names
   const pattern =
-    /^(?:[a-zA-Z0-9_.-]+\/)*[a-zA-Z0-9_.-]+\.[a-zA-Z0-9]+(\s+\(new file\))?$/
+    /^(?:[a-zA-Z0-9_.\- ]+\/)*[a-zA-Z0-9_.\- ]+\.[a-zA-Z0-9]+(\s+\(new file\))?$/
   return pattern.test(text)
 }

@@ -26,8 +26,10 @@ export const createMarkdownComponents = (
   mergeDecorationsCollection?: monaco.editor.IEditorDecorationsCollection,
   setMergeDecorationsCollection?: (collection: undefined) => void
 ): Components => {
-  // State to track the intended file for the next code block
-  let intendedFile: string | null = null
+  // Create a simple component-scoped tracker that won't cause re-renders
+  // Using a closure variable instead of window storage for better type safety
+  let fileIntentions = new Map<number, string>()
+  let paragraphIndex = 0
 
   return {
   code: ({
@@ -58,6 +60,12 @@ export const createMarkdownComponents = (
       }
     }
 
+    // Get the intended file for this code block (latest one before this code block)
+    const currentCodeBlockIndex = paragraphIndex++
+    const intendedFile = Array.from(fileIntentions.entries())
+      .filter(([index]: [number, string]) => index < currentCodeBlockIndex)
+      .pop()?.[1] || null
+
     return match ? (
       <div className="relative border border-input rounded-md mt-8 my-2 translate-y-[-1rem]">
         <div className="absolute top-0 left-0 px-2 py-1 text-xs font-semibold text-foreground/70 rounded-tl">
@@ -70,10 +78,11 @@ export const createMarkdownComponents = (
             {!mergeDecorationsCollection ? (
               (() => {
                 if (intendedFile) {
-                  const intendedFileName = intendedFile.split("/").pop()?.toLowerCase() || ""
-                  const currentFileName = activeFileName.toLowerCase()
+                  const intendedFileName = intendedFile.split("/").pop()?.trim() || ""
+                  const intendedFileNameLower = intendedFileName.toLowerCase()
+                  const currentFileName = activeFileName.toLowerCase().trim()
                   
-                  if (intendedFileName === currentFileName) {
+                  if (intendedFileNameLower === currentFileName) {
                     // Correct file - show normal apply
                     return (
                       <ApplyButton
@@ -228,18 +237,21 @@ export const createMarkdownComponents = (
   // Render markdown elements
   p: ({ node, children, ...props }) => {
     const content = stringifyContent(children)
+    const currentParagraphIndex = paragraphIndex++
 
     if (isFilePath(content)) {
       const isNewFile = content.endsWith("(new file)")
-      const filePath = (
-        isNewFile ? content.replace(" (new file)", "") : content
-      )
-        .split("/")
-        .filter((part, index) => index !== 0)
+      const cleanContent = isNewFile ? content.replace(" (new file)", "") : content
+      
+      // Handle path processing - remove project name (first part) but preserve spaces in file names
+      const pathParts = cleanContent.split("/")
+      // Filter out the first part (project name) and any empty parts
+      const filePath = pathParts
+        .filter((part, index) => index !== 0 && part.trim().length > 0)
         .join("/")
 
       // Set the intended file for the next code blocks
-      intendedFile = filePath
+      fileIntentions.set(currentParagraphIndex, filePath)
 
       const handleFileClick = () => {
         if (isNewFile) {
@@ -263,15 +275,29 @@ export const createMarkdownComponents = (
             })
         } else {
           // First check if the file exists in the current tabs
+          const fileName = filePath.split("/").pop() || ""
+          
           const existingTab = tabs.find(
-            (t) => t.id === filePath || t.name === filePath.split("/").pop()
+            (t) => {
+              // More robust matching that handles various path formats
+              const normalizedTId = t.id.replace(/^\/+/, "").toLowerCase()
+              const normalizedFilePath = filePath.replace(/^\/+/, "").toLowerCase()
+              const tFileName = t.name.split("/").pop()?.toLowerCase() || ""
+              const fileNameLower = fileName.toLowerCase()
+              
+              return normalizedTId === normalizedFilePath || 
+                     tFileName === fileNameLower || 
+                     normalizedTId.endsWith(fileNameLower) ||
+                     t.name === fileName
+            }
           )
+          
           if (existingTab) {
             selectFile(existingTab)
           } else {
             const tab: TTab = {
               id: filePath,
-              name: filePath.split("/").pop() || "",
+              name: fileName,
               saved: true,
               type: "file",
             }
