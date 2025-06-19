@@ -1,10 +1,10 @@
 "use client"
 
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
 } from "@/components/ui/dialog"
 import { zodResolver } from "@hookform/resolvers/zod"
 import Image from "next/image"
@@ -13,21 +13,21 @@ import { useForm } from "react-hook-form"
 import { z } from "zod"
 
 import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
+    Form,
+    FormControl,
+    FormDescription,
+    FormField,
+    FormItem,
+    FormLabel,
+    FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
 } from "@/components/ui/select"
 import { createSandbox } from "@/lib/actions"
 import { projectTemplates } from "@/lib/data"
@@ -43,11 +43,20 @@ import { WheelGesturesPlugin } from "embla-carousel-wheel-gestures"
 const formSchema = z.object({
   name: z
     .string()
-    .min(1)
-    .max(16)
+    .min(1, "Project name is required")
+    .max(16, "Project name must be 16 characters or less")
+    .transform((val) => val.trim())
     .refine(
-      (value) => /^[a-zA-Z0-9_]+$/.test(value),
-      "Name must be alphanumeric and can contain underscores"
+      (value) => value.length > 0,
+      "Project name cannot be empty or only spaces"
+    )
+    .refine(
+      (value) => /^[a-zA-Z0-9_ ]+$/.test(value),
+      "Project name can only contain letters, numbers, underscores, and spaces"
+    )
+    .refine(
+      (value) => !/  /.test(value),
+      "Project name cannot contain multiple consecutive spaces"
     ),
   visibility: z.enum(["public", "private"]),
 })
@@ -218,7 +227,7 @@ export default function NewProjectModal({
                   <FormControl>
                     <Input
                       disabled={loading}
-                      placeholder="My Project"
+                      placeholder="My Awesome Project"
                       {...field}
                     />
                   </FormControl>
