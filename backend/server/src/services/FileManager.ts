@@ -36,7 +36,7 @@ export class FileManager {
     // Run the command to retrieve paths
     // Ignore node_modules until we make this faster
     const result = await this.container.commands.run(
-      `cd /home/user/project && find * \\( -path 'node_modules' -prune \\) -o \\( -type d -exec echo {}/ \\; -o -type f -exec echo {} \\; \\)`
+      `cd "${this.dirName}" && find * \\( -path 'node_modules' -prune \\) -o \\( -type d -exec echo {}/ \\; -o -type f -exec echo {} \\; \\)`
     )
 
     // Process the stdout into an array of paths
@@ -212,7 +212,7 @@ export class FileManager {
 
     // Create an archive of the project directory
     await this.container.commands.run(
-      `cd ${this.dirName} && tar --exclude="node_modules" --exclude="venv" -czvf ${tempTarPath} .`,
+      `cd "${this.dirName}" && tar --exclude="node_modules" --exclude="venv" -czvf "${tempTarPath}" .`,
       {
         timeoutMs: 5000,
       }
@@ -220,11 +220,11 @@ export class FileManager {
 
     // Read the archive contents in base64 format
     const base64Result = await this.container.commands.run(
-      `cat ${tempTarPath} | base64 -w 0`
+      `cat "${tempTarPath}" | base64 -w 0`
     )
 
     // Delete the archive
-    await this.container.commands.run(`rm ${tempTarPath}`)
+    await this.container.commands.run(`rm "${tempTarPath}"`)
 
     // Return the base64 encoded tar.gz content
     return base64Result.stdout.trim()

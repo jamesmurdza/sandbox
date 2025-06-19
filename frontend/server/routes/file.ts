@@ -63,6 +63,9 @@ export const fileRouter = createRouter()
     ),
     async (c) => {
       const { fileId, projectId } = c.req.valid("query")
+      
+      // Decode URL-encoded file ID to handle spaces and special characters
+      const decodedFileId = decodeURIComponent(fileId)
 
       // Initialize project
       const project = new Project(projectId)
@@ -73,10 +76,10 @@ export const fileRouter = createRouter()
           throw new Error("File manager not available")
         }
 
-        const file = await project.fileManager.getFile(fileId)
+        const file = await project.fileManager.getFile(decodedFileId)
         return c.json(file)
       } catch (error) {
-        console.error(`Error reading file ${fileId}:`, error)
+        console.error(`Error reading file ${decodedFileId}:`, error)
         const errorMessage =
           error instanceof Error ? error.message : "Failed to read file"
         return c.json({ error: errorMessage }, 500)
@@ -129,6 +132,9 @@ export const fileRouter = createRouter()
     ),
     async (c) => {
       const { fileId, content, projectId } = c.req.valid("json")
+      
+      // Decode URL-encoded file ID to handle spaces and special characters
+      const decodedFileId = decodeURIComponent(fileId)
 
       // Initialize project
       const project = new Project(projectId)
@@ -143,7 +149,7 @@ export const fileRouter = createRouter()
           throw new Error("File manager not available")
         }
 
-        const result = await project.fileManager.saveFile(fileId, content)
+        const result = await project.fileManager.saveFile(decodedFileId, content)
         return c.json(
           {
             success: true,
@@ -292,6 +298,9 @@ export const fileRouter = createRouter()
     ),
     async (c) => {
       const { fileId, projectId } = c.req.valid("query")
+      
+      // Decode URL-encoded file ID to handle spaces and special characters
+      const decodedFileId = decodeURIComponent(fileId)
 
       const project = new Project(projectId)
       await project.initialize()
@@ -301,7 +310,7 @@ export const fileRouter = createRouter()
         // const user = c.get("user") as User
         // await deleteFileRL.consume(user.id, 1)
 
-        const result = await project.fileManager?.deleteFile(fileId)
+        const result = await project.fileManager?.deleteFile(decodedFileId)
         return c.json(
           {
             success: true,
@@ -369,12 +378,16 @@ export const fileRouter = createRouter()
     ),
     async (c) => {
       const { fileId, folderId, projectId } = c.req.valid("json")
+      
+      // Decode URL-encoded file IDs to handle spaces and special characters
+      const decodedFileId = decodeURIComponent(fileId)
+      const decodedFolderId = decodeURIComponent(folderId)
 
       const project = new Project(projectId)
       await project.initialize()
 
       try {
-        const result = await project.fileManager?.moveFile(fileId, folderId)
+        const result = await project.fileManager?.moveFile(decodedFileId, decodedFolderId)
         return c.json(
           {
             success: true,
@@ -442,12 +455,15 @@ export const fileRouter = createRouter()
     ),
     async (c) => {
       const { fileId, newName, projectId } = c.req.valid("json")
+      
+      // Decode URL-encoded file ID to handle spaces and special characters
+      const decodedFileId = decodeURIComponent(fileId)
 
       const project = new Project(projectId)
       await project.initialize()
 
       try {
-        await project.fileManager?.renameFile(fileId, newName)
+        await project.fileManager?.renameFile(decodedFileId, newName)
         return c.json(
           {
             success: true,
