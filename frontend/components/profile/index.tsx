@@ -587,7 +587,7 @@ function SandboxesPanel({
             </div>
           </>
         ) : (
-          <EmptyState type="private" isOwnProfile={isOwnProfile} />
+          <EmptyState type="public" isOwnProfile={isOwnProfile} />
         )}
       </div>
     )
@@ -663,26 +663,32 @@ function EmptyState({
   const [newProjectModalOpen, setNewProjectModalOpen] = useState(false)
 
   const text = useMemo(() => {
-    let title: string
-    let description: string
+    let title = ""
+    let description = ""
+
     switch (type) {
       case "public":
         title = "No public sandboxes yet"
         description = isOwnProfile
           ? "Create your first public sandbox to share your work with the world!"
-          : "user has no public sandboxes"
+          : "User has no public sandboxes"
+        break
 
       case "private":
         title = "No private sandboxes yet"
         description = isOwnProfile
           ? "Create your first private sandbox to start working on your personal projects!"
-          : "user has no private sandboxes"
+          : "User has no private sandboxes"
+        break
+
+      default:
+        title = "No sandboxes"
+        description = "Nothing to show here yet."
     }
-    return {
-      title,
-      description,
-    }
+
+    return { title, description }
   }, [type, isOwnProfile])
+
   const openModal = useCallback(() => setNewProjectModalOpen(true), [])
   return (
     <>

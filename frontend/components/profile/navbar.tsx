@@ -6,7 +6,7 @@ import { User } from "@/lib/types"
 import Link from "next/link"
 import { Button } from "../ui/button"
 
-export default function ProfileNavbar({ userData }: { userData: User }) {
+export default function ProfileNavbar({ userData }: { userData?: User }) {
   return (
     <nav className=" py-2 px-4 w-full flex items-center justify-between border-b border-border">
       <div className="flex items-center space-x-2">
@@ -25,7 +25,7 @@ export default function ProfileNavbar({ userData }: { userData: User }) {
       </div>
       <div className="flex items-center space-x-4">
         <ThemeSwitcher />
-        {Boolean(userData?.id) ? (
+        {userData ? (
           <UserButton userData={userData} />
         ) : (
           <Link href="/sign-in">

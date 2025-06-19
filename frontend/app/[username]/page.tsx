@@ -13,7 +13,7 @@ export default async function Page({
   const username = decodeURIComponent(rawUsername).replace("@", "")
 
   const [profileOwnerResponse, loggedInUserResponse] = await Promise.all([
-    apiClient.user.$get({
+    apiClient.user.profile.$get({
       query: {
         username,
       },
@@ -22,16 +22,11 @@ export default async function Page({
       query: {},
     }),
   ])
-  if (!profileOwnerResponse.ok || !loggedInUserResponse.ok) {
+  if (!profileOwnerResponse.ok) {
     notFound()
   }
 
   const profileOwner = (await profileOwnerResponse.json()).data
-  const loggedInUser = (await loggedInUserResponse.json()).data
-
-  if (!Boolean(profileOwner?.id)) {
-    notFound()
-  }
   const publicSandboxes: SandboxWithLiked[] = []
   const privateSandboxes: SandboxWithLiked[] = []
 
@@ -42,6 +37,20 @@ export default async function Page({
       privateSandboxes.push(sandbox as SandboxWithLiked)
     }
   })
+  if (!loggedInUserResponse.ok) {
+    return (
+      <section>
+        <ProfileNavbar />
+        <ProfilePage
+          publicSandboxes={publicSandboxes}
+          privateSandboxes={[]}
+          profileOwner={profileOwner}
+          loggedInUser={null}
+        />
+      </section>
+    )
+  }
+  const loggedInUser = (await loggedInUserResponse.json()).data
 
   const isUserLoggedIn = Boolean(loggedInUser?.id)
   return (
