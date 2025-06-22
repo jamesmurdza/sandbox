@@ -8,7 +8,6 @@ import {
 import { useEditorLayout } from "@/context/EditorLayoutContext"
 import { fileRouter } from "@/lib/api"
 import { defaultEditorOptions } from "@/lib/monaco/config"
-import { Sandbox } from "@/lib/types"
 import { processFileType } from "@/lib/utils"
 import { useAppStore } from "@/store/context"
 import Editor from "@monaco-editor/react"
@@ -29,9 +28,8 @@ import { SessionTimeoutDialog } from "./session-timeout-dialog"
 import Terminals from "./terminals"
 export interface EditorLayoutProps {
   isOwner: boolean
-
-  // Sandbox data
-  sandboxData: Sandbox
+  projectName: string
+  projectType: string
 }
 
 /**
@@ -40,7 +38,8 @@ export interface EditorLayoutProps {
  */
 export default function EditorLayout({
   isOwner,
-  sandboxData,
+  projectName,
+  projectType,
 }: EditorLayoutProps) {
   const { id: projectId } = useParams<{ id: string }>()
   const { resolvedTheme: theme } = useTheme()
@@ -282,8 +281,8 @@ export default function EditorLayout({
               onClose={toggleAIChat}
               editorRef={{ current: editorRef }}
               lastCopiedRangeRef={lastCopiedRangeRef}
-              templateType={sandboxData.type}
-              projectName={sandboxData.name}
+              templateType={projectType}
+              projectName={projectName}
               handleApplyCode={handleApplyCodeWithDecorations}
               mergeDecorationsCollection={mergeDecorationsCollection}
               setMergeDecorationsCollection={setMergeDecorationsCollection}

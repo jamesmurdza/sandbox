@@ -5,7 +5,6 @@ import {
   SidebarContent,
   SidebarRail,
 } from "@/components/ui/sidebar"
-import type { Sandbox } from "@/lib/types"
 import { FileExplorer } from "./file-explorer"
 import { GitHubSync } from "./github-sync"
 const sidebarItems = [
@@ -22,10 +21,10 @@ const sidebarItems = [
 ]
 
 interface AppSidebarProps {
-  sandboxData: Sandbox
+  userId: string
 }
 
-export default function AppSidebar({ sandboxData }: AppSidebarProps) {
+export default function AppSidebar({ userId }: AppSidebarProps) {
   return (
     <Sidebar defaultActiveItem="file">
       <SidebarRail>
@@ -37,11 +36,11 @@ export default function AppSidebar({ sandboxData }: AppSidebarProps) {
       </SidebarRail>
 
       <SidebarContent id="file">
-        <FileExplorer sandboxData={sandboxData} />
+        <FileExplorer />
       </SidebarContent>
 
       <SidebarContent id="github">
-        <GitHubSync sandboxId={sandboxData.id} userId={sandboxData.userId} />
+        <GitHubSync userId={userId} />
       </SidebarContent>
     </Sidebar>
   )

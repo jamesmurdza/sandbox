@@ -22,10 +22,13 @@ export default function CodeEditor({
     <div className="flex max-h-full overflow-hidden">
       <ChangesAlert />
       {/* Sidebar */}
-      <Sidebar sandboxData={sandboxData} />
-
+      <Sidebar userId={sandboxData.userId} />
       {/* Main Editor Layout */}
-      <EditorLayout isOwner={isOwner} sandboxData={sandboxData} />
+      <EditorLayout
+        isOwner={isOwner}
+        projectName={sandboxData.name}
+        projectType={sandboxData.type}
+      />
     </div>
   )
 }

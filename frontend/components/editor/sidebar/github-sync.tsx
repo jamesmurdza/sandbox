@@ -25,18 +25,14 @@ import {
   PackagePlus,
   RefreshCw,
 } from "lucide-react"
+import { useParams } from "next/navigation"
 import * as React from "react"
 import { toast } from "sonner"
 
 const REDIRECT_URI = "/loading"
 
-export function GitHubSync({
-  sandboxId,
-  userId,
-}: {
-  sandboxId: string
-  userId: string
-}) {
+export function GitHubSync({ userId }: { userId: string }) {
+  const { id: projectId } = useParams<{ id: string }>()
   const [commitMessage, setCommitMessage] = React.useState("")
   const queryClient = useQueryClient()
   const {
@@ -90,7 +86,7 @@ export function GitHubSync({
   })
   const { data: repoStatus } = githubRouter.repoStatus.useQuery({
     variables: {
-      projectId: sandboxId,
+      projectId: projectId,
     },
     select(data) {
       return data.data
@@ -109,7 +105,7 @@ export function GitHubSync({
         return queryClient
           .invalidateQueries(
             githubRouter.repoStatus.getOptions({
-              projectId: sandboxId,
+              projectId: projectId,
             })
           )
           .then(() => {
@@ -127,7 +123,7 @@ export function GitHubSync({
         return queryClient
           .invalidateQueries(
             githubRouter.repoStatus.getOptions({
-              projectId: sandboxId,
+              projectId: projectId,
             })
           )
           .then(() => {
@@ -199,7 +195,7 @@ export function GitHubSync({
                       onSelect={(e) => {
                         e.preventDefault()
                         deleteRepo({
-                          projectId: sandboxId,
+                          projectId: projectId,
                         })
                       }}
                     >
@@ -225,7 +221,7 @@ export function GitHubSync({
                 className="w-full font-normal"
                 onClick={() =>
                   syncToGithub({
-                    projectId: sandboxId,
+                    projectId: projectId,
                     message: commitMessage,
                   })
                 }
@@ -255,7 +251,7 @@ export function GitHubSync({
                 className="w-full font-normal"
                 onClick={() => {
                   handleCreateRepo({
-                    projectId: sandboxId,
+                    projectId: projectId,
                   })
                 }}
                 disabled={isCreatingRepo}

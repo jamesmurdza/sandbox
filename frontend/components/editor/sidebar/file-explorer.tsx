@@ -15,6 +15,7 @@ import {
   monitorForElements,
 } from "@atlaskit/pragmatic-drag-and-drop/element/adapter"
 import { FilePlus, FolderPlus, MessageSquareMore, Sparkles } from "lucide-react"
+import { useParams } from "next/navigation"
 import * as React from "react"
 import SidebarFile from "./file"
 import SidebarFolder from "./folder"
@@ -24,7 +25,8 @@ interface FileExplorerProps {
   sandboxData: Sandbox
 }
 
-export function FileExplorer({ sandboxData }: FileExplorerProps) {
+export function FileExplorer() {
+  const { id: projectId } = useParams<{ id: string }>()
   const { socket } = useSocket()
   const [creatingNew, setCreatingNew] = React.useState<
     "file" | "folder" | null
@@ -34,7 +36,7 @@ export function FileExplorer({ sandboxData }: FileExplorerProps) {
 
   const { data: files = [] } = fileRouter.fileTree.useQuery({
     variables: {
-      projectId: sandboxData.id,
+      projectId,
     },
     select(data) {
       return sortFileExplorer(data.data ?? [])
@@ -55,7 +57,7 @@ export function FileExplorer({ sandboxData }: FileExplorerProps) {
         },
       })
     }
-  }, [files, sandboxData.id])
+  }, [files, projectId])
 
   React.useEffect(() => {
     return monitorForElements({
@@ -80,7 +82,7 @@ export function FileExplorer({ sandboxData }: FileExplorerProps) {
           .$post({
             json: {
               fileId,
-              projectId: sandboxData.id,
+              projectId,
               folderId,
             },
           })
@@ -141,7 +143,7 @@ export function FileExplorer({ sandboxData }: FileExplorerProps) {
               )}
               {creatingNew !== null ? (
                 <New
-                  projectId={sandboxData.id}
+                  projectId={projectId}
                   type={creatingNew}
                   stopEditing={() => {
                     setCreatingNew(null)
