@@ -1,4 +1,4 @@
-import { GenerateState } from "@/hooks/useMonacoEditor"
+import { GenerateState } from "@/components/editor/hooks/useMonacoEditor"
 import { TTab } from "@/lib/types"
 import * as monaco from "monaco-editor"
 import { useCallback } from "react"
@@ -16,20 +16,18 @@ export interface UseGenerateWidgetProps {
 }
 
 export interface UseGenerateWidgetReturn {
-  generateInputProps: {
-    width: number
-    data: {
-      fileName: string
-      code: string
-      line: number
-    }
-    editor: {
-      language: string
-    }
-    onExpand: () => void
-    onAccept: (code: string) => void
-    onClose: () => void
+  width: number
+  data: {
+    fileName: string
+    code: string
+    line: number
   }
+  editor: {
+    language: string
+  }
+  onExpand: () => void
+  onAccept: (code: string) => void
+  onClose: () => void
 }
 
 /**
@@ -158,7 +156,5 @@ export function useGenerateWidget({
     onClose: handleClose,
   }
 
-  return {
-    generateInputProps,
-  }
+  return generateInputProps
 }

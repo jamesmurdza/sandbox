@@ -1,12 +1,12 @@
 import { AlertState } from "@/components/editor/changes-alert"
-import { TFile, TFolder, TTab } from "@/lib/types"
-import { debounce, processFileType, validateName } from "@/lib/utils"
+import { useSocket } from "@/context/SocketContext"
+import { TTab } from "@/lib/types"
+import { debounce, processFileType } from "@/lib/utils"
+import { apiClient } from "@/server/client"
+import { useParams } from "next/navigation"
 import { useCallback, useEffect, useRef, useState } from "react"
-import { toast } from "sonner"
 
 export interface UseFileManagerProps {
-  socket: any
-  setGenerate: (fn: (prev: any) => any) => void
   setShowAlert: (state: AlertState) => void
 }
 
@@ -24,14 +24,6 @@ export interface UseFileManagerReturn {
   prefetchFile: (tab: TTab) => void
   closeTab: (id: string) => void
   closeTabs: (ids: string[]) => void
-  handleRename: (
-    id: string,
-    newName: string,
-    oldName: string,
-    type: "file" | "folder"
-  ) => boolean
-  handleDeleteFile: (file: TFile) => void
-  handleDeleteFolder: (folder: TFolder) => void
   saveFile: (fileId?: string) => void
   updateActiveFileContent: (content: string) => void
 
@@ -40,21 +32,17 @@ export interface UseFileManagerReturn {
   setActiveFileContent: (content: string) => void
   setTabs: React.Dispatch<React.SetStateAction<TTab[]>>
   setEditorLanguage: (language: string) => void
-  setDeletingFolderId: (id: string) => void
 }
 
-export const useFileManager = ({
-  socket,
-  setGenerate,
-  setShowAlert,
-}: UseFileManagerProps): UseFileManagerReturn => {
+export const useFileManager = (): UseFileManagerReturn => {
   // File state
+  const { id: projectId } = useParams<{ id: string }>()
+  const { socket } = useSocket()
   const [tabs, setTabs] = useState<TTab[]>([])
   const [activeFileId, setActiveFileId] = useState<string>("")
   const [activeFileContent, setActiveFileContent] = useState("")
   const [fileContents, setFileContents] = useState<Record<string, string>>({})
   const [editorLanguage, setEditorLanguage] = useState("plaintext")
-  const [deletingFolderId, setDeletingFolderId] = useState("")
 
   // Cache for file operations
   const fileCache = useRef(new Map())
@@ -62,13 +50,25 @@ export const useFileManager = ({
   // Computed values
   const hasUnsavedFiles = tabs.some((tab) => !tab.saved)
 
-  // Debounced function to get file content
-  const debouncedGetFile = useCallback(
-    (tabId: string, callback: (content: string) => void) => {
-      socket?.emit("getFile", { fileId: tabId }, callback)
-    },
-    [socket]
-  )
+  const debouncedGetFile = (
+    tabId: string,
+    callback: (content: string) => void
+  ) => {
+    apiClient.file
+      .$get({
+        query: {
+          fileId: tabId,
+          projectId,
+        },
+      })
+      .then(async (res) => {
+        if (res.ok) {
+          const data = await res.json()
+
+          callback(data.data ?? "")
+        }
+      })
+  } // 300ms debounce delay, adjust as needed
 
   // Function to save the file content after a debounce period
   const debouncedSaveData = useCallback(
@@ -105,7 +105,8 @@ export const useFileManager = ({
     (tab: TTab) => {
       if (tab.id === activeFileId) return
 
-      setGenerate((prev) => ({ ...prev, show: false }))
+      // TODO: Handle generate state if needed
+      // setGenerate((prev) => ({ ...prev, show: false }))
 
       // Normalize the file path and name for comparison
       const normalizedId = tab.id.replace(/^\/+/, "") // Remove leading slashes
@@ -153,7 +154,7 @@ export const useFileManager = ({
         }
       }
     },
-    [activeFileId, tabs, fileContents, setGenerate, debouncedGetFile]
+    [activeFileId, tabs, fileContents, debouncedGetFile]
   )
 
   // Prefetch file function
@@ -238,60 +239,6 @@ export const useFileManager = ({
     [tabs, activeFileId, selectFile]
   )
 
-  // Handle rename function
-  const handleRename = useCallback(
-    (
-      id: string,
-      newName: string,
-      oldName: string,
-      type: "file" | "folder"
-    ): boolean => {
-      const valid = validateName(newName, oldName, type)
-      if (!valid.status) {
-        if (valid.message) toast.error("Invalid file name.")
-        return false
-      }
-
-      socket?.emit("renameFile", { fileId: id, newName })
-      setTabs((prev) =>
-        prev.map((tab) => (tab.id === id ? { ...tab, name: newName } : tab))
-      )
-
-      return true
-    },
-    [socket]
-  )
-
-  // Handle delete file function
-  const handleDeleteFile = useCallback(
-    (file: TFile) => {
-      socket?.emit("deleteFile", { fileId: file.id })
-      closeTab(file.id)
-    },
-    [socket, closeTab]
-  )
-
-  // Handle delete folder function
-  const handleDeleteFolder = useCallback(
-    (folder: TFolder) => {
-      setDeletingFolderId(folder.id)
-      console.log("deleting folder", folder.id)
-
-      socket?.emit("getFolder", { folderId: folder.id }, (response: string[]) =>
-        closeTabs(response)
-      )
-
-      socket?.emit(
-        "deleteFolder",
-        { folderId: folder.id },
-        (response: (TFolder | TFile)[]) => {
-          setDeletingFolderId("")
-        }
-      )
-    },
-    [socket, closeTabs]
-  )
-
   // Update active file content function
   const updateActiveFileContent = useCallback(
     (content: string) => {
@@ -342,9 +289,6 @@ export const useFileManager = ({
     prefetchFile,
     closeTab,
     closeTabs,
-    handleRename,
-    handleDeleteFile,
-    handleDeleteFolder,
     saveFile,
     updateActiveFileContent,
 
@@ -353,6 +297,5 @@ export const useFileManager = ({
     setActiveFileContent,
     setTabs,
     setEditorLanguage,
-    setDeletingFolderId,
   }
 }

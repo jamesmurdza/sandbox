@@ -1,3 +1,5 @@
+import { useSocket } from "@/context/SocketContext"
+import { fileRouter } from "@/lib/api"
 import {
   configureEditorKeybindings,
   defaultCompilerOptions,
@@ -11,8 +13,6 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { ImperativePanelHandle } from "react-resizable-panels"
 
 export interface UseMonacoEditorProps {
-  socket: any
-  files: (TFolder | TFile)[]
   editorPanelRef: React.RefObject<ImperativePanelHandle>
   setIsAIChatOpen: (fn: (prev: boolean) => boolean) => void
 }
@@ -67,18 +67,21 @@ export interface UseMonacoEditorReturn {
 }
 
 export const useMonacoEditor = ({
-  socket,
-  files,
   editorPanelRef,
   setIsAIChatOpen,
 }: UseMonacoEditorProps): UseMonacoEditorReturn => {
+  const { data: files = [] } = fileRouter.fileTree.useQuery({
+    select(data) {
+      return data.data
+    },
+  })
   // Editor state
   const [editorRef, setEditorRef] =
     useState<monaco.editor.IStandaloneCodeEditor>()
   const [cursorLine, setCursorLine] = useState(0)
   const [isSelected, setIsSelected] = useState(false)
   const [showSuggestion, setShowSuggestion] = useState(false)
-
+  const { socket } = useSocket()
   // AI Copilot state
   const [generate, setGenerate] = useState<GenerateState>({
     show: false,
@@ -497,6 +500,7 @@ export const useMonacoEditor = ({
     }
   }, [decorations.options, cursorLine, editorRef])
 
+  // useEffect(() => {}, [tabs])
   return {
     // Editor state
     editorRef,

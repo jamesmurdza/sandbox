@@ -12,7 +12,6 @@ export interface UseCopilotElementsProps {
     show: boolean
     [key: string]: any
   }
-  userData: any
   generateInputProps: any
 }
 
@@ -28,7 +27,6 @@ export interface UseCopilotElementsReturn {
     generateWidget: {
       show: boolean
       generateWidgetRef: RefObject<HTMLDivElement>
-      userData: any
       generateInputProps: any
     }
   }
@@ -45,7 +43,6 @@ export function useCopilotElements({
   showSuggestion,
   handleAiEdit,
   generate,
-  userData,
   generateInputProps,
 }: UseCopilotElementsProps): UseCopilotElementsReturn {
   const copilotElementsProps = {
@@ -59,7 +56,6 @@ export function useCopilotElements({
     generateWidget: {
       show: generate.show,
       generateWidgetRef,
-      userData,
       generateInputProps,
     },
   }
