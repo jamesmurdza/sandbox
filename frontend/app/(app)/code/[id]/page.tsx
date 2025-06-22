@@ -2,7 +2,6 @@
 import CodeEditor from "@/components/editor/CodeEditorWrapper"
 import Navbar from "@/components/editor/navbar"
 import { EditorLayoutProvider } from "@/context/EditorLayoutContext"
-import { PreviewProvider } from "@/context/PreviewContext"
 import { SocketProvider } from "@/context/SocketContext"
 import { TerminalProvider } from "@/context/TerminalContext"
 import { fileRouter, githubRouter } from "@/lib/api"
@@ -109,33 +108,31 @@ export default async function CodePage({
   }
 
   return (
-    <PreviewProvider>
-      <SocketProvider
-        token={authToken}
-        userId={userData.id}
-        sandboxId={sandboxData.id}
-      >
-        <AppStoreProvider>
-          <TerminalProvider>
-            <EditorLayoutProvider>
-              {/* <Room id={sandboxId}> */}
-              <div className="overflow-hidden overscroll-none w-screen h-screen grid [grid-template-rows:3.5rem_auto] bg-background">
-                <Navbar
-                  userData={userData}
-                  sandboxData={sandboxData}
-                  shared={
-                    shared as { id: string; name: string; avatarUrl: string }[]
-                  }
-                />
-                <HydrationBoundary state={dehydrate(queryClient)}>
-                  <CodeEditor userData={userData} sandboxData={sandboxData} />
-                </HydrationBoundary>
-              </div>
-              {/* </Room> */}
-            </EditorLayoutProvider>
-          </TerminalProvider>
-        </AppStoreProvider>
-      </SocketProvider>
-    </PreviewProvider>
+    <SocketProvider
+      token={authToken}
+      userId={userData.id}
+      sandboxId={sandboxData.id}
+    >
+      <AppStoreProvider>
+        <TerminalProvider>
+          <EditorLayoutProvider>
+            {/* <Room id={sandboxId}> */}
+            <div className="overflow-hidden overscroll-none w-screen h-screen grid [grid-template-rows:3.5rem_auto] bg-background">
+              <Navbar
+                userData={userData}
+                sandboxData={sandboxData}
+                shared={
+                  shared as { id: string; name: string; avatarUrl: string }[]
+                }
+              />
+              <HydrationBoundary state={dehydrate(queryClient)}>
+                <CodeEditor userData={userData} sandboxData={sandboxData} />
+              </HydrationBoundary>
+            </div>
+            {/* </Room> */}
+          </EditorLayoutProvider>
+        </TerminalProvider>
+      </AppStoreProvider>
+    </SocketProvider>
   )
 }
