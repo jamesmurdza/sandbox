@@ -181,7 +181,7 @@ export const useFileManager = (): UseFileManagerReturn => {
       // check if the tab has unsaved changes
       if (selectedTab && !selectedTab.saved) {
         // Show a confirmation dialog to the user
-        setShowAlert({ type: "tab", id })
+        // setShowAlert({ type: "tab", id })
         return
       }
       const nextId =
@@ -204,7 +204,7 @@ export const useFileManager = (): UseFileManagerReturn => {
         }
       }
     },
-    [tabs, activeFileId, setShowAlert, selectFile]
+    [tabs, activeFileId, selectFile]
   )
 
   // Close multiple tabs function
