@@ -1,81 +1,42 @@
 "use client"
 
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable"
+import { fileRouter } from "@/lib/api"
 import { defaultEditorOptions } from "@/lib/monaco/config"
-import { Sandbox, TFile, TFolder, TTab } from "@/lib/types"
-import { useClerk } from "@clerk/nextjs"
+import { Sandbox } from "@/lib/types"
+import { processFileType } from "@/lib/utils"
+import { useAppStore } from "@/store/context"
 import Editor from "@monaco-editor/react"
-import {
-  ArrowDownToLine,
-  ArrowRightToLine,
-  FileJson,
-  Loader2,
-  TerminalSquare,
-} from "lucide-react"
+import { FileJson, TerminalSquare, X } from "lucide-react"
 import * as monaco from "monaco-editor"
 import { useTheme } from "next-themes"
+import { useParams } from "next/navigation"
+import { useCallback, useRef, useState } from "react"
+import { ImperativePanelHandle } from "react-resizable-panels"
 import { Button } from "../ui/button"
 import Tab from "../ui/tab"
 import AIChat from "./AIChat"
+import CopilotElements from "./CopilotElements"
+import { useCodeDiffer } from "./hooks/useCodeDiffer"
+import { useEditorLayout } from "./hooks/useEditorLayout"
+import { useEditorSocket } from "./hooks/useEditorSocket"
+import { useMonacoEditor } from "./hooks/useMonacoEditor"
+import { useSocketHandlers } from "./hooks/useSocketHandlers"
 import PreviewWindow from "./preview"
 import Terminals from "./terminals"
-
 export interface EditorLayoutProps {
-  // Layout state
-  isHorizontalLayout: boolean
-  isPreviewCollapsed: boolean
-  isAIChatOpen: boolean
-  previewURL: string
   isOwner: boolean
-
-  // File state
-  tabs: TTab[]
-  activeFileId: string
-  activeFileContent: string
-  editorLanguage: string
-  files: (TFolder | TFile)[]
-
-  // Refs
-  editorPanelRef: React.RefObject<any>
-  editorContainerRef: React.RefObject<HTMLDivElement>
-  previewWindowRef: React.RefObject<any>
-  editorRef: monaco.editor.IStandaloneCodeEditor | undefined
-  lastCopiedRangeRef: React.MutableRefObject<{
-    startLine: number
-    endLine: number
-  } | null>
-
-  // Actions
-  selectFile: (tab: TTab) => void
-  closeTab: (tabId: string) => void
-  updateActiveFileContent: (content: string) => void
-  toggleLayout: () => void
-  toggleAIChat: () => void
-  togglePreviewPanel: () => void
-  setIsPreviewCollapsed: (collapsed: boolean) => void
-
-  // Monaco handlers
-  handleEditorWillMount: (monaco: any) => void
-  handleEditorMount: (
-    editor: monaco.editor.IStandaloneCodeEditor,
-    monaco: any
-  ) => void
-
-  // AI Chat props
-  handleApplyCodeWithDecorations: (
-    mergedCode: string,
-    originalCode: string
-  ) => void
-  mergeDecorationsCollection:
-    | monaco.editor.IEditorDecorationsCollection
-    | undefined
-  setMergeDecorationsCollection: React.Dispatch<
-    React.SetStateAction<monaco.editor.IEditorDecorationsCollection | undefined>
-  >
 
   // Sandbox data
   sandboxData: Sandbox
@@ -86,38 +47,101 @@ export interface EditorLayoutProps {
  * Monaco editor, preview window, terminals, and AI chat
  */
 export default function EditorLayout({
-  isHorizontalLayout,
-  isPreviewCollapsed,
-  isAIChatOpen,
-  previewURL,
   isOwner,
-  tabs,
-  activeFileId,
-  activeFileContent,
-  editorLanguage,
-  files,
-  editorPanelRef,
-  editorContainerRef,
-  previewWindowRef,
-  editorRef,
-  lastCopiedRangeRef,
-  selectFile,
-  closeTab,
-  updateActiveFileContent,
-  toggleLayout,
-  toggleAIChat,
-  togglePreviewPanel,
-  setIsPreviewCollapsed,
-  handleEditorWillMount,
-  handleEditorMount,
-  handleApplyCodeWithDecorations,
-  mergeDecorationsCollection,
-  setMergeDecorationsCollection,
   sandboxData,
 }: EditorLayoutProps) {
+  const { id: projectId } = useParams<{ id: string }>()
   const { resolvedTheme: theme } = useTheme()
-  const clerk = useClerk()
+  const tabs = useAppStore((s) => s.tabs)
+  const activeTab = useAppStore((s) => s.activeTab)
+  const setActiveTab = useAppStore((s) => s.setActiveTab)
+  const removeTab = useAppStore((s) => s.removeTab)
+  const editorLanguage = activeTab?.name
+    ? processFileType(activeTab.name)
+    : "plaintext"
+  const { data: serverActiveFile } = fileRouter.fileContent.useQuery({
+    enabled: !!activeTab?.id,
+    variables: {
+      fileId: activeTab?.id ?? "",
+      projectId,
+    },
+    select(data) {
+      return data.data
+    },
+  })
+  // Layout refs
+  const editorContainerRef = useRef<HTMLDivElement>(null)
+  const editorPanelRef = useRef<ImperativePanelHandle>(null)
+  const previewWindowRef = useRef<{ refreshIframe: () => void }>(null)
 
+  // Apply Button merger decoration state
+  const [mergeDecorationsCollection, setMergeDecorationsCollection] =
+    useState<monaco.editor.IEditorDecorationsCollection>()
+
+  // Editor layout and state management
+  const {
+    isHorizontalLayout,
+    isPreviewCollapsed,
+    isAIChatOpen,
+    previewURL,
+    togglePreviewPanel,
+    toggleLayout,
+    toggleAIChat,
+    loadPreviewURL,
+    setIsAIChatOpen,
+    setIsPreviewCollapsed,
+  } = useEditorLayout()
+  const { socketHandlers } = useSocketHandlers({
+    loadPreviewURL,
+  })
+  const { timeoutDialog, setTimeoutDialog } = useEditorSocket({
+    isOwner,
+    handlers: socketHandlers,
+  })
+
+  // Monaco editor management
+  const {
+    editorRef,
+    cursorLine,
+    isSelected,
+    showSuggestion,
+    generate,
+    setGenerate,
+    generateRef,
+    suggestionRef,
+    generateWidgetRef,
+    lastCopiedRangeRef,
+    handleEditorWillMount,
+    handleEditorMount,
+    handleAiEdit,
+  } = useMonacoEditor({
+    editorPanelRef,
+    setIsAIChatOpen: (value) => {
+      if (typeof value === "function") {
+        setIsAIChatOpen((prev) => value(prev))
+      } else {
+        setIsAIChatOpen(value)
+      }
+    },
+  })
+
+  // Code diff and merge logic
+  const { handleApplyCode } = useCodeDiffer({
+    editorRef: editorRef || null,
+  })
+
+  // Wrapper for handleApplyCode to manage decorations collection state
+  const handleApplyCodeWithDecorations = useCallback(
+    (mergedCode: string, originalCode: string) => {
+      const decorationsCollection = handleApplyCode(mergedCode, originalCode)
+      if (decorationsCollection) {
+        setMergeDecorationsCollection(decorationsCollection)
+      }
+    },
+    [handleApplyCode]
+  )
+  // TODO: UPDATE FUNCTION
+  const updateActiveFileContent = (content: string) => {}
   return (
     <ResizablePanelGroup
       direction={isHorizontalLayout ? "horizontal" : "vertical"}
@@ -140,9 +164,9 @@ export default function EditorLayout({
                 <Tab
                   key={tab.id}
                   saved={tab.saved}
-                  selected={activeFileId === tab.id}
-                  onClick={() => selectFile(tab)}
-                  onClose={() => closeTab(tab.id)}
+                  selected={activeTab?.id === tab.id}
+                  onClick={() => setActiveTab(tab)}
+                  onClose={() => removeTab(tab)}
                 >
                   {tab.name}
                 </Tab>
@@ -154,28 +178,40 @@ export default function EditorLayout({
               ref={editorContainerRef}
               className="grow w-full overflow-hidden rounded-md relative"
             >
-              {!activeFileId ? (
+              {!activeTab?.id ? (
                 <div className="w-full h-full flex items-center justify-center text-xl font-medium text-muted-foreground/50 select-none">
                   <FileJson className="w-6 h-6 mr-3" />
                   No file selected.
                 </div>
-              ) : clerk.loaded ? (
-                <Editor
-                  height="100%"
-                  language={editorLanguage}
-                  beforeMount={handleEditorWillMount}
-                  onMount={handleEditorMount}
-                  path={activeFileId}
-                  onChange={(value) => updateActiveFileContent(value ?? "")}
-                  theme={theme === "light" ? "vs" : "vs-dark"}
-                  options={defaultEditorOptions}
-                  value={activeFileContent}
-                />
               ) : (
-                <div className="w-full h-full flex items-center justify-center text-xl font-medium text-muted-foreground/50 select-none">
-                  <Loader2 className="animate-spin w-6 h-6 mr-3" />
-                  Waiting for Clerk to load...
-                </div>
+                <>
+                  <Editor
+                    height="100%"
+                    language={editorLanguage}
+                    beforeMount={handleEditorWillMount}
+                    onMount={handleEditorMount}
+                    path={activeTab.id}
+                    onChange={(value) => updateActiveFileContent(value ?? "")}
+                    theme={theme === "light" ? "vs" : "vs-dark"}
+                    options={defaultEditorOptions}
+                    value={serverActiveFile}
+                  />
+                  <CopilotElements
+                    editorRef={editorRef}
+                    cursorLine={cursorLine}
+                    isSelected={isSelected}
+                    showSuggestion={showSuggestion}
+                    generate={generate}
+                    setGenerate={setGenerate}
+                    generateRef={generateRef}
+                    suggestionRef={suggestionRef}
+                    generateWidgetRef={generateWidgetRef}
+                    handleAiEdit={handleAiEdit}
+                    tabs={tabs}
+                    activeFileId={activeTab.id}
+                    editorLanguage={editorLanguage}
+                  />
+                </>
               )}
             </div>
           </ResizablePanel>
@@ -205,32 +241,15 @@ export default function EditorLayout({
                 onCollapse={() => setIsPreviewCollapsed(true)}
                 onExpand={() => setIsPreviewCollapsed(false)}
               >
-                <div className="flex items-center justify-between">
-                  <Button
-                    onClick={toggleLayout}
-                    size="sm"
-                    variant="ghost"
-                    className="mr-2 border"
-                    disabled={isAIChatOpen}
-                  >
-                    {isHorizontalLayout ? (
-                      <ArrowRightToLine className="w-4 h-4" />
-                    ) : (
-                      <ArrowDownToLine className="w-4 h-4" />
-                    )}
-                  </Button>
-                  <PreviewWindow
-                    open={togglePreviewPanel}
-                    collapsed={isPreviewCollapsed}
-                    src={previewURL}
-                    ref={previewWindowRef}
-                  />
-                </div>
-                {!isPreviewCollapsed && (
-                  <div className="w-full grow rounded-md overflow-hidden bg-background mt-2">
-                    <iframe width="100%" height="100%" src={previewURL} />
-                  </div>
-                )}
+                <PreviewWindow
+                  open={togglePreviewPanel}
+                  collapsed={isPreviewCollapsed}
+                  src={previewURL}
+                  ref={previewWindowRef}
+                  toggleLayout={toggleLayout}
+                  isHorizontal={isHorizontalLayout}
+                  isAIChatOpen={isAIChatOpen}
+                />
               </ResizablePanel>
 
               <ResizableHandle />
@@ -263,24 +282,43 @@ export default function EditorLayout({
             <AIChat
               activeFileContent={activeFileContent}
               activeFileName={
-                tabs.find((tab) => tab.id === activeFileId)?.name ||
+                tabs.find((tab) => tab.id === activeTab?.id)?.name ||
                 "No file selected"
               }
               onClose={toggleAIChat}
               editorRef={{ current: editorRef }}
               lastCopiedRangeRef={lastCopiedRangeRef}
-              files={files}
               templateType={sandboxData.type}
               projectName={sandboxData.name}
               handleApplyCode={handleApplyCodeWithDecorations}
               mergeDecorationsCollection={mergeDecorationsCollection}
               setMergeDecorationsCollection={setMergeDecorationsCollection}
-              selectFile={selectFile}
+              selectFile={setActiveTab}
               tabs={tabs}
             />
           </ResizablePanel>
         </>
       )}
+      {/* Session Timeout Dialog */}
+      <Dialog open={timeoutDialog} onOpenChange={setTimeoutDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <X className="h-5 w-5 text-destructive" />
+              Session Timeout
+            </DialogTitle>
+            <DialogDescription className="pt-2">
+              Your project session has timed out. Please refresh the page to
+              continue working.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end">
+            <Button variant="default" onClick={() => window.location.reload()}>
+              Refresh Page
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </ResizablePanelGroup>
   )
 }
