@@ -1,6 +1,6 @@
 // React component for download button
 import { Button } from "@/components/ui/button"
-import { apiClient } from "@/server/client-side-client"
+import { apiClient } from "@/server/client"
 import { Download } from "lucide-react"
 
 export default function DownloadButton({
