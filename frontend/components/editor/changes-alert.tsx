@@ -8,22 +8,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { useAppStore } from "@/store/context"
 export type AlertState = null | { type: "tab"; id: string }
 
-export default function ChangesAlert({
-  state,
-  setState,
-  onAccept,
-}: {
-  state: AlertState
-  setState: (state: AlertState) => void
-  onAccept: () => void
-}) {
+export default function ChangesAlert() {
+  const state = useAppStore((s) => s.unsavedAlert)
+  const setState = useAppStore((s) => s.setUnsavedAlert)
+  const onAccept = useAppStore((s) => s.removeTab)
+  const toBeRemovedTab = useAppStore((s) => s.toBeRemovedTab)
   return (
-    <AlertDialog
-      open={!!state}
-      onOpenChange={(open) => (open ? null : setState(null))}
-    >
+    <AlertDialog open={state} onOpenChange={setState}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Are you sure?</AlertDialogTitle>
@@ -35,15 +29,16 @@ export default function ChangesAlert({
         <AlertDialogFooter>
           <AlertDialogCancel
             onClick={() => {
-              setState(null)
+              setState(false)
             }}
           >
             Cancel
           </AlertDialogCancel>
           <AlertDialogAction
             onClick={() => {
-              onAccept()
-              setState(null)
+              if (toBeRemovedTab) {
+                onAccept(toBeRemovedTab, true)
+              }
             }}
           >
             Okay
