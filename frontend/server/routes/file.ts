@@ -74,7 +74,7 @@ export const fileRouter = createRouter()
         }
 
         const file = await project.fileManager.getFile(fileId)
-        return c.json(file)
+        return c.json({ message: "success", data: file })
       } catch (error) {
         console.error(`Error reading file ${fileId}:`, error)
         const errorMessage =
@@ -143,12 +143,11 @@ export const fileRouter = createRouter()
           throw new Error("File manager not available")
         }
 
-        const result = await project.fileManager.saveFile(fileId, content)
+        await project.fileManager.saveFile(fileId, content)
         return c.json(
           {
             success: true,
             message: "File saved successfully",
-            data: result,
           },
           200
         )
@@ -521,13 +520,11 @@ export const fileRouter = createRouter()
         // const user = c.get("user") as User
         // await createFolderRL.consume(user.id, 1)
 
-        const success = await project.fileManager?.createFolder(name)
+        await project.fileManager?.createFolder(name)
         return c.json(
           {
-            success,
-            message: success
-              ? "Folder created successfully"
-              : "Failed to create folder",
+            success: true,
+            message: "Folder created successfully",
           },
           200
         )
