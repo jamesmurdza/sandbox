@@ -52,14 +52,18 @@ export default function EditorLayout({
 }: EditorLayoutProps) {
   const { id: projectId } = useParams<{ id: string }>()
   const { resolvedTheme: theme } = useTheme()
+  // Store States
   const tabs = useAppStore((s) => s.tabs)
   const activeTab = useAppStore((s) => s.activeTab)
   const setActiveTab = useAppStore((s) => s.setActiveTab)
   const removeTab = useAppStore((s) => s.removeTab)
+  const draft = useAppStore((s) => s.drafts[activeTab?.id ?? ""])
+  const setDraft = useAppStore((s) => s.setDraft)
   const editorLanguage = activeTab?.name
     ? processFileType(activeTab.name)
     : "plaintext"
-  const { data: serverActiveFile } = fileRouter.fileContent.useQuery({
+
+  const { data: serverActiveFile = "" } = fileRouter.fileContent.useQuery({
     enabled: !!activeTab?.id,
     variables: {
       fileId: activeTab?.id ?? "",
@@ -69,6 +73,8 @@ export default function EditorLayout({
       return data.data
     },
   })
+
+  const activeFileContent = draft === undefined ? serverActiveFile : draft
   // Layout refs
   const editorContainerRef = useRef<HTMLDivElement>(null)
   const editorPanelRef = useRef<ImperativePanelHandle>(null)
@@ -141,7 +147,12 @@ export default function EditorLayout({
     [handleApplyCode]
   )
   // TODO: UPDATE FUNCTION
-  const updateActiveFileContent = (content: string) => {}
+  const updateActiveFileContent = (content?: string) => {
+    if (!activeTab) {
+      return
+    }
+    setDraft(activeTab.id, content ?? "")
+  }
   return (
     <ResizablePanelGroup
       direction={isHorizontalLayout ? "horizontal" : "vertical"}
@@ -191,10 +202,10 @@ export default function EditorLayout({
                     beforeMount={handleEditorWillMount}
                     onMount={handleEditorMount}
                     path={activeTab.id}
-                    onChange={(value) => updateActiveFileContent(value ?? "")}
+                    onChange={updateActiveFileContent}
                     theme={theme === "light" ? "vs" : "vs-dark"}
                     options={defaultEditorOptions}
-                    value={serverActiveFile}
+                    value={activeFileContent}
                   />
                   <CopilotElements
                     editorRef={editorRef}

@@ -8,6 +8,7 @@ interface EditorSlice {
   activeTabContent: string
   unsavedAlert: boolean
   toBeRemovedTab?: TTab
+  drafts: Record<string, string>
 
   // Actions
   setTabs: (tabs: TTab[] | ((previousTabs: TTab[]) => TTab[])) => void
@@ -16,6 +17,9 @@ interface EditorSlice {
   removeTab: (tab: TTab, override?: boolean) => void
   setActiveTabContent: (text: string) => void
   setUnsavedAlert: (state: boolean) => void
+  setDraft: (fileId: string, content: string) => void
+  clearDraft: (fileId: string) => void
+  getDraft: (fileId: string) => string | undefined
 }
 
 const createEditorSlice: StateCreator<EditorSlice> = (set, get) => ({
@@ -23,7 +27,7 @@ const createEditorSlice: StateCreator<EditorSlice> = (set, get) => ({
   tabs: [],
   activeTabContent: "",
   unsavedAlert: false,
-
+  drafts: {},
   // #endregion
 
   //   #region Actions
@@ -89,6 +93,31 @@ const createEditorSlice: StateCreator<EditorSlice> = (set, get) => ({
       unsavedAlert: state,
     })
   },
+  setDraft: (fileId, content) =>
+    set((state) => {
+      // Update drafts
+      const newDrafts = {
+        ...state.drafts,
+        [fileId]: content,
+      }
+      // Mark the tab with fileId as unsaved
+      const newTabs = state.tabs.map((tab) =>
+        tab.id === fileId ? { ...tab, saved: false } : tab
+      )
+      return {
+        drafts: newDrafts,
+        tabs: newTabs,
+      }
+    }),
+
+  clearDraft: (fileId) =>
+    set((state) => {
+      const { [fileId]: _, ...rest } = state.drafts
+      return { drafts: rest }
+    }),
+
+  getDraft: (fileId) => get().drafts[fileId],
+
   //   #endregion
 })
 
