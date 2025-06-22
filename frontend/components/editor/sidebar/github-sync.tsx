@@ -14,8 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Textarea } from "@/components/ui/textarea"
-import { github } from "@/hooks/github"
-import { GithubUser } from "@/lib/actions"
+import { githubRouter, type GithubUser } from "@/lib/api"
 import { cn, createPopupTracker } from "@/lib/utils"
 import { useQueryClient } from "@tanstack/react-query"
 import {
@@ -44,13 +43,13 @@ export function GitHubSync({
     mutate: handleGithubLogin,
     isPending: isLoggingIn,
     reset: resetGithubLogin,
-  } = github.login.useMutation({
+  } = githubRouter.login.useMutation({
     onSuccess: () => {
-      return queryClient.invalidateQueries(github.githubUser.getOptions())
+      return queryClient.invalidateQueries(githubRouter.githubUser.getOptions())
     },
   })
   const { mutate: getAuthUrl, isPending: isGettingAuthUrl } =
-    github.gethAuthUrl.useMutation({
+    githubRouter.gethAuthUrl.useMutation({
       onSuccess({ data: { auth_url } }) {
         const tracker = createPopupTracker()
 
@@ -84,12 +83,12 @@ export function GitHubSync({
           })
       },
     })
-  const { data: githubUser } = github.githubUser.useQuery({
+  const { data: githubUser } = githubRouter.githubUser.useQuery({
     select(data) {
       return data?.data
     },
   })
-  const { data: repoStatus } = github.repoStatus.useQuery({
+  const { data: repoStatus } = githubRouter.repoStatus.useQuery({
     variables: {
       projectId: sandboxId,
     },
@@ -98,18 +97,18 @@ export function GitHubSync({
     },
   })
   const { mutate: syncToGithub, isPending: isSyncingToGithub } =
-    github.createCommit.useMutation({
+    githubRouter.createCommit.useMutation({
       onSuccess() {
         setCommitMessage("")
         toast.success("Commit created successfully")
       },
     })
   const { mutate: deleteRepo, isPending: isDeletingRepo } =
-    github.removeRepo.useMutation({
+    githubRouter.removeRepo.useMutation({
       onSuccess() {
         return queryClient
           .invalidateQueries(
-            github.repoStatus.getOptions({
+            githubRouter.repoStatus.getOptions({
               projectId: sandboxId,
             })
           )
@@ -123,11 +122,11 @@ export function GitHubSync({
     ? repoStatus.existsInDB && repoStatus.existsInGitHub
     : false
   const { mutate: handleCreateRepo, isPending: isCreatingRepo } =
-    github.createRepo.useMutation({
+    githubRouter.createRepo.useMutation({
       onSuccess() {
         return queryClient
           .invalidateQueries(
-            github.repoStatus.getOptions({
+            githubRouter.repoStatus.getOptions({
               projectId: sandboxId,
             })
           )
@@ -317,9 +316,11 @@ function GithubUserButton({
 }: GithubUserButtonProps & GithubUser) {
   const queryClient = useQueryClient()
   const { mutate: handleGithubLogout, isPending: isLoggingOut } =
-    github.logout.useMutation({
+    githubRouter.logout.useMutation({
       onSuccess: () => {
-        return queryClient.invalidateQueries(github.githubUser.getOptions())
+        return queryClient.invalidateQueries(
+          githubRouter.githubUser.getOptions()
+        )
       },
     })
 

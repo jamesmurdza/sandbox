@@ -5,7 +5,7 @@ import {
   SidebarContent,
   SidebarRail,
 } from "@/components/ui/sidebar"
-import type { Sandbox, TFile, TFolder, TTab } from "@/lib/types"
+import type { Sandbox } from "@/lib/types"
 import { FileExplorer } from "./file-explorer"
 import { GitHubSync } from "./github-sync"
 const sidebarItems = [
@@ -23,33 +23,12 @@ const sidebarItems = [
 
 interface AppSidebarProps {
   sandboxData: Sandbox
-  files: (TFile | TFolder)[]
-  selectFile: (tab: TTab) => void
-  prefetchFile: (tab: TTab) => void
-  handleRename: (
-    id: string,
-    newName: string,
-    oldName: string,
-    type: "file" | "folder"
-  ) => boolean
-  handleDeleteFile: (file: TFile) => void
-  handleDeleteFolder: (folder: TFolder) => void
-  setFiles: (files: (TFile | TFolder)[]) => void
-  deletingFolderId: string
   toggleAIChat: () => void
   isAIChatOpen: boolean
 }
 
 export default function AppSidebar({
   sandboxData,
-  files,
-  selectFile,
-  prefetchFile,
-  handleRename,
-  handleDeleteFile,
-  handleDeleteFolder,
-  setFiles,
-  deletingFolderId,
   toggleAIChat,
   isAIChatOpen,
 }: AppSidebarProps) {
@@ -66,16 +45,8 @@ export default function AppSidebar({
       <SidebarContent id="file">
         <FileExplorer
           sandboxData={sandboxData}
-          files={files}
-          selectFile={selectFile}
-          handleRename={handleRename}
-          handleDeleteFile={handleDeleteFile}
-          handleDeleteFolder={handleDeleteFolder}
-          setFiles={setFiles}
-          deletingFolderId={deletingFolderId}
           toggleAIChat={toggleAIChat}
           isAIChatOpen={isAIChatOpen}
-          prefetchFile={prefetchFile}
         />
       </SidebarContent>
 

@@ -1,12 +1,13 @@
 "use client"
 
-import { apiClient } from "@/server/client-side-client"
+import { apiClient } from "@/server/client"
 
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useSocket } from "@/context/SocketContext"
-import type { Sandbox, TFile, TFolder, TTab } from "@/lib/types"
+import { fileRouter } from "@/lib/api"
+import type { Sandbox } from "@/lib/types"
 import { cn, sortFileExplorer } from "@/lib/utils"
 import {
   dropTargetForElements,
@@ -20,33 +21,12 @@ import New from "./new"
 
 interface FileExplorerProps {
   sandboxData: Sandbox
-  files: (TFile | TFolder)[]
-  selectFile: (tab: TTab) => void
-  prefetchFile: (tab: TTab) => void
-  handleRename: (
-    id: string,
-    newName: string,
-    oldName: string,
-    type: "file" | "folder"
-  ) => boolean
-  handleDeleteFile: (file: TFile) => void
-  handleDeleteFolder: (folder: TFolder) => void
-  setFiles: (files: (TFile | TFolder)[]) => void
-  deletingFolderId: string
   toggleAIChat: () => void
   isAIChatOpen: boolean
 }
 
 export function FileExplorer({
   sandboxData,
-  files,
-  selectFile,
-  prefetchFile,
-  handleRename,
-  handleDeleteFile,
-  handleDeleteFolder,
-  setFiles,
-  deletingFolderId,
   toggleAIChat,
   isAIChatOpen,
 }: FileExplorerProps) {
@@ -55,10 +35,16 @@ export function FileExplorer({
     "file" | "folder" | null
   >(null)
   const [movingId, setMovingId] = React.useState("")
-  const sortedFiles = React.useMemo(() => {
-    return sortFileExplorer(files)
-  }, [files])
   const ref = React.useRef(null) // drop target
+
+  const { data: files = [] } = fileRouter.fileTree.useQuery({
+    variables: {
+      projectId: sandboxData.id,
+    },
+    select(data) {
+      return sortFileExplorer(data.data ?? [])
+    },
+  })
 
   React.useEffect(() => {
     const el = ref.current
@@ -135,7 +121,7 @@ export function FileExplorer({
           </div>
         </div>
         <div ref={ref} className="rounded-sm w-full mt-1 flex flex-col">
-          {sortedFiles.length === 0 ? (
+          {files.length === 0 ? (
             <div className="w-full flex flex-col justify-center">
               {new Array(6).fill(0).map((_, i) => (
                 <Skeleton key={i} className="h-[1.625rem] mb-0.5 rounded-sm" />
@@ -143,29 +129,18 @@ export function FileExplorer({
             </div>
           ) : (
             <>
-              {sortedFiles.map((child) =>
+              {files.map((child) =>
                 child.type === "file" ? (
                   <SidebarFile
                     key={child.id}
                     data={child}
-                    selectFile={selectFile}
-                    prefetchFile={prefetchFile}
-                    handleRename={handleRename}
-                    handleDeleteFile={handleDeleteFile}
                     movingId={movingId}
-                    deletingFolderId={deletingFolderId}
                   />
                 ) : (
                   <SidebarFolder
                     key={child.id}
                     data={child}
-                    selectFile={selectFile}
-                    prefetchFile={prefetchFile}
-                    handleRename={handleRename}
-                    handleDeleteFile={handleDeleteFile}
-                    handleDeleteFolder={handleDeleteFolder}
                     movingId={movingId}
-                    deletingFolderId={deletingFolderId}
                   />
                 )
               )}

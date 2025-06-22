@@ -6,55 +6,60 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu"
-import { TFile, TTab } from "@/lib/types"
+import { TFile } from "@/lib/types"
 import { Loader2, Pencil, Trash2 } from "lucide-react"
 import Image from "next/image"
 import { useEffect, useRef, useState } from "react"
 import { getIconForFile } from "vscode-icons-js"
 
+import { fileRouter } from "@/lib/api"
+import { useAppStore } from "@/store/context"
 import { draggable } from "@atlaskit/pragmatic-drag-and-drop/element/adapter"
+import { useQueryClient } from "@tanstack/react-query"
+import { useParams } from "next/navigation"
+import { useFileContent, useFileTree } from "../hooks/useFile"
 
-const HOVER_PREFETCH_DELAY = 200
+const HOVER_PREFETCH_DELAY = 100
 export default function SidebarFile({
   data,
-  selectFile,
-  handleRename,
-  handleDeleteFile,
-  prefetchFile,
   movingId,
-  deletingFolderId,
 }: {
   data: TFile
-  selectFile: (file: TTab) => void
-  prefetchFile: (file: TTab) => void
-  handleRename: (
-    id: string,
-    newName: string,
-    oldName: string,
-    type: "file" | "folder"
-  ) => boolean
-  handleDeleteFile: (file: TFile) => void
   movingId: string
-  deletingFolderId: string
 }) {
+  const { id: projectId } = useParams<{ id: string }>()
+  const addTab = useAppStore((s) => s.addTab)
+  const setActiveTab = useAppStore((s) => s.setActiveTab)
   const isMoving = movingId === data.id
-  const isDeleting =
-    deletingFolderId.length > 0 && data.id.startsWith(deletingFolderId)
-
+  const queryClient = useQueryClient()
+  const { deleteFile, renameFile, isDeletingFile } = useFileTree()
+  const { prefetchFileContent } = useFileContent({
+    id: data.id,
+  })
   const ref = useRef(null) // for draggable
   const [dragging, setDragging] = useState(false)
 
   const inputRef = useRef<HTMLInputElement>(null)
   const [imgSrc, setImgSrc] = useState(`/icons/${getIconForFile(data.name)}`)
   const [editing, setEditing] = useState(false)
-  const [pendingDelete, setPendingDelete] = useState(isDeleting)
 
   const hoverTimeout = useRef<NodeJS.Timeout | null>(null)
 
+  const selectFile = async () => {
+    const newTab = { ...data, saved: true }
+    addTab(newTab)
+    await queryClient.ensureQueryData(
+      fileRouter.fileContent.getFetchOptions({
+        projectId,
+        fileId: data.id,
+      })
+    )
+    setActiveTab(newTab)
+  }
   const handleMouseEnter = () => {
-    if (!editing && !pendingDelete && !isMoving) {
+    if (!editing && !isDeletingFile && !isMoving) {
       hoverTimeout.current = setTimeout(() => {
-        prefetchFile({ ...data, saved: true })
+        prefetchFileContent()
       }, HOVER_PREFETCH_DELAY)
     }
   }
@@ -65,9 +70,6 @@ export default function SidebarFile({
       hoverTimeout.current = null
     }
   }
-  useEffect(() => {
-    setPendingDelete(isDeleting)
-  }, [isDeleting])
 
   useEffect(() => {
     const el = ref.current
@@ -87,16 +89,12 @@ export default function SidebarFile({
     }
   }, [editing, inputRef.current])
 
-  const renameFile = () => {
-    const renamed = handleRename(
-      data.id,
-      inputRef.current?.value ?? data.name,
-      data.name,
-      "file"
-    )
-    if (!renamed && inputRef.current) {
-      inputRef.current.value = data.name
-    }
+  const handleRename = () => {
+    renameFile({
+      fileId: data.id,
+      projectId,
+      newName: inputRef.current?.value ?? data.name,
+    })
     setEditing(false)
   }
 
@@ -104,11 +102,8 @@ export default function SidebarFile({
     <ContextMenu>
       <ContextMenuTrigger
         ref={ref}
-        disabled={pendingDelete || dragging || isMoving}
-        onClick={() => {
-          if (!editing && !pendingDelete && !isMoving)
-            selectFile({ ...data, saved: true })
-        }}
+        disabled={isDeletingFile || dragging || isMoving}
+        onClick={selectFile}
         onDoubleClick={() => {
           setEditing(true)
         }}
@@ -131,7 +126,7 @@ export default function SidebarFile({
             <Loader2 className="text-muted-foreground w-4 h-4 animate-spin mr-2" />
             <div className="text-muted-foreground">{data.name}</div>
           </>
-        ) : pendingDelete ? (
+        ) : isDeletingFile ? (
           <>
             <div className="text-muted-foreground animate-pulse">
               Deleting...
@@ -141,7 +136,7 @@ export default function SidebarFile({
           <form
             onSubmit={(e) => {
               e.preventDefault()
-              renameFile()
+              handleRename()
             }}
           >
             <input
@@ -151,7 +146,7 @@ export default function SidebarFile({
               }`}
               disabled={!editing}
               defaultValue={data.name}
-              onBlur={() => renameFile()}
+              onBlur={() => handleRename()}
             />
           </form>
         )}
@@ -167,11 +162,12 @@ export default function SidebarFile({
           Rename
         </ContextMenuItem>
         <ContextMenuItem
-          disabled={pendingDelete}
+          disabled={isDeletingFile}
           onClick={() => {
-            console.log("delete")
-            setPendingDelete(true)
-            handleDeleteFile(data)
+            deleteFile({
+              fileId: data.id,
+              projectId,
+            })
           }}
         >
           <Trash2 className="w-4 h-4 mr-2" />

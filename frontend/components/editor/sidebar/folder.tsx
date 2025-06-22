@@ -6,48 +6,33 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu"
-import { TFile, TFolder, TTab } from "@/lib/types"
+import { TFolder } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { dropTargetForElements } from "@atlaskit/pragmatic-drag-and-drop/element/adapter"
+import { useQueryClient } from "@tanstack/react-query"
 import { AnimatePresence, motion } from "framer-motion"
 import { ChevronRight, Pencil, Trash2 } from "lucide-react"
 import Image from "next/image"
+import { useParams } from "next/navigation"
 import { useEffect, useRef, useState } from "react"
 import { getIconForFolder, getIconForOpenFolder } from "vscode-icons-js"
+import { useFileTree } from "../hooks/useFile"
 import SidebarFile from "./file"
 
 // Note: Renaming has not been implemented in the backend yet, so UI relating to renaming is commented out
 
 export default function SidebarFolder({
   data,
-  selectFile,
-  prefetchFile,
-  handleRename,
-  handleDeleteFile,
-  handleDeleteFolder,
   movingId,
-  deletingFolderId,
 }: {
   data: TFolder
-  selectFile: (file: TTab) => void
-  prefetchFile: (file: TTab) => void
-  handleRename: (
-    id: string,
-    newName: string,
-    oldName: string,
-    type: "file" | "folder"
-  ) => boolean
-  handleDeleteFile: (file: TFile) => void
-  handleDeleteFolder: (folder: TFolder) => void
   movingId: string
-  deletingFolderId: string
 }) {
+  const { id: projectId } = useParams<{ id: string }>()
   const ref = useRef(null) // drop target
   const [isDraggedOver, setIsDraggedOver] = useState(false)
-
-  const isDeleting =
-    deletingFolderId.length > 0 && data.id.startsWith(deletingFolderId)
-
+  const queryClient = useQueryClient()
+  const { deleteFolder, isDeletingFolder } = useFileTree()
   useEffect(() => {
     const el = ref.current
 
@@ -58,18 +43,6 @@ export default function SidebarFolder({
         onDragLeave: () => setIsDraggedOver(false),
         onDrop: () => setIsDraggedOver(false),
         getData: () => ({ id: data.id }),
-
-        // Commented out to avoid propagating drop event downwards
-        // Todo: Make this logic more elegant, the current implementation is just checking at the end in index.tsx
-
-        // canDrop: ({ source }) => {
-        //   const file = data.children.find(
-        //     (child) => child.id === source.data.id
-        //   );
-        //   return !file;
-        // },
-
-        // no dropping while awaiting move
         canDrop: () => {
           return !movingId
         },
@@ -82,23 +55,17 @@ export default function SidebarFolder({
     : getIconForFolder(data.name)
 
   const inputRef = useRef<HTMLInputElement>(null)
-  // const [editing, setEditing] = useState(false);
-
-  // useEffect(() => {
-  //   if (editing) {
-  //     inputRef.current?.focus();
-  //   }
-  // }, [editing]);
 
   return (
     <ContextMenu>
       <ContextMenuTrigger
         ref={ref}
-        disabled={isDeleting}
+        disabled={isDeletingFolder}
         onClick={() => setIsOpen((prev) => !prev)}
-        className={`${
-          isDraggedOver ? "bg-secondary/50 rounded-t-sm" : "rounded-sm"
-        } w-full flex items-center h-7 px-1 transition-colors hover:bg-secondary cursor-pointer`}
+        className={cn(
+          isDraggedOver ? "bg-secondary/50 rounded-t-sm" : "rounded-sm",
+          "w-full flex items-center h-7 px-1 transition-colors hover:bg-secondary cursor-pointer"
+        )}
       >
         <ChevronRight
           className={cn(
@@ -113,53 +80,33 @@ export default function SidebarFolder({
           height={18}
           className="mr-2"
         />
-        {isDeleting ? (
-          <>
-            <div className="text-muted-foreground animate-pulse">
-              Deleting...
-            </div>
-          </>
+        {isDeletingFolder ? (
+          <div className="w-full text-muted-foreground animate-pulse">
+            Deleting...
+          </div>
         ) : (
-          <form
-          // onSubmit={(e) => {
-          //   e.preventDefault();
-          //   setEditing(false);
-          // }}
-          >
+          <form>
             <input
               ref={inputRef}
               disabled
               className={`pointer-events-none bg-transparent transition-all focus-visible:outline-none focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:ring-2 focus-visible:ring-ring rounded-sm w-full`}
               defaultValue={data.name}
             />
-            {/* <input
-            ref={inputRef}
-            className={`bg-transparent transition-all focus-visible:outline-none focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:ring-2 focus-visible:ring-ring rounded-sm w-full ${
-              editing ? "" : "pointer-events-none"
-            }`}
-            disabled={!editing}
-            defaultValue={data.name}
-            onBlur={() => {
-              setEditing(false);
-            }}
-          /> */}
           </form>
         )}
       </ContextMenuTrigger>
       <ContextMenuContent>
-        <ContextMenuItem
-          disabled
-          // onClick={() => {
-          //   setEditing(true);
-          // }}
-        >
+        <ContextMenuItem disabled>
           <Pencil className="w-4 h-4 mr-2" />
           Rename
         </ContextMenuItem>
         <ContextMenuItem
-          disabled={isDeleting}
+          disabled={isDeletingFolder}
           onClick={() => {
-            handleDeleteFolder(data)
+            deleteFolder({
+              folderId: data.id,
+              projectId,
+            })
           }}
         >
           <Trash2 className="w-4 h-4 mr-2" />
@@ -192,26 +139,15 @@ export default function SidebarFolder({
                 {data.children.map((child) =>
                   child.type === "file" ? (
                     <SidebarFile
-                    key={child.id}
-                    data={child}
-                    selectFile={selectFile}
-                    prefetchFile={prefetchFile}
-                      handleRename={handleRename}
-                      handleDeleteFile={handleDeleteFile}
+                      key={child.id}
+                      data={child}
                       movingId={movingId}
-                      deletingFolderId={deletingFolderId}
                     />
                   ) : (
                     <SidebarFolder
-                    key={child.id}
-                    data={child}
-                    selectFile={selectFile}
-                    prefetchFile={prefetchFile}
-                      handleRename={handleRename}
-                      handleDeleteFile={handleDeleteFile}
-                      handleDeleteFolder={handleDeleteFolder}
+                      key={child.id}
+                      data={child}
                       movingId={movingId}
-                      deletingFolderId={deletingFolderId}
                     />
                   )
                 )}
