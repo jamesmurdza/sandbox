@@ -1,6 +1,7 @@
 "use client"
 
 import { Loader2, X } from "lucide-react"
+import * as React from "react"
 import { MouseEventHandler } from "react"
 import { Button } from "./button"
 
@@ -21,8 +22,21 @@ export default function Tab({
   onClose?: () => void
   closing?: boolean
 }) {
+  const tabRef = React.useRef<HTMLButtonElement>(null)
+
+  React.useEffect(() => {
+    if (selected && tabRef.current) {
+      tabRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+        inline: "nearest",
+      })
+    }
+  }, [selected])
+
   return (
     <Button
+      ref={tabRef}
       onClick={onClick ?? undefined}
       size="sm"
       variant={"secondary"}
