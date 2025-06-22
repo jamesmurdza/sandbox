@@ -1,7 +1,6 @@
 "use client"
 
 import { useEditorShortcuts } from "@/components/editor/hooks/useEditorShortcuts"
-import { useFileManager } from "@/components/editor/hooks/useFileManager"
 import { PreviewProvider } from "@/context/PreviewContext"
 import { Sandbox, User } from "@/lib/types"
 import ChangesAlert from "./changes-alert"
@@ -17,19 +16,8 @@ export default function CodeEditor({
 }) {
   const isOwner = sandboxData.userId === userData.id
 
-  // TODO: clean up file
-  // File management
-  const { activeFileId, hasUnsavedFiles, saveFile } = useFileManager()
-
   // Keyboard shortcuts and browser events
-  useEditorShortcuts({
-    hasUnsavedFiles,
-    activeFileId,
-    saveFile,
-    toggleAIChat: () => {},
-  })
-
-  // Changes alert logic
+  useEditorShortcuts()
 
   return (
     <div className="flex max-h-full overflow-hidden">

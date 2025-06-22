@@ -1,4 +1,5 @@
 import { fileRouter } from "@/lib/api"
+import { useAppStore } from "@/store/context"
 import { useQueryClient } from "@tanstack/react-query"
 import { useParams } from "next/navigation"
 import * as React from "react"
@@ -7,6 +8,8 @@ import { toast } from "sonner"
 export function useFileTree() {
   const { id: projectId } = useParams<{ id: string }>()
   const queryClient = useQueryClient()
+  const setTabs = useAppStore((s) => s.setTabs)
+
   const { data: fileTree = [] } = fileRouter.fileTree.useQuery({
     variables: {
       projectId,
@@ -67,12 +70,28 @@ export function useFileTree() {
         toast.error("Couldn't delete file")
       },
     })
-
+  const { mutateAsync: rawSaveFile } = fileRouter.saveFile.useMutation({
+    onSuccess(_, { fileId }) {
+      setTabs((tabs) =>
+        tabs.map((tab) => (tab.id === fileId ? { ...tab, saved: true } : tab))
+      )
+    },
+  })
+  function saveFile(...args: Parameters<typeof rawSaveFile>) {
+    toast.promise(rawSaveFile(...args), {
+      loading: "Saving...",
+      success: (data) => {
+        return data.message
+      },
+      error: "Error saving file",
+    })
+  }
   return {
     fileTree,
     deleteFolder,
     deleteFile,
     renameFile,
+    saveFile,
 
     isDeletingFolder,
     isDeletingFile,
