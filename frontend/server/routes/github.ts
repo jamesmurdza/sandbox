@@ -218,7 +218,7 @@ export const githubRouter = createRouter()
             success: true,
 
             message: "Repository found in DB, not in GitHub",
-            data: { existsInDB: true, existsInGitHub: false },
+            data: { existsInDB: true, existsInGitHub: false, repo: null },
           },
           200
         )
@@ -229,7 +229,7 @@ export const githubRouter = createRouter()
           {
             success: true,
             message: "Repository found in GitHub, not in DB",
-            data: { existsInDB: false, existsInGitHub: true },
+            data: { existsInDB: false, existsInGitHub: true, repo: null },
           },
           200
         )
@@ -239,7 +239,7 @@ export const githubRouter = createRouter()
         {
           success: true,
           message: "Repository not found in DB or GitHub",
-          data: { existsInDB: false, existsInGitHub: false },
+          data: { existsInDB: false, existsInGitHub: false, repo: null },
         },
         200
       )
