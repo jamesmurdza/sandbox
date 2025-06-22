@@ -23,15 +23,9 @@ const sidebarItems = [
 
 interface AppSidebarProps {
   sandboxData: Sandbox
-  toggleAIChat: () => void
-  isAIChatOpen: boolean
 }
 
-export default function AppSidebar({
-  sandboxData,
-  toggleAIChat,
-  isAIChatOpen,
-}: AppSidebarProps) {
+export default function AppSidebar({ sandboxData }: AppSidebarProps) {
   return (
     <Sidebar defaultActiveItem="file">
       <SidebarRail>
@@ -43,11 +37,7 @@ export default function AppSidebar({
       </SidebarRail>
 
       <SidebarContent id="file">
-        <FileExplorer
-          sandboxData={sandboxData}
-          toggleAIChat={toggleAIChat}
-          isAIChatOpen={isAIChatOpen}
-        />
+        <FileExplorer sandboxData={sandboxData} />
       </SidebarContent>
 
       <SidebarContent id="github">

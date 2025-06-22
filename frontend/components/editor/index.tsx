@@ -1,7 +1,6 @@
 "use client"
 
 import { useEditorShortcuts } from "@/components/editor/hooks/useEditorShortcuts"
-import { PreviewProvider } from "@/context/PreviewContext"
 import { Sandbox, User } from "@/lib/types"
 import ChangesAlert from "./changes-alert"
 import EditorLayout from "./EditorLayout"
@@ -22,17 +21,11 @@ export default function CodeEditor({
   return (
     <div className="flex max-h-full overflow-hidden">
       <ChangesAlert />
-      <PreviewProvider>
-        {/* Sidebar */}
-        <Sidebar
-          sandboxData={sandboxData}
-          toggleAIChat={() => {}}
-          isAIChatOpen={false}
-        />
+      {/* Sidebar */}
+      <Sidebar sandboxData={sandboxData} />
 
-        {/* Main Editor Layout */}
-        <EditorLayout isOwner={isOwner} sandboxData={sandboxData} />
-      </PreviewProvider>
+      {/* Main Editor Layout */}
+      <EditorLayout isOwner={isOwner} sandboxData={sandboxData} />
     </div>
   )
 }

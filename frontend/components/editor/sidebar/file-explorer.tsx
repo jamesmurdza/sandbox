@@ -5,6 +5,7 @@ import { apiClient } from "@/server/client"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useEditorLayout } from "@/context/EditorLayoutContext"
 import { useSocket } from "@/context/SocketContext"
 import { fileRouter } from "@/lib/api"
 import type { Sandbox } from "@/lib/types"
@@ -21,15 +22,9 @@ import New from "./new"
 
 interface FileExplorerProps {
   sandboxData: Sandbox
-  toggleAIChat: () => void
-  isAIChatOpen: boolean
 }
 
-export function FileExplorer({
-  sandboxData,
-  toggleAIChat,
-  isAIChatOpen,
-}: FileExplorerProps) {
+export function FileExplorer({ sandboxData }: FileExplorerProps) {
   const { socket } = useSocket()
   const [creatingNew, setCreatingNew] = React.useState<
     "file" | "folder" | null
@@ -157,48 +152,56 @@ export function FileExplorer({
           )}
         </div>
       </ScrollArea>
-      <div className="flex flex-col p-2 bg-background">
-        <Button
-          variant="ghost"
-          className="w-full justify-start text-sm text-muted-foreground font-normal h-8 px-2 mb-2"
-          disabled
-          aria-disabled="true"
-          style={{ opacity: 1 }}
-        >
-          <Sparkles className="h-4 w-4 mr-2 text-indigo-500 opacity-70" />
-          AI Editor
-          <div className="ml-auto">
-            <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
-              <span className="text-xs">⌘</span>G
-            </kbd>
-          </div>
-        </Button>
-        <Button
-          variant="ghost"
-          className={cn(
-            "w-full justify-start text-sm font-normal h-8 px-2 mb-2 border-t",
-            isAIChatOpen
-              ? "bg-muted-foreground/25 text-foreground"
-              : "text-muted-foreground"
-          )}
-          onClick={toggleAIChat}
-          aria-disabled={false}
-          style={{ opacity: 1 }}
-        >
-          <MessageSquareMore
-            className={cn(
-              "h-4 w-4 mr-2",
-              isAIChatOpen ? "text-indigo-500" : "text-indigo-500 opacity-70"
-            )}
-          />
-          AI Chat
-          <div className="ml-auto">
-            <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
-              <span className="text-xs">⌘</span>L
-            </kbd>
-          </div>
-        </Button>
-      </div>
+      <AIChatControl />
     </>
+  )
+}
+
+function AIChatControl() {
+  const { toggleAIChat, isAIChatOpen } = useEditorLayout()
+
+  return (
+    <div className="flex flex-col p-2 bg-background">
+      <Button
+        variant="ghost"
+        className="w-full justify-start text-sm text-muted-foreground font-normal h-8 px-2 mb-2"
+        disabled
+        aria-disabled="true"
+        style={{ opacity: 1 }}
+      >
+        <Sparkles className="h-4 w-4 mr-2 text-indigo-500 opacity-70" />
+        AI Editor
+        <div className="ml-auto">
+          <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
+            <span className="text-xs">⌘</span>G
+          </kbd>
+        </div>
+      </Button>
+      <Button
+        variant="ghost"
+        className={cn(
+          "w-full justify-start text-sm font-normal h-8 px-2 mb-2 border-t",
+          isAIChatOpen
+            ? "bg-muted-foreground/25 text-foreground"
+            : "text-muted-foreground"
+        )}
+        onClick={toggleAIChat}
+        aria-disabled={false}
+        style={{ opacity: 1 }}
+      >
+        <MessageSquareMore
+          className={cn(
+            "h-4 w-4 mr-2",
+            isAIChatOpen ? "text-indigo-500" : "text-indigo-500 opacity-70"
+          )}
+        />
+        AI Chat
+        <div className="ml-auto">
+          <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
+            <span className="text-xs">⌘</span>L
+          </kbd>
+        </div>
+      </Button>
+    </div>
   )
 }

@@ -5,6 +5,7 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable"
+import { useEditorLayout } from "@/context/EditorLayoutContext"
 import { fileRouter } from "@/lib/api"
 import { defaultEditorOptions } from "@/lib/monaco/config"
 import { Sandbox } from "@/lib/types"
@@ -21,7 +22,6 @@ import Tab from "../ui/tab"
 import AIChat from "./AIChat"
 import CopilotElements from "./CopilotElements"
 import { useCodeDiffer } from "./hooks/useCodeDiffer"
-import { useEditorLayout } from "./hooks/useEditorLayout"
 import { useEditorSocket } from "./hooks/useEditorSocket"
 import { useMonacoEditor } from "./hooks/useMonacoEditor"
 import PreviewWindow from "./preview"
@@ -88,6 +88,7 @@ export default function EditorLayout({
     loadPreviewURL,
     setIsAIChatOpen,
     setIsPreviewCollapsed,
+    previewPanelRef,
   } = useEditorLayout()
 
   useEditorSocket({
@@ -112,13 +113,7 @@ export default function EditorLayout({
     handleAiEdit,
   } = useMonacoEditor({
     editorPanelRef,
-    setIsAIChatOpen: (value) => {
-      if (typeof value === "function") {
-        setIsAIChatOpen((prev) => value(prev))
-      } else {
-        setIsAIChatOpen(value)
-      }
-    },
+    setIsAIChatOpen,
   })
 
   // Code diff and merge logic
@@ -234,6 +229,7 @@ export default function EditorLayout({
             >
               {/* Preview Panel */}
               <ResizablePanel
+                ref={previewPanelRef}
                 defaultSize={isPreviewCollapsed ? 4 : 20}
                 minSize={25}
                 collapsedSize={isHorizontalLayout ? 20 : 4}

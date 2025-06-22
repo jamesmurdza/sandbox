@@ -1,11 +1,17 @@
-import { useCallback, useEffect, useRef, useState } from "react"
+"use client"
+
+import React, {
+  createContext,
+  ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react"
 import { ImperativePanelHandle } from "react-resizable-panels"
 
-export interface UseEditorLayoutProps {
-  previewWindowRef: React.RefObject<{ refreshIframe: () => void }>
-}
-
-export interface UseEditorLayoutReturn {
+interface EditorLayoutContextValue {
   // Layout state
   isHorizontalLayout: boolean
   isPreviewCollapsed: boolean
@@ -17,11 +23,18 @@ export interface UseEditorLayoutReturn {
   toggleLayout: () => void
   toggleAIChat: () => void
   loadPreviewURL: (url: string) => void
+
+  // Exposed setters
   setIsAIChatOpen: React.Dispatch<React.SetStateAction<boolean>>
   setIsPreviewCollapsed: React.Dispatch<React.SetStateAction<boolean>>
+
+  // Refs
+  previewPanelRef: React.RefObject<ImperativePanelHandle>
 }
 
-export function useEditorLayout(): UseEditorLayoutReturn {
+const EditorLayoutContext = createContext<EditorLayoutContextValue | null>(null)
+
+export function EditorLayoutProvider({ children }: { children: ReactNode }) {
   // Layout state
   const [isHorizontalLayout, setIsHorizontalLayout] = useState(false)
   const [previousLayout, setPreviousLayout] = useState(false)
@@ -29,16 +42,10 @@ export function useEditorLayout(): UseEditorLayoutReturn {
   const [isAIChatOpen, setIsAIChatOpen] = useState(false)
 
   // Preview state
-  const [previewURL, setPreviewURL] = useState<string>("")
+  const [previewURL, setPreviewURL] = useState("")
 
-  // Get preview panel ref from context
-  // Note: We'll need to update this to work with the existing PreviewContext
+  // Panel ref
   const previewPanelRef = useRef<ImperativePanelHandle>(null)
-
-  // Load preview URL with refresh
-  const loadPreviewURL = useCallback((url: string) => {
-    setPreviewURL(url)
-  }, [])
 
   // Toggle preview panel
   const togglePreviewPanel = useCallback(() => {
@@ -51,7 +58,7 @@ export function useEditorLayout(): UseEditorLayoutReturn {
     }
   }, [isPreviewCollapsed])
 
-  // Toggle layout between horizontal and vertical
+  // Toggle layout
   const toggleLayout = useCallback(() => {
     if (!isAIChatOpen) {
       setIsHorizontalLayout((prev) => !prev)
@@ -63,7 +70,7 @@ export function useEditorLayout(): UseEditorLayoutReturn {
     setIsAIChatOpen((prev) => !prev)
   }, [])
 
-  // Effect to handle layout changes when AI chat is opened/closed
+  // Layout reaction to AI chat state
   useEffect(() => {
     if (isAIChatOpen) {
       setPreviousLayout(isHorizontalLayout)
@@ -73,21 +80,36 @@ export function useEditorLayout(): UseEditorLayoutReturn {
     }
   }, [isAIChatOpen, isHorizontalLayout, previousLayout])
 
-  return {
-    // Layout state
-    isHorizontalLayout,
-    isPreviewCollapsed,
-    isAIChatOpen,
-    previewURL,
+  // Load preview URL
+  const loadPreviewURL = useCallback((url: string) => {
+    setPreviewURL(url)
+  }, [])
 
-    // Layout actions
-    togglePreviewPanel,
-    toggleLayout,
-    toggleAIChat,
-    loadPreviewURL,
+  return (
+    <EditorLayoutContext.Provider
+      value={{
+        isHorizontalLayout,
+        isPreviewCollapsed,
+        isAIChatOpen,
+        previewURL,
+        togglePreviewPanel,
+        toggleLayout,
+        toggleAIChat,
+        loadPreviewURL,
+        setIsAIChatOpen,
+        setIsPreviewCollapsed,
+        previewPanelRef,
+      }}
+    >
+      {children}
+    </EditorLayoutContext.Provider>
+  )
+}
 
-    // State setters for external updates
-    setIsAIChatOpen,
-    setIsPreviewCollapsed,
+export const useEditorLayout = () => {
+  const ctx = useContext(EditorLayoutContext)
+  if (!ctx) {
+    throw new Error("useEditorLayout must be used within EditorLayoutProvider")
   }
+  return ctx
 }
