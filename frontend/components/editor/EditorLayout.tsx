@@ -1,13 +1,6 @@
 "use client"
 
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
@@ -18,13 +11,12 @@ import { Sandbox } from "@/lib/types"
 import { processFileType } from "@/lib/utils"
 import { useAppStore } from "@/store/context"
 import Editor from "@monaco-editor/react"
-import { FileJson, TerminalSquare, X } from "lucide-react"
+import { FileJson, TerminalSquare } from "lucide-react"
 import * as monaco from "monaco-editor"
 import { useTheme } from "next-themes"
 import { useParams } from "next/navigation"
 import { useCallback, useRef, useState } from "react"
 import { ImperativePanelHandle } from "react-resizable-panels"
-import { Button } from "../ui/button"
 import Tab from "../ui/tab"
 import AIChat from "./AIChat"
 import CopilotElements from "./CopilotElements"
@@ -32,8 +24,8 @@ import { useCodeDiffer } from "./hooks/useCodeDiffer"
 import { useEditorLayout } from "./hooks/useEditorLayout"
 import { useEditorSocket } from "./hooks/useEditorSocket"
 import { useMonacoEditor } from "./hooks/useMonacoEditor"
-import { useSocketHandlers } from "./hooks/useSocketHandlers"
 import PreviewWindow from "./preview"
+import { SessionTimeoutDialog } from "./session-timeout-dialog"
 import Terminals from "./terminals"
 export interface EditorLayoutProps {
   isOwner: boolean
@@ -97,12 +89,10 @@ export default function EditorLayout({
     setIsAIChatOpen,
     setIsPreviewCollapsed,
   } = useEditorLayout()
-  const { socketHandlers } = useSocketHandlers({
-    loadPreviewURL,
-  })
-  const { timeoutDialog, setTimeoutDialog } = useEditorSocket({
+
+  useEditorSocket({
     isOwner,
-    handlers: socketHandlers,
+    loadPreviewURL,
   })
 
   // Monaco editor management
@@ -146,7 +136,7 @@ export default function EditorLayout({
     },
     [handleApplyCode]
   )
-  // TODO: UPDATE FUNCTION
+
   const updateActiveFileContent = (content?: string) => {
     if (!activeTab) {
       return
@@ -292,10 +282,7 @@ export default function EditorLayout({
           <ResizablePanel defaultSize={30} minSize={15}>
             <AIChat
               activeFileContent={activeFileContent}
-              activeFileName={
-                tabs.find((tab) => tab.id === activeTab?.id)?.name ||
-                "No file selected"
-              }
+              activeFileName={activeTab?.name || "No file selected"}
               onClose={toggleAIChat}
               editorRef={{ current: editorRef }}
               lastCopiedRangeRef={lastCopiedRangeRef}
@@ -311,25 +298,7 @@ export default function EditorLayout({
         </>
       )}
       {/* Session Timeout Dialog */}
-      <Dialog open={timeoutDialog} onOpenChange={setTimeoutDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <X className="h-5 w-5 text-destructive" />
-              Session Timeout
-            </DialogTitle>
-            <DialogDescription className="pt-2">
-              Your project session has timed out. Please refresh the page to
-              continue working.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex justify-end">
-            <Button variant="default" onClick={() => window.location.reload()}>
-              Refresh Page
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <SessionTimeoutDialog isOwner={isOwner} />
     </ResizablePanelGroup>
   )
 }

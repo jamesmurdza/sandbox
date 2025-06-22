@@ -114,6 +114,7 @@ export type GithubUser = NonNullable<
 // #endregion
 
 // #region File
+const HEARTBEAT_POLL_INTERVERAL_MS = 10_000 // same as 10 seconds
 export const fileRouter = router("file", {
   heartbeat: router.query({
     fetcher: async ({
@@ -132,7 +133,7 @@ export const fileRouter = router("file", {
       const data = await res.json()
       return data
     },
-    // Repeat indefinitely
+    refetchInterval: HEARTBEAT_POLL_INTERVERAL_MS,
   }),
   fileContent: router.query({
     fetcher: async ({
