@@ -1,5 +1,5 @@
 import { apiClient } from "@/server/client"
-import { router } from "react-query-kit"
+import { inferFnData, router } from "react-query-kit"
 
 // #region Github
 export const githubRouter = router("github", {
@@ -290,4 +290,9 @@ export const fileRouter = router("file", {
     },
   }),
 })
+
+export type FileTree = NonNullable<
+  inferFnData<typeof fileRouter.moveFile>["data"]
+>
+
 // #endregion
