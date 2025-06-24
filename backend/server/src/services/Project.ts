@@ -1,6 +1,5 @@
 import { Sandbox as Container } from "e2b"
 import { CONTAINER_TIMEOUT } from "../utils/constants"
-import { LockManager } from "../utils/lock"
 import { FileManager } from "./FileManager"
 import { TerminalManager } from "./TerminalManager"
 // Database imports
@@ -9,8 +8,6 @@ import { TerminalManager } from "./TerminalManager"
 import "dotenv/config"
 import { eq } from "drizzle-orm"
 import { db, schema } from "../db"
-
-const lockManager = new LockManager()
 
 // Initialize database
 
@@ -73,26 +70,24 @@ export class Project {
     this.containerId = dbProject.containerId
 
     // Acquire a lock to ensure exclusive access to the container
-    await lockManager.acquireLock(this.projectId, async () => {
-      const container = this.containerId
-        ? await this.connectToContainer(this.containerId)
-        : await this.createContainer()
+    const container = this.containerId
+      ? await this.connectToContainer(this.containerId)
+      : await this.createContainer()
 
-      if (!(await container.isRunning())) {
-        throw new Error("Container is not running")
-      }
+    if (!(await container.isRunning())) {
+      throw new Error("Container is not running")
+    }
 
-      // Initialize the terminal manager if it hasn't been set up yet
-      if (!this.terminalManager) {
-        this.terminalManager = new TerminalManager(container)
-        console.log(`Terminal manager set up for ${this.projectId}`)
-      }
+    // Initialize the terminal manager if it hasn't been set up yet
+    if (!this.terminalManager) {
+      this.terminalManager = new TerminalManager(container)
+      console.log(`Terminal manager set up for ${this.projectId}`)
+    }
 
-      // Initialize the file manager if it hasn't been set up yet
-      if (!this.fileManager) {
-        this.fileManager = new FileManager(container)
-      }
-    })
+    // Initialize the file manager if it hasn't been set up yet
+    if (!this.fileManager) {
+      this.fileManager = new FileManager(container)
+    }
   }
 
   // Called when the client disconnects from the project
