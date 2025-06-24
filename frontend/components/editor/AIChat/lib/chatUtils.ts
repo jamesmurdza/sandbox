@@ -198,9 +198,7 @@ export const handleSend = async (
     }
   } catch (error: any) {
     // Handle abort error for chat message component
-    if (error.name === "AbortError") {
-      console.log("Generation aborted")
-    } else {
+    if (error.name !== "AbortError") {
       console.error("Error fetching AI response:", error)
       const errorMessage = {
         role: "assistant" as const,

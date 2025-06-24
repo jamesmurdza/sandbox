@@ -52,7 +52,6 @@ export function GitHubSync({ userId }: { userId: string }) {
         return new Promise<{ code: string }>((resolve, reject) => {
           tracker.openPopup(auth_url, {
             onUrlChange(newUrl) {
-              console.log("New URL:", newUrl)
               if (newUrl.includes(REDIRECT_URI)) {
                 const urlParams = new URLSearchParams(new URL(newUrl).search)
                 const code = urlParams.get("code")

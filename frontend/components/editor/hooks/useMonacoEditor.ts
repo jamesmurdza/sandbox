@@ -199,12 +199,10 @@ export const useMonacoEditor = ({
   // AI edit handler
   const handleAiEdit = useCallback(
     (editor?: monaco.editor.ICodeEditor) => {
-      console.log("editorRef", editorRef)
       const e = editor ?? editorRef
       if (!e || typeof e.getSelection !== "function") return
 
       const selection = e.getSelection()
-      console.log("selection", selection)
       if (!selection) return
 
       const pos = selection.getPosition()

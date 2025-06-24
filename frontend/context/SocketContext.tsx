@@ -18,7 +18,6 @@ export const SocketProvider: React.FC<{
   const [socket, setSocket] = useState<Socket | null>(null)
 
   useEffect(() => {
-    console.log("Initializing socket connection...")
     const newSocket = io(
       `${process.env.NEXT_PUBLIC_SERVER_URL}?userId=${userId}&sandboxId=${sandboxId}`,
       {
@@ -28,19 +27,9 @@ export const SocketProvider: React.FC<{
         },
       }
     )
-    console.log("Socket instance:", newSocket)
     setSocket(newSocket)
 
-    newSocket.on("connect", () => {
-      console.log("Socket connected:", newSocket.id)
-    })
-
-    newSocket.on("disconnect", () => {
-      console.log("Socket disconnected")
-    })
-
     return () => {
-      console.log("Disconnecting socket...")
       newSocket.disconnect()
     }
   }, [])

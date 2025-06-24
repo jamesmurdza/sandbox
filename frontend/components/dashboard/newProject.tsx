@@ -282,7 +282,6 @@ function SearchInput({
 }) {
   const onSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault()
-    console.log("searching")
   }, [])
   return (
     <form {...{ onSubmit }} className="w-40 h-8 ">

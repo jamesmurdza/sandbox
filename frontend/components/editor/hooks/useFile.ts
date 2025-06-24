@@ -245,7 +245,6 @@ function insertNode(
   folderPath: string,
   nodeToInsert: FileTree[number]
 ): boolean {
-  console.log("Insert Node: ", folderPath, nodeToInsert)
   if (folderPath === "/") {
     nodes.push(nodeToInsert)
     return true

@@ -100,4 +100,3 @@ const tsconfigJSON = {
 }
 
 const monacoOptions = parseTSConfigToMonacoOptions(tsconfigJSON.compilerOptions)
-console.log(monacoOptions)

@@ -26,7 +26,6 @@ export const createTerminal = ({
 }) => {
   setCreatingTerminal(true)
   const id = createId()
-  console.log("creating terminal, id:", id)
 
   setTerminals((prev) => [...prev, { id, terminal: null }])
   setActiveTerminalId(id)

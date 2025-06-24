@@ -219,8 +219,6 @@ export class GitHubManager {
             type: "blob",
             sha: blobResponse.data.sha,
           })
-
-          console.log(`Successfully created blob for file: ${file.id}`)
         } catch (error) {
           console.error(`Failed to create blob for file: ${file.id}`, error)
           throw error

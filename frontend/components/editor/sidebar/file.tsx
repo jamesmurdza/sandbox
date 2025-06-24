@@ -134,7 +134,6 @@ const SidebarFile = memo((props: TFile) => {
       <ContextMenuContent>
         <ContextMenuItem
           onClick={() => {
-            console.log("rename")
             setEditing(true)
           }}
         >

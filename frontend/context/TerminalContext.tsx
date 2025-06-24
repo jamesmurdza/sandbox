@@ -88,7 +88,6 @@ export const TerminalProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const deploy = (callback: () => void) => {
     if (!socket) console.error("Couldn't deploy: No socket")
-    console.log("Deploying...")
     socket?.emit("deploy", {}, () => {
       callback()
     })
@@ -97,7 +96,6 @@ export const TerminalProvider: React.FC<{ children: React.ReactNode }> = ({
   const getAppExists = async (
     appName: string
   ): Promise<{ success: boolean; exists?: boolean }> => {
-    console.log("Is there a socket: " + !!socket)
     if (!socket) {
       console.error("Couldn't check if app exists: No socket")
       return { success: false }

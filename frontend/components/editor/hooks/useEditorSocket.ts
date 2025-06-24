@@ -27,28 +27,15 @@ export const useEditorSocket = ({ loadPreviewURL }: UseEditorSocketProps) => {
   useEffect(() => {
     if (!socket) return
 
-    const onConnect = () => {
-      console.log("Socket connected")
-    }
-
-    const onDisconnect = () => {
-      console.log("Socket disconnected")
-      // You could trigger timeoutDialog here if needed
-    }
-
     const onError = (message: string) => {
       toast.error(message)
     }
 
     // Register events
-    socket.on("connect", onConnect)
-    socket.on("disconnect", onDisconnect)
     socket.on("error", onError)
     socket.on("previewURL", handlePreviewURL)
 
     return () => {
-      socket.off("connect", onConnect)
-      socket.off("disconnect", onDisconnect)
       socket.off("error", onError)
       socket.off("previewURL", handlePreviewURL)
     }

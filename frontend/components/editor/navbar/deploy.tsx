@@ -36,10 +36,8 @@ export default function DeployButtonModal({
 
   const handleDeploy = () => {
     if (isDeploying) {
-      console.log("Stopping deployment...")
       setIsDeploying(false)
     } else {
-      console.log("Starting deployment...")
       setIsDeploying(true)
       deploy(() => {
         setIsDeploying(false)
