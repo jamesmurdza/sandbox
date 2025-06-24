@@ -61,6 +61,8 @@ export interface AIChatProps {
   setMergeDecorationsCollection?: (collection: undefined) => void
   selectFile: (tab: TTab) => void
   tabs: TTab[]
+  projectId: string
+  files: TFile[]
 }
 
 // Chat input props interface
@@ -72,7 +74,7 @@ export interface ChatInputProps {
   handleStopGeneration: () => void
   onImageUpload: (file: File) => void
   addContextTab: (
-    type: string,
+    type: "file" | "code" | "image",
     title: string,
     content: string,
     lineRange?: { start: number; end: number }

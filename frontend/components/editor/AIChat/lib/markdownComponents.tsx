@@ -7,14 +7,13 @@ import { Check, CornerUpLeft, FileText, X } from "lucide-react"
 import monaco from "monaco-editor"
 import { Components } from "react-markdown"
 import { Button } from "../../../ui/button"
-import ApplyButton from "../ApplyButton"
-import { isFilePath, stringifyContent } from "./chatUtils"
+import ApplyButton from "../components/common/ApplyButton"
+import { isFilePath, stringifyContent } from "./utils"
 
 // Create markdown components for chat message component
 export const createMarkdownComponents = (
   theme: string,
   renderCopyButton: (text: any) => JSX.Element,
-  renderMarkdownElement: (props: any) => JSX.Element,
   askAboutCode: (code: any) => void,
   activeFileName: string,
   activeFileContent: string,
@@ -292,20 +291,38 @@ export const createMarkdownComponents = (
         )
       }
 
-      return renderMarkdownElement({ node, children, ...props })
+      return <p className="mb-4 leading-7">{children}</p>
     },
-    h1: ({ node, children, ...props }) =>
-      renderMarkdownElement({ node, children, ...props }),
-    h2: ({ node, children, ...props }) =>
-      renderMarkdownElement({ node, children, ...props }),
-    h3: ({ node, children, ...props }) =>
-      renderMarkdownElement({ node, children, ...props }),
-    h4: ({ node, children, ...props }) =>
-      renderMarkdownElement({ node, children, ...props }),
-    h5: ({ node, children, ...props }) =>
-      renderMarkdownElement({ node, children, ...props }),
-    h6: ({ node, children, ...props }) =>
-      renderMarkdownElement({ node, children, ...props }),
+    h1: ({ node, children, ...props }) => (
+      <h1 className="text-3xl font-bold mb-4 mt-6" {...props}>
+        {children}
+      </h1>
+    ),
+    h2: ({ node, children, ...props }) => (
+      <h2 className="text-2xl font-semibold mb-3 mt-5" {...props}>
+        {children}
+      </h2>
+    ),
+    h3: ({ node, children, ...props }) => (
+      <h3 className="text-xl font-semibold mb-2 mt-4" {...props}>
+        {children}
+      </h3>
+    ),
+    h4: ({ node, children, ...props }) => (
+      <h4 className="text-lg font-semibold mb-2 mt-4" {...props}>
+        {children}
+      </h4>
+    ),
+    h5: ({ node, children, ...props }) => (
+      <h5 className="text-base font-semibold mb-2 mt-3" {...props}>
+        {children}
+      </h5>
+    ),
+    h6: ({ node, children, ...props }) => (
+      <h6 className="text-sm font-semibold mb-2 mt-3" {...props}>
+        {children}
+      </h6>
+    ),
     ul: (props) => (
       <ul className="list-disc pl-6 mb-4 space-y-2">{props.children}</ul>
     ),
