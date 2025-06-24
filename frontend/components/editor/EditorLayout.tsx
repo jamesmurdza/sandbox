@@ -91,7 +91,6 @@ export default function EditorLayout({
   } = useEditorLayout()
 
   useEditorSocket({
-    isOwner,
     loadPreviewURL,
   })
 
