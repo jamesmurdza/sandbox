@@ -27,6 +27,37 @@ export class Project {
     this.projectId = projectId
   }
 
+  async createContainer(): Promise<Container> {
+    console.log("Creating container for ", this.projectId)
+    const templateTypes = ["vanillajs", "reactjs", "nextjs", "streamlit", "php"]
+    const template = templateTypes.includes(this.type ?? "")
+      ? `gitwit-${this.type}`
+      : `base`
+    this.container = await Container.create(template, {
+      timeoutMs: CONTAINER_TIMEOUT,
+      autoPause: true,
+    })
+    this.containerId = this.container.sandboxId
+    console.log("Created container ", this.containerId)
+
+    // Save the container ID for this project so it can be accessed later
+    await db
+      .update(schema.sandbox)
+      .set({ containerId: this.containerId })
+      .where(eq(schema.sandbox.id, this.projectId))
+
+    return this.container
+  }
+
+  async connectToContainer(containerId: string): Promise<Container> {
+    console.log(`Connecting to container ${containerId}`)
+    this.container = await Container.connect(containerId, {
+      timeoutMs: CONTAINER_TIMEOUT,
+      autoPause: true,
+    })
+    return this.container
+  }
+
   async initialize() {
     // Fetch project data from the database
     const dbProject = await db.query.sandbox.findFirst({
@@ -43,55 +74,25 @@ export class Project {
 
     // Acquire a lock to ensure exclusive access to the container
     await lockManager.acquireLock(this.projectId, async () => {
-      // If we have already initialized the container, connect to it.
-      if (this.containerId) {
-        console.log(`Connecting to container ${this.containerId}`)
-        this.container = await Container.connect(this.containerId, {
-          timeoutMs: CONTAINER_TIMEOUT,
-          autoPause: true,
-        })
+      const container = this.containerId
+        ? await this.connectToContainer(this.containerId)
+        : await this.createContainer()
+
+      if (!(await container.isRunning())) {
+        throw new Error("Container is not running")
       }
 
-      // If we don't have a container, create a new container from the template.
-      if (!this.container || !(await this.container.isRunning())) {
-        console.log("Creating container for ", this.projectId)
-        const templateTypes = [
-          "vanillajs",
-          "reactjs",
-          "nextjs",
-          "streamlit",
-          "php",
-        ]
-        const template = templateTypes.includes(this.type ?? "")
-          ? `gitwit-${this.type}`
-          : `base`
-        this.container = await Container.create(template, {
-          timeoutMs: CONTAINER_TIMEOUT,
-          autoPause: true,
-        })
-        this.containerId = this.container.sandboxId
-        console.log("Created container ", this.containerId)
+      // Initialize the terminal manager if it hasn't been set up yet
+      if (!this.terminalManager) {
+        this.terminalManager = new TerminalManager(container)
+        console.log(`Terminal manager set up for ${this.projectId}`)
+      }
 
-        // Save the container ID for this project so it can be accessed later
-        await db
-          .update(schema.sandbox)
-          .set({ containerId: this.containerId })
-          .where(eq(schema.sandbox.id, this.projectId))
+      // Initialize the file manager if it hasn't been set up yet
+      if (!this.fileManager) {
+        this.fileManager = new FileManager(container)
       }
     })
-    // Ensure a container was successfully created
-    if (!this.container) throw new Error("Failed to create container")
-
-    // Initialize the terminal manager if it hasn't been set up yet
-    if (!this.terminalManager) {
-      this.terminalManager = new TerminalManager(this.container)
-      console.log(`Terminal manager set up for ${this.projectId}`)
-    }
-
-    // Initialize the file manager if it hasn't been set up yet
-    if (!this.fileManager) {
-      this.fileManager = new FileManager(this.container)
-    }
   }
 
   // Called when the client disconnects from the project
