@@ -78,7 +78,7 @@ export function EditorLayoutProvider({ children }: { children: ReactNode }) {
     } else {
       setIsHorizontalLayout(previousLayout)
     }
-  }, [isAIChatOpen, isHorizontalLayout, previousLayout])
+  }, [isAIChatOpen, previousLayout])
 
   // Load preview URL
   const loadPreviewURL = useCallback((url: string) => {

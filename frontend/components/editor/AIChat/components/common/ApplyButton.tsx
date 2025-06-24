@@ -1,7 +1,7 @@
 import { Check, Loader2 } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
-import { Button } from "../../ui/button"
+import { Button } from "../../../../ui/button"
 
 interface ApplyButtonProps {
   code: string
@@ -15,7 +15,6 @@ export default function ApplyButton({
   code,
   activeFileName,
   activeFileContent,
-  editorRef,
   onApply,
 }: ApplyButtonProps) {
   const [isApplying, setIsApplying] = useState(false)
@@ -23,7 +22,7 @@ export default function ApplyButton({
   const handleApply = async () => {
     // Note: File validation is now handled at the UI level in markdownComponents.tsx
     // This button will only be enabled for appropriate files
-    
+
     setIsApplying(true)
     try {
       const response = await fetch("/api/merge", {

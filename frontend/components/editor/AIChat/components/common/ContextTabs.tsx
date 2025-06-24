@@ -7,19 +7,20 @@ import {
 import { TFile, TFolder } from "@/lib/types"
 import { FileText, Image as ImageIcon, Plus, X } from "lucide-react"
 import { useState } from "react"
-import { Button } from "../../ui/button"
-import { ContextTab, ContextTabsProps } from "./types"
+import { Button } from "../../../../ui/button"
+import { ContextTab, ContextTabsProps } from "../../lib/types"
 // Ignore certain folders and files from the file tree
 import { cn } from "@/lib/utils"
-import { ignoredFiles, ignoredFolders } from "./lib/ignored-paths"
+import { ignoredFiles, ignoredFolders } from "../../lib/ignored-paths"
 
 export default function ContextTabs({
   contextTabs,
   onRemoveTab,
-  className,
   files = [],
-  onFileSelect,
-}: ContextTabsProps & { className?: string }) {
+  onAddFile,
+}: ContextTabsProps & {
+  onAddFile: (file: TFile) => void
+}) {
   // State for preview tab
   const [previewTab, setPreviewTab] = useState<ContextTab | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
@@ -48,31 +49,43 @@ export default function ContextTabs({
 
   // Get all files from the file tree to search for context
   const getAllFiles = (items: (TFile | TFolder)[]): TFile[] => {
+    if (!items || !Array.isArray(items)) {
+      return []
+    }
+
     return items.reduce((acc: TFile[], item) => {
       // Add file if it's not ignored
-      if (
-        item.type === "file" &&
-        !ignoredFiles.some(
-          (pattern: string) =>
-            item.name.endsWith(pattern.replace("*", "")) ||
-            item.name === pattern
+      if (item.type === "file") {
+        const isIgnored = ignoredFiles.some((pattern: string) => {
+          if (pattern.includes("*")) {
+            // Handle glob patterns properly
+            const regex = new RegExp(pattern.replace(/\*/g, ".*"))
+            return regex.test(item.name)
+          }
+          return item.name === pattern
+        })
+
+        if (!isIgnored) {
+          acc.push(item)
+        }
+      } else if (item.type === "folder") {
+        // Check if folder should be ignored
+        const isIgnoredFolder = ignoredFolders.some(
+          (folder: string) => folder === item.name
         )
-      ) {
-        acc.push(item)
-        // Add all files from folder if it's not ignored
-      } else if (
-        item.type === "folder" &&
-        !ignoredFolders.some((folder: string) => folder === item.name)
-      ) {
-        acc.push(...getAllFiles(item.children))
+
+        if (!isIgnoredFolder && item.children && Array.isArray(item.children)) {
+          acc.push(...getAllFiles(item.children))
+        }
       }
+
       return acc
     }, [])
   }
 
   // Get all files from the file tree to search for context when adding context
   const allFiles = getAllFiles(files)
-  const filteredFiles = allFiles.filter((file) =>
+  const filteredFiles = allFiles.filter((file: TFile) =>
     file.name.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
@@ -107,7 +120,7 @@ export default function ContextTabs({
                   key={file.id}
                   variant="ghost"
                   className="w-full justify-start text-sm mb-1"
-                  onClick={() => onFileSelect?.(file)}
+                  onClick={() => onAddFile(file)}
                 >
                   <FileText className="h-4 w-4 mr-2" />
                   {file.name}

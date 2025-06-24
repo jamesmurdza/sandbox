@@ -8,7 +8,8 @@ import {
 import { useEditorLayout } from "@/context/EditorLayoutContext"
 import { fileRouter } from "@/lib/api"
 import { defaultEditorOptions } from "@/lib/monaco/config"
-import { processFileType } from "@/lib/utils"
+import { TFile } from "@/lib/types"
+import { processFileType, sortFileExplorer } from "@/lib/utils"
 import { useAppStore } from "@/store/context"
 import Editor from "@monaco-editor/react"
 import { FileJson, TerminalSquare } from "lucide-react"
@@ -18,7 +19,7 @@ import { useParams } from "next/navigation"
 import { useCallback, useRef, useState } from "react"
 import { ImperativePanelHandle } from "react-resizable-panels"
 import Tab from "../ui/tab"
-import AIChat from "./AIChat"
+import AIChat from "./AIChat/AIChat"
 import CopilotElements from "./CopilotElements"
 import { useCodeDiffer } from "./hooks/useCodeDiffer"
 import { useEditorSocket } from "./hooks/useEditorSocket"
@@ -89,6 +90,15 @@ export default function EditorLayout({
     setIsPreviewCollapsed,
     previewPanelRef,
   } = useEditorLayout()
+
+  const { data: fileTree = [] } = fileRouter.fileTree.useQuery({
+    variables: {
+      projectId,
+    },
+    select(data) {
+      return sortFileExplorer(data.data ?? [])
+    },
+  })
 
   useEditorSocket({
     loadPreviewURL,
@@ -287,6 +297,8 @@ export default function EditorLayout({
               setMergeDecorationsCollection={setMergeDecorationsCollection}
               selectFile={setActiveTab}
               tabs={tabs}
+              projectId={projectId}
+              files={fileTree as TFile[]}
             />
           </ResizablePanel>
         </>
