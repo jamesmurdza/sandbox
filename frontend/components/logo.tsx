@@ -2,21 +2,29 @@
 
 import DarkLogo from "@/assets/logo-dark.svg"
 import LightLogo from "@/assets/logo-light.svg"
-import { useTheme } from "next-themes"
 import Image from "next/image"
 
-interface LogoProps extends React.HTMLAttributes<HTMLImageElement> {
+interface LogoProps extends React.HTMLAttributes<HTMLDivElement> {
   size?: number
 }
+
 export function Logo({ size = 36, ...props }: LogoProps) {
-  const { resolvedTheme: theme } = useTheme()
   return (
-    <Image
-      src={theme === "light" ? LightLogo : DarkLogo}
-      alt="Logo"
-      width={size}
-      height={size}
-      {...props}
-    />
+    <div className="relative" style={{ width: size, height: size }} {...props}>
+      <Image
+        src={LightLogo}
+        alt="Logo"
+        fill
+        className="block dark:hidden"
+        priority
+      />
+      <Image
+        src={DarkLogo}
+        alt="Logo"
+        fill
+        className="hidden dark:block"
+        priority
+      />
+    </div>
   )
 }
