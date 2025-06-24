@@ -2,6 +2,7 @@
 import { Button } from "@/components/ui/button"
 import { apiClient } from "@/server/client"
 import { Download } from "lucide-react"
+import { toast } from "sonner"
 
 export default function DownloadButton({
   name,
@@ -36,7 +37,9 @@ export default function DownloadButton({
       a.click()
       window.URL.revokeObjectURL(url)
     } catch (error) {
-      console.error("Error downloading files:", error)
+      toast.error(
+        error instanceof Error ? error.message : "Failed to download files"
+      )
     }
   }
 

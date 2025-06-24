@@ -53,7 +53,6 @@ export default function ApplyButton({
       }
       onApply(mergedCode.trim(), activeFileContent)
     } catch (error) {
-      console.error("Error applying code:", error)
       toast.error(
         error instanceof Error ? error.message : "Failed to apply code changes"
       )

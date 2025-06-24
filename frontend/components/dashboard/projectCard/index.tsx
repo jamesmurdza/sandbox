@@ -21,6 +21,7 @@ import {
   useState,
   useTransition,
 } from "react"
+import { toast } from "sonner"
 import ProjectCardDropdown from "./dropdown"
 import { CanvasRevealEffect } from "./revealEffect"
 
@@ -155,7 +156,9 @@ export function LikeButton({
         optimisticUpdateLike(newLikeState)
         await toggleLike(sandboxId, userId)
       } catch (error) {
-        console.log("error", error)
+        toast.error(
+          error instanceof Error ? error.message : "Failed to like project"
+        )
         optimisticUpdateLike(!newLikeState)
       }
     })

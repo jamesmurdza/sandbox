@@ -52,8 +52,11 @@ export default function RunButtonModal({
         setIsPreviewCollapsed(false)
         previewPanelRef.current?.expand()
       } catch (error) {
-        toast.error("Failed to create new terminal.")
-        console.error("Error creating new terminal:", error)
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Failed to create new terminal"
+        )
         return
       }
     } else if (!isRunning) {

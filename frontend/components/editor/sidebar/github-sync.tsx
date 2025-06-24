@@ -73,8 +73,9 @@ export function GitHubSync({ userId }: { userId: string }) {
             handleGithubLogin({ code })
           })
           .catch((error) => {
-            console.error("Error during authentication:", error)
-            toast.error("Authentication failed. Please try again.")
+            toast.error(
+              error instanceof Error ? error.message : "Authentication failed"
+            )
           })
       },
     })

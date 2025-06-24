@@ -2,6 +2,7 @@ import { generateUniqueUsername } from "@/lib/username-generator"
 import { apiClient } from "@/server/client"
 import { currentUser } from "@clerk/nextjs/server"
 import { redirect } from "next/navigation"
+import { toast } from "sonner"
 
 export default async function AppAuthLayout({
   children,
@@ -50,7 +51,7 @@ export default async function AppAuthLayout({
 
     if (!res.ok) {
       const error = await res.text()
-      console.error("Failed to create user:", error)
+      toast.error("Failed to create user: " + error)
     } else {
       const data = await res.json()
     }

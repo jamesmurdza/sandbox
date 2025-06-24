@@ -1,6 +1,7 @@
 import { TFile, TFolder } from "@/lib/types"
 import { Image as ImageIcon, Paperclip, Send, StopCircle } from "lucide-react"
 import { useEffect } from "react"
+import { toast } from "sonner"
 import { Button } from "../../ui/button"
 import { looksLikeCode } from "./lib/chatUtils"
 import { ALLOWED_FILE_TYPES, ChatInputProps } from "./types"
@@ -80,7 +81,9 @@ export default function ChatInput({
           }
           reader.readAsDataURL(file)
         } catch (error) {
-          console.error("Error processing pasted image:", error)
+          toast.error(
+            error instanceof Error ? error.message : "Failed to process image"
+          )
         }
         return
       }

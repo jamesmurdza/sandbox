@@ -1,5 +1,6 @@
 import { TFile, TFolder } from "@/lib/types"
 import React from "react"
+import { toast } from "sonner"
 
 // Stringify content for chat message component
 export const stringifyContent = (
@@ -199,7 +200,9 @@ export const handleSend = async (
   } catch (error: any) {
     // Handle abort error for chat message component
     if (error.name !== "AbortError") {
-      console.error("Error fetching AI response:", error)
+      toast.error(
+        error instanceof Error ? error.message : "Failed to fetch AI response"
+      )
       const errorMessage = {
         role: "assistant" as const,
         content:

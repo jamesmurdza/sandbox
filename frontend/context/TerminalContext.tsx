@@ -7,6 +7,7 @@ import {
 } from "@/lib/terminal"
 import { Terminal } from "@xterm/xterm"
 import React, { createContext, useContext, useState } from "react"
+import { toast } from "sonner"
 
 interface TerminalContextType {
   terminals: { id: string; terminal: Terminal | null }[]
@@ -64,7 +65,9 @@ export const TerminalProvider: React.FC<{ children: React.ReactNode }> = ({
         socket,
       })
     } catch (error) {
-      console.error("Error creating terminal:", error)
+      toast.error(
+        error instanceof Error ? error.message : "Failed to create new terminal"
+      )
     } finally {
       setCreatingTerminal(false)
     }

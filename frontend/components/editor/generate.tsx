@@ -134,8 +134,9 @@ function GenerateInput({
       setCode(cleanedResult)
       router.refresh()
     } catch (error) {
-      console.error("Generation error:", error)
-      toast.error("Failed to generate code")
+      toast.error(
+        error instanceof Error ? error.message : "Failed to generate code"
+      )
     } finally {
       setLoading({ generate: false, regenerate: false })
     }
