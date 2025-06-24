@@ -6,55 +6,56 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu"
-import { TFile, TTab } from "@/lib/types"
-import { Loader2, Pencil, Trash2 } from "lucide-react"
+import { TFile } from "@/lib/types"
+import { Pencil, Trash2 } from "lucide-react"
 import Image from "next/image"
-import { useEffect, useRef, useState } from "react"
+import { memo, useEffect, useRef, useState } from "react"
 import { getIconForFile } from "vscode-icons-js"
 
-import { draggable } from "@atlaskit/pragmatic-drag-and-drop/element/adapter"
+import { fileRouter } from "@/lib/api"
+import { useAppStore } from "@/store/context"
+import { useDraggable } from "@dnd-kit/react"
+import { useQueryClient } from "@tanstack/react-query"
+import { useParams } from "next/navigation"
+import { useFileContent, useFileTree } from "../hooks/useFile"
 
-const HOVER_PREFETCH_DELAY = 200
-export default function SidebarFile({
-  data,
-  selectFile,
-  handleRename,
-  handleDeleteFile,
-  prefetchFile,
-  movingId,
-  deletingFolderId,
-}: {
-  data: TFile
-  selectFile: (file: TTab) => void
-  prefetchFile: (file: TTab) => void
-  handleRename: (
-    id: string,
-    newName: string,
-    oldName: string,
-    type: "file" | "folder"
-  ) => boolean
-  handleDeleteFile: (file: TFile) => void
-  movingId: string
-  deletingFolderId: string
-}) {
-  const isMoving = movingId === data.id
-  const isDeleting =
-    deletingFolderId.length > 0 && data.id.startsWith(deletingFolderId)
-
-  const ref = useRef(null) // for draggable
-  const [dragging, setDragging] = useState(false)
+const HOVER_PREFETCH_DELAY = 100
+const SidebarFile = memo((props: TFile) => {
+  const { id: projectId } = useParams<{ id: string }>()
+  const addTab = useAppStore((s) => s.addTab)
+  const setActiveTab = useAppStore((s) => s.setActiveTab)
+  const queryClient = useQueryClient()
+  const { deleteFile, renameFile, isDeletingFile } = useFileTree()
+  const { prefetchFileContent } = useFileContent({
+    id: props.id,
+  })
+  const { ref, isDragging } = useDraggable({
+    id: props.id,
+    type: props.type,
+    feedback: "clone",
+  })
 
   const inputRef = useRef<HTMLInputElement>(null)
-  const [imgSrc, setImgSrc] = useState(`/icons/${getIconForFile(data.name)}`)
+  const [imgSrc, setImgSrc] = useState(`/icons/${getIconForFile(props.name)}`)
   const [editing, setEditing] = useState(false)
-  const [pendingDelete, setPendingDelete] = useState(isDeleting)
 
   const hoverTimeout = useRef<NodeJS.Timeout | null>(null)
 
+  const selectFile = async () => {
+    const newTab = { ...props, saved: true }
+    addTab(newTab)
+    await queryClient.ensureQueryData(
+      fileRouter.fileContent.getFetchOptions({
+        projectId,
+        fileId: props.id,
+      })
+    )
+    setActiveTab(newTab)
+  }
   const handleMouseEnter = () => {
-    if (!editing && !pendingDelete && !isMoving) {
+    if (!editing && !isDeletingFile) {
       hoverTimeout.current = setTimeout(() => {
-        prefetchFile({ ...data, saved: true })
+        prefetchFileContent()
       }, HOVER_PREFETCH_DELAY)
     }
   }
@@ -65,21 +66,6 @@ export default function SidebarFile({
       hoverTimeout.current = null
     }
   }
-  useEffect(() => {
-    setPendingDelete(isDeleting)
-  }, [isDeleting])
-
-  useEffect(() => {
-    const el = ref.current
-
-    if (el)
-      return draggable({
-        element: el,
-        onDragStart: () => setDragging(true),
-        onDrop: () => setDragging(false),
-        getInitialData: () => ({ id: data.id }),
-      })
-  }, [])
 
   useEffect(() => {
     if (editing) {
@@ -87,16 +73,12 @@ export default function SidebarFile({
     }
   }, [editing, inputRef.current])
 
-  const renameFile = () => {
-    const renamed = handleRename(
-      data.id,
-      inputRef.current?.value ?? data.name,
-      data.name,
-      "file"
-    )
-    if (!renamed && inputRef.current) {
-      inputRef.current.value = data.name
-    }
+  const handleRename = () => {
+    renameFile({
+      fileId: props.id,
+      projectId,
+      newName: inputRef.current?.value ?? props.name,
+    })
     setEditing(false)
   }
 
@@ -104,19 +86,17 @@ export default function SidebarFile({
     <ContextMenu>
       <ContextMenuTrigger
         ref={ref}
-        disabled={pendingDelete || dragging || isMoving}
-        onClick={() => {
-          if (!editing && !pendingDelete && !isMoving)
-            selectFile({ ...data, saved: true })
-        }}
+        disabled={isDeletingFile || isDragging}
+        onClick={selectFile}
         onDoubleClick={() => {
           setEditing(true)
         }}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
-        className={`${
-          dragging ? "opacity-50 hover:!bg-background" : ""
-        } data-[state=open]:bg-secondary/50 w-full flex items-center h-7 px-1 hover:bg-secondary rounded-sm cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring`}
+        data-dragging={isDragging}
+        className={
+          "data-[dragging=true]:opacity-50 data-[dragging=true]:hover:!bg-background data-[state=open]:bg-secondary/50 w-full flex items-center h-7 px-1 hover:bg-secondary rounded-sm cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+        }
       >
         <Image
           src={imgSrc}
@@ -126,12 +106,7 @@ export default function SidebarFile({
           className="mr-2"
           onError={() => setImgSrc("/icons/default_file.svg")}
         />
-        {isMoving ? (
-          <>
-            <Loader2 className="text-muted-foreground w-4 h-4 animate-spin mr-2" />
-            <div className="text-muted-foreground">{data.name}</div>
-          </>
-        ) : pendingDelete ? (
+        {isDeletingFile ? (
           <>
             <div className="text-muted-foreground animate-pulse">
               Deleting...
@@ -141,7 +116,7 @@ export default function SidebarFile({
           <form
             onSubmit={(e) => {
               e.preventDefault()
-              renameFile()
+              handleRename()
             }}
           >
             <input
@@ -150,8 +125,8 @@ export default function SidebarFile({
                 editing ? "" : "pointer-events-none"
               }`}
               disabled={!editing}
-              defaultValue={data.name}
-              onBlur={() => renameFile()}
+              defaultValue={props.name}
+              onBlur={() => handleRename()}
             />
           </form>
         )}
@@ -167,11 +142,12 @@ export default function SidebarFile({
           Rename
         </ContextMenuItem>
         <ContextMenuItem
-          disabled={pendingDelete}
+          disabled={isDeletingFile}
           onClick={() => {
-            console.log("delete")
-            setPendingDelete(true)
-            handleDeleteFile(data)
+            deleteFile({
+              fileId: props.id,
+              projectId,
+            })
           }}
         >
           <Trash2 className="w-4 h-4 mr-2" />
@@ -180,4 +156,6 @@ export default function SidebarFile({
       </ContextMenuContent>
     </ContextMenu>
   )
-}
+})
+
+export default SidebarFile

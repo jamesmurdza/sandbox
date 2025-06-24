@@ -9,6 +9,7 @@ import { Loader2 } from "lucide-react"
 import { useTheme } from "next-themes"
 import { ElementRef, useEffect, useRef } from "react"
 import { Socket } from "socket.io-client"
+
 export default function EditorTerminal({
   socket,
   id,

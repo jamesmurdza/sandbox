@@ -5,7 +5,6 @@ import { io, Socket } from "socket.io-client"
 
 interface SocketContextType {
   socket: Socket | null
-  setUserAndSandboxId: (userId: string, sandboxId: string) => void
 }
 
 const SocketContext = createContext<SocketContextType | undefined>(undefined)
@@ -13,49 +12,41 @@ const SocketContext = createContext<SocketContextType | undefined>(undefined)
 export const SocketProvider: React.FC<{
   children: React.ReactNode
   token: string | null
-}> = ({ children, token }) => {
+  userId: string
+  sandboxId: string
+}> = ({ children, token, userId, sandboxId }) => {
   const [socket, setSocket] = useState<Socket | null>(null)
-  const [userId, setUserId] = useState<string | null>(null)
-  const [sandboxId, setSandboxId] = useState<string | null>(null)
 
   useEffect(() => {
-    if (userId && sandboxId) {
-      console.log("Initializing socket connection...")
-      const newSocket = io(
-        `${process.env.NEXT_PUBLIC_SERVER_URL}?userId=${userId}&sandboxId=${sandboxId}`,
-        {
-          auth: {
-            token,
-            sandboxId,
-          },
-        }
-      )
-      console.log("Socket instance:", newSocket)
-      setSocket(newSocket)
-
-      newSocket.on("connect", () => {
-        console.log("Socket connected:", newSocket.id)
-      })
-
-      newSocket.on("disconnect", () => {
-        console.log("Socket disconnected")
-      })
-
-      return () => {
-        console.log("Disconnecting socket...")
-        newSocket.disconnect()
+    console.log("Initializing socket connection...")
+    const newSocket = io(
+      `${process.env.NEXT_PUBLIC_SERVER_URL}?userId=${userId}&sandboxId=${sandboxId}`,
+      {
+        auth: {
+          token,
+          sandboxId,
+        },
       }
-    }
-  }, [userId, sandboxId])
+    )
+    console.log("Socket instance:", newSocket)
+    setSocket(newSocket)
 
-  const setUserAndSandboxId = (newUserId: string, newSandboxId: string) => {
-    setUserId(newUserId)
-    setSandboxId(newSandboxId)
-  }
+    newSocket.on("connect", () => {
+      console.log("Socket connected:", newSocket.id)
+    })
+
+    newSocket.on("disconnect", () => {
+      console.log("Socket disconnected")
+    })
+
+    return () => {
+      console.log("Disconnecting socket...")
+      newSocket.disconnect()
+    }
+  }, [])
 
   const value = {
     socket,
-    setUserAndSandboxId,
   }
 
   return (

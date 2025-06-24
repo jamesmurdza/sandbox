@@ -1,13 +1,14 @@
 "use client"
 
-import { Link, RotateCw, UnfoldVertical } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import {
-  forwardRef,
-  useEffect,
-  useImperativeHandle,
-  useRef,
-  useState,
-} from "react"
+  ArrowDownToLine,
+  ArrowRightToLine,
+  Link,
+  RotateCw,
+  UnfoldVertical,
+} from "lucide-react"
+import { forwardRef, useEffect, useImperativeHandle, useState } from "react"
 import { toast } from "sonner"
 
 export default forwardRef(function PreviewWindow(
@@ -15,16 +16,21 @@ export default forwardRef(function PreviewWindow(
     collapsed,
     open,
     src,
+    isHorizontal,
+    toggleLayout,
+    isAIChatOpen,
   }: {
     collapsed: boolean
     open: () => void
     src: string
+    isHorizontal: boolean
+    toggleLayout: () => void
+    isAIChatOpen: boolean
   },
   ref: React.Ref<{
     refreshIframe: () => void
   }>
 ) {
-  const frameRef = useRef<HTMLIFrameElement>(null)
   const [iframeKey, setIframeKey] = useState(0)
   const refreshIframe = () => {
     setIframeKey((prev) => prev + 1)
@@ -36,33 +42,53 @@ export default forwardRef(function PreviewWindow(
 
   return (
     <>
-      <div className="h-8 rounded-md px-3 bg-secondary flex items-center w-full justify-between">
-        <div className="text-xs">Preview</div>
-        <div className="flex space-x-1 translate-x-1">
-          {collapsed ? (
-            <PreviewButton onClick={open}>
-              <UnfoldVertical className="w-4 h-4" />
-            </PreviewButton>
+      <div className="flex items-center justify-between">
+        <Button
+          onClick={toggleLayout}
+          size="sm"
+          variant="ghost"
+          className="mr-2 border"
+          disabled={isAIChatOpen}
+        >
+          {isHorizontal ? (
+            <ArrowRightToLine className="w-4 h-4" />
           ) : (
-            <>
+            <ArrowDownToLine className="w-4 h-4" />
+          )}
+        </Button>
+        <div className="h-8 rounded-md px-3 bg-secondary flex items-center w-full justify-between">
+          <div className="text-xs">Preview</div>
+          <div className="flex space-x-1 translate-x-1">
+            {collapsed ? (
               <PreviewButton onClick={open}>
                 <UnfoldVertical className="w-4 h-4" />
               </PreviewButton>
+            ) : (
+              <>
+                <PreviewButton onClick={open}>
+                  <UnfoldVertical className="w-4 h-4" />
+                </PreviewButton>
 
-              <PreviewButton
-                onClick={() => {
-                  navigator.clipboard.writeText(src)
-                  toast.info("Copied preview link to clipboard")
-                }}
-              >
-                <Link className="w-4 h-4" />
-              </PreviewButton>
-              <PreviewButton onClick={refreshIframe}>
-                <RotateCw className="w-3 h-3" />
-              </PreviewButton>
-            </>
-          )}
+                <PreviewButton
+                  onClick={() => {
+                    navigator.clipboard.writeText(src)
+                    toast.info("Copied preview link to clipboard")
+                  }}
+                >
+                  <Link className="w-4 h-4" />
+                </PreviewButton>
+                <PreviewButton onClick={refreshIframe}>
+                  <RotateCw className="w-3 h-3" />
+                </PreviewButton>
+              </>
+            )}
+          </div>
         </div>
+      </div>
+      <div className="w-full grow rounded-md overflow-hidden bg-background mt-2">
+        {src ? (
+          <iframe key={iframeKey} width="100%" height="100%" src={src} />
+        ) : null}
       </div>
     </>
   )

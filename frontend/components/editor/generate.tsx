@@ -1,25 +1,15 @@
 "use client"
 
-import { User } from "@/lib/types"
+import { cn } from "@/lib/utils"
 import { useRouter } from "@bprogress/next/app"
 import { Editor } from "@monaco-editor/react"
 import { Check, Loader2, RotateCw, Sparkles, X } from "lucide-react"
 import { useTheme } from "next-themes"
-import { usePathname } from "next/navigation"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import { Button } from "../ui/button"
 
-export default function GenerateInput({
-  user,
-  width,
-  data,
-  editor,
-  onExpand,
-  onAccept,
-  onClose,
-}: {
-  user: User
+interface GenerateInputProps {
   width: number
   data: {
     fileName: string
@@ -32,9 +22,39 @@ export default function GenerateInput({
   onExpand: () => void
   onAccept: (code: string) => void
   onClose: () => void
-}) {
+}
+interface GenerateWidgetProps extends GenerateInputProps {
+  generateRef: React.RefObject<HTMLDivElement>
+  generateWidgetRef: React.RefObject<HTMLDivElement>
+  show: boolean
+}
+export function GenerateWidget({
+  generateRef,
+  generateWidgetRef,
+  show,
+  ...inputProps
+}: GenerateWidgetProps) {
+  return (
+    <>
+      {/* Generate DOM anchor point */}
+      <div ref={generateRef} />
+      {/* Generate Widget */}
+      <div className={cn(show && "z-50 p-1")} ref={generateWidgetRef}>
+        {show ? <GenerateInput {...inputProps} /> : null}
+      </div>
+    </>
+  )
+}
+
+function GenerateInput({
+  width,
+  data,
+  editor,
+  onExpand,
+  onAccept,
+  onClose,
+}: GenerateInputProps) {
   const { resolvedTheme: theme } = useTheme()
-  const pathname = usePathname()
   const router = useRouter()
   const inputRef = useRef<HTMLInputElement>(null)
 

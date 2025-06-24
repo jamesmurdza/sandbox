@@ -5,7 +5,6 @@ import {
   SidebarContent,
   SidebarRail,
 } from "@/components/ui/sidebar"
-import type { Sandbox, TFile, TFolder, TTab } from "@/lib/types"
 import { FileExplorer } from "./file-explorer"
 import { GitHubSync } from "./github-sync"
 const sidebarItems = [
@@ -22,37 +21,10 @@ const sidebarItems = [
 ]
 
 interface AppSidebarProps {
-  sandboxData: Sandbox
-  files: (TFile | TFolder)[]
-  selectFile: (tab: TTab) => void
-  prefetchFile: (tab: TTab) => void
-  handleRename: (
-    id: string,
-    newName: string,
-    oldName: string,
-    type: "file" | "folder"
-  ) => boolean
-  handleDeleteFile: (file: TFile) => void
-  handleDeleteFolder: (folder: TFolder) => void
-  setFiles: (files: (TFile | TFolder)[]) => void
-  deletingFolderId: string
-  toggleAIChat: () => void
-  isAIChatOpen: boolean
+  userId: string
 }
 
-export default function AppSidebar({
-  sandboxData,
-  files,
-  selectFile,
-  prefetchFile,
-  handleRename,
-  handleDeleteFile,
-  handleDeleteFolder,
-  setFiles,
-  deletingFolderId,
-  toggleAIChat,
-  isAIChatOpen,
-}: AppSidebarProps) {
+export default function AppSidebar({ userId }: AppSidebarProps) {
   return (
     <Sidebar defaultActiveItem="file">
       <SidebarRail>
@@ -64,23 +36,11 @@ export default function AppSidebar({
       </SidebarRail>
 
       <SidebarContent id="file">
-        <FileExplorer
-          sandboxData={sandboxData}
-          files={files}
-          selectFile={selectFile}
-          handleRename={handleRename}
-          handleDeleteFile={handleDeleteFile}
-          handleDeleteFolder={handleDeleteFolder}
-          setFiles={setFiles}
-          deletingFolderId={deletingFolderId}
-          toggleAIChat={toggleAIChat}
-          isAIChatOpen={isAIChatOpen}
-          prefetchFile={prefetchFile}
-        />
+        <FileExplorer />
       </SidebarContent>
 
       <SidebarContent id="github">
-        <GitHubSync sandboxId={sandboxData.id} userId={sandboxData.userId} />
+        <GitHubSync userId={userId} />
       </SidebarContent>
     </Sidebar>
   )

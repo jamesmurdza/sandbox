@@ -1,8 +1,10 @@
 import { useSocket } from "@/context/SocketContext"
+import { fileRouter } from "@/lib/api"
 import { TFile } from "@/lib/types"
-import { apiClient } from "@/server/client-side-client"
+import { apiClient } from "@/server/client"
 import { ChevronDown, X } from "lucide-react"
 import { nanoid } from "nanoid"
+import { useParams } from "next/navigation"
 import { useEffect, useRef, useState } from "react"
 import LoadingDots from "../../ui/LoadingDots"
 import ChatInput from "./ChatInput"
@@ -17,7 +19,6 @@ export default function AIChat({
   onClose,
   editorRef,
   lastCopiedRangeRef,
-  files,
   templateType,
   handleApplyCode,
   selectFile,
@@ -25,8 +26,13 @@ export default function AIChat({
   setMergeDecorationsCollection,
   projectName,
   tabs,
-  projectId,
 }: AIChatProps) {
+  const { id: projectId } = useParams<{ id: string }>()
+  const { data: files = [] } = fileRouter.fileTree.useQuery({
+    select(data) {
+      return data.data
+    },
+  })
   // Initialize socket and messages
   const { socket } = useSocket()
   const [messages, setMessages] = useState<Message[]>([])

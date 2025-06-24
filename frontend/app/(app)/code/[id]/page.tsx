@@ -1,13 +1,14 @@
 // import { Room } from "@/components/editor/live/room"
 import CodeEditor from "@/components/editor/CodeEditorWrapper"
 import Navbar from "@/components/editor/navbar"
-import { PreviewProvider } from "@/context/PreviewContext"
+import { EditorLayoutProvider } from "@/context/EditorLayoutContext"
 import { SocketProvider } from "@/context/SocketContext"
 import { TerminalProvider } from "@/context/TerminalContext"
-import { github } from "@/hooks/github"
+import { fileRouter, githubRouter } from "@/lib/api"
 import { getQueryClient } from "@/lib/get-query-client"
 import { UsersToSandboxes } from "@/lib/types"
 import { apiClient } from "@/server/client"
+import { AppStoreProvider } from "@/store/context"
 import { auth, currentUser } from "@clerk/nextjs/server"
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query"
 import { notFound, redirect } from "next/navigation"
@@ -82,9 +83,14 @@ export default async function CodePage({
 
   const [shared] = await Promise.all([
     getSharedUsers(sandboxData.usersToSandboxes),
-    queryClient.prefetchQuery(github.githubUser.getOptions()),
+    queryClient.prefetchQuery(githubRouter.githubUser.getOptions()),
     queryClient.prefetchQuery(
-      github.repoStatus.getOptions({
+      githubRouter.repoStatus.getOptions({
+        projectId: sandboxData.id,
+      })
+    ),
+    queryClient.prefetchQuery(
+      fileRouter.fileTree.getOptions({
         projectId: sandboxData.id,
       })
     ),
@@ -102,25 +108,31 @@ export default async function CodePage({
   }
 
   return (
-    <PreviewProvider>
-      <SocketProvider token={authToken}>
+    <SocketProvider
+      token={authToken}
+      userId={userData.id}
+      sandboxId={sandboxData.id}
+    >
+      <AppStoreProvider>
         <TerminalProvider>
-          {/* <Room id={sandboxId}> */}
-          <div className="overflow-hidden overscroll-none w-screen h-screen grid [grid-template-rows:3.5rem_auto] bg-background">
-            <Navbar
-              userData={userData}
-              sandboxData={sandboxData}
-              shared={
-                shared as { id: string; name: string; avatarUrl: string }[]
-              }
-            />
-            <HydrationBoundary state={dehydrate(queryClient)}>
-              <CodeEditor userData={userData} sandboxData={sandboxData} />
-            </HydrationBoundary>
-          </div>
-          {/* </Room> */}
+          <EditorLayoutProvider>
+            {/* <Room id={sandboxId}> */}
+            <div className="overflow-hidden overscroll-none w-screen h-screen grid [grid-template-rows:3.5rem_auto] bg-background">
+              <Navbar
+                userData={userData}
+                sandboxData={sandboxData}
+                shared={
+                  shared as { id: string; name: string; avatarUrl: string }[]
+                }
+              />
+              <HydrationBoundary state={dehydrate(queryClient)}>
+                <CodeEditor userData={userData} sandboxData={sandboxData} />
+              </HydrationBoundary>
+            </div>
+            {/* </Room> */}
+          </EditorLayoutProvider>
         </TerminalProvider>
-      </SocketProvider>
-    </PreviewProvider>
+      </AppStoreProvider>
+    </SocketProvider>
   )
 }
