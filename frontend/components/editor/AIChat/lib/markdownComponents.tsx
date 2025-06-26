@@ -43,6 +43,9 @@ export const createMarkdownComponents = (
       const match = /language-(\w+)/.exec(className || "")
       const stringifiedChildren = stringifyContent(children)
 
+      // Capture the intended file for this specific code block
+      const codeBlockIntendedFile = intendedFile
+
       let highlightedCode = stringifiedChildren
       if (match && match[1]) {
         try {
@@ -68,12 +71,11 @@ export const createMarkdownComponents = (
               <div className="w-px bg-input"></div>
               {!mergeDecorationsCollection ? (
                 (() => {
-                  if (intendedFile) {
-                    const intendedFileName =
-                      intendedFile.split("/").pop()?.toLowerCase() || ""
-                    const currentFileName = activeFileName.toLowerCase()
+                  if (codeBlockIntendedFile) {
+                    const intendedFileName = codeBlockIntendedFile.split("/").pop() || ""
+                    const currentFileName = activeFileName
 
-                    if (intendedFileName === currentFileName) {
+                    if (intendedFileName.toLowerCase() === currentFileName.toLowerCase()) {
                       // Correct file - show normal apply
                       return (
                         <ApplyButton
@@ -90,8 +92,8 @@ export const createMarkdownComponents = (
                         <Button
                           onClick={() => {
                             const tab: TTab = {
-                              id: intendedFile!,
-                              name: intendedFileName,
+                              id: codeBlockIntendedFile!,
+                              name: codeBlockIntendedFile!.split("/").pop() || "",
                               saved: true,
                               type: "file",
                             }
@@ -231,12 +233,10 @@ export const createMarkdownComponents = (
 
       if (isFilePath(content)) {
         const isNewFile = content.endsWith("(new file)")
-        const filePath = (
-          isNewFile ? content.replace(" (new file)", "") : content
-        )
-          .split("/")
-          .filter((part, index) => index !== 0)
-          .join("/")
+        const cleanContent = isNewFile ? content.replace(" (new file)", "") : content
+
+        // Use the clean content directly as the file path - no project name stripping needed
+        const filePath = cleanContent.trim()
 
         // Set the intended file for the next code blocks
         intendedFile = filePath
