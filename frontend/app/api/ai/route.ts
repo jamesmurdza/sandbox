@@ -300,15 +300,15 @@ ${JSON.stringify(templateConfig.scripts, null, 2)}
       const chatSystemMessage = `You are an intelligent programming assistant for a ${templateType} project. Please respond to the following request concisely. When providing code:
 
 1. Format it using triple backticks (\`\`\`) with the appropriate language identifier.
-2. Always specify the complete file path in the format:
-   ${projectName}/filepath/to/file.ext
+2. Always specify the complete file path relative to the project root in the format:
+   filepath/to/file.ext
 
 3. If creating a new file, specify the path as:
-   ${projectName}/filepath/to/file.ext (new file)
+   filepath/to/file.ext (new file)
 
 4. Format your code blocks as:
 
-${projectName}/filepath/to/file.ext
+filepath/to/file.ext
 \`\`\`language
 code here
 \`\`\`

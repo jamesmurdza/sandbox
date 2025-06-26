@@ -104,9 +104,9 @@ export const looksLikeCode = (text: string): boolean => {
  * Check if text is a file path
  */
 export const isFilePath = (text: string): boolean => {
-  // Match patterns like path/to/file.ext or path/to/file.ext (new file)
+  // Match patterns like styles/SignIn.module.css or path/to/file.ext (new file)
   const pattern =
-    /^(?:[a-zA-Z0-9_.-]+\/)*[a-zA-Z0-9_.-]+\.[a-zA-Z0-9]+(\s+\(new file\))?$/
+    /^(?:[a-zA-Z0-9_.\- ]+\/)*[a-zA-Z0-9_.\- ]+\.[a-zA-Z0-9]+(\s+\(new file\))?$/
   return pattern.test(text)
 }
 

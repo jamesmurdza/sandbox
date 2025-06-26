@@ -43,10 +43,19 @@ import { WheelGesturesPlugin } from "embla-carousel-wheel-gestures"
 const formSchema = z.object({
   name: z
     .string()
-    .min(1)
-    .max(16)
+    .min(1, "Project name is required")
+    .max(16, "Project name must be 16 characters or less")
+    .transform((val) => val.trim())
     .refine(
-      (value) => /^[a-zA-Z0-9_]+$/.test(value),
+      (value) => value.length > 0,
+      "Project name cannot be empty or only spaces"
+    )
+    .refine(
+      (value) => /^[a-zA-Z0-9_ ]+$/.test(value),
+      "Project name can only contain letters, numbers, underscores, and spaces"
+    )
+    .refine(
+      (value) => !/  /.test(value),
       "Name must be alphanumeric and can contain underscores"
     ),
   visibility: z.enum(["public", "private"]),
