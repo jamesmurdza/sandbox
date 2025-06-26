@@ -47,6 +47,7 @@ export default function EditorLayout({
   // Store States
   const tabs = useAppStore((s) => s.tabs)
   const activeTab = useAppStore((s) => s.activeTab)
+  const addTab = useAppStore((s) => s.addTab)
   const setActiveTab = useAppStore((s) => s.setActiveTab)
   const removeTab = useAppStore((s) => s.removeTab)
   const draft = useAppStore((s) => s.drafts[activeTab?.id ?? ""])
@@ -295,7 +296,10 @@ export default function EditorLayout({
               handleApplyCode={handleApplyCodeWithDecorations}
               mergeDecorationsCollection={mergeDecorationsCollection}
               setMergeDecorationsCollection={setMergeDecorationsCollection}
-              selectFile={setActiveTab}
+              selectFile={(tab) => {
+                addTab(tab)
+                setActiveTab(tab)
+              }}
               tabs={tabs}
               projectId={projectId}
               files={fileTree as TFile[]}

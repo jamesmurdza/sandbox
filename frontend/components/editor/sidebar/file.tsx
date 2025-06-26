@@ -44,13 +44,13 @@ const SidebarFile = memo((props: TFile) => {
   const selectFile = async () => {
     const newTab = { ...props, saved: true }
     addTab(newTab)
+    setActiveTab(newTab)
     await queryClient.ensureQueryData(
       fileRouter.fileContent.getFetchOptions({
         projectId,
         fileId: props.id,
       })
     )
-    setActiveTab(newTab)
   }
   const handleMouseEnter = () => {
     if (!editing && !isDeletingFile) {
