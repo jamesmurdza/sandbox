@@ -22,7 +22,6 @@ import { useFileContent, useFileTree } from "../hooks/useFile"
 const HOVER_PREFETCH_DELAY = 100
 const SidebarFile = memo((props: TFile) => {
   const { id: projectId } = useParams<{ id: string }>()
-  const addTab = useAppStore((s) => s.addTab)
   const setActiveTab = useAppStore((s) => s.setActiveTab)
   const queryClient = useQueryClient()
   const { deleteFile, renameFile, isDeletingFile } = useFileTree()
@@ -43,7 +42,6 @@ const SidebarFile = memo((props: TFile) => {
 
   const selectFile = async () => {
     const newTab = { ...props, saved: true }
-    addTab(newTab)
     await queryClient.ensureQueryData(
       fileRouter.fileContent.getFetchOptions({
         projectId,

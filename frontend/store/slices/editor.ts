@@ -40,12 +40,24 @@ const createEditorSlice: StateCreator<EditorSlice> = (set, get) => ({
     }))
   },
   setActiveTab: (tabOrUpdater) => {
-    set((state) => ({
-      activeTab:
-        typeof tabOrUpdater === "function"
-          ? tabOrUpdater(state.activeTab)
-          : tabOrUpdater,
-    }))
+    set((state) => {
+      const newActiveTab = typeof tabOrUpdater === "function"
+        ? tabOrUpdater(state.activeTab)
+        : tabOrUpdater
+
+      if (!newActiveTab) {
+        return { activeTab: newActiveTab }
+      }
+
+      // Auto-add tab if it doesn't exist
+      const tabExists = state.tabs.some((tab) => tab.id === newActiveTab.id)
+      const updatedTabs = tabExists ? state.tabs : [...state.tabs, newActiveTab]
+
+      return {
+        activeTab: newActiveTab,
+        tabs: updatedTabs,
+      }
+    })
   },
   addTab(tab) {
     set((state) => {
