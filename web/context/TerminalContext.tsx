@@ -4,7 +4,7 @@ import { useSocket } from "@/context/SocketContext"
 import {
   closeTerminal as closeTerminalHelper,
   createTerminal as createTerminalHelper,
-} from "@/lib/terminal"
+} from "@/lib/api/terminal"
 import { Terminal } from "@xterm/xterm"
 import React, { createContext, useContext, useState } from "react"
 import { toast } from "sonner"
