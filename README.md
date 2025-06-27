@@ -10,8 +10,6 @@ For the latest updates, join our Discord server: [discord.gitwit.dev](https://di
 
 ### 0. Requirements
 
-The application uses NodeJS for the backend, NextJS for the frontend, and Cloudflare workers for additional backend tasks.
-
 Needed accounts to set up:
 
 - [Clerk](https://clerk.com/): Used for user authentication.
@@ -69,7 +67,6 @@ Create a database by using postgres username:
 psql postgres -U  postgres -c "CREATE DATABASE sandbox;"
 ```
 
-
 Update `frontend/.env` and `backend/server/.env` with the database connection string.
 
 ```
@@ -77,11 +74,10 @@ DATABASE_URL=postgresql://localhost:5432/sandbox
 ```
 
 For authentication, use:
+
 ```
 DATABASE_URL=postgresql://<username>:password@localhost:5432/sandbox
 ```
-
-Follow this [guide](https://docs.google.com/document/d/1w5dA5daic_sIYB5Seni1KvnFx51pPV2so6lLdN2xa7Q/edit?usp=sharing) for more info.
 
 ### 5. Applying the database schema
 
@@ -200,9 +196,11 @@ npm run test
 To use the `anthropic.claude-3-7-sonnet-20250219-v1:0` model via Amazon Bedrock, follow these steps:
 
 1. **Create an AWS Account** (if you don't have one)
+
    - Go to [aws.amazon.com](https://aws.amazon.com/) and sign up for an AWS account.
 
 2. **Create an IAM User with Programmatic Access**
+
    - Navigate to IAM in the AWS Management Console.
    - Click "Users" → "Add users".
    - Enter a username and select "Programmatic access".
@@ -210,15 +208,11 @@ To use the `anthropic.claude-3-7-sonnet-20250219-v1:0` model via Amazon Bedrock,
 
      ```json
      {
-       "Version": "2012-10-17", 
+       "Version": "2012-10-17",
        "Statement": [
          {
            "Effect": "Allow",
-           "Action": [
-             "bedrock:*",
-             "kms:GenerateDataKey",
-             "kms:Decrypt"  
-           ],
+           "Action": ["bedrock:*", "kms:GenerateDataKey", "kms:Decrypt"],
            "Resource": "*"
          }
        ]
@@ -228,12 +222,14 @@ To use the `anthropic.claude-3-7-sonnet-20250219-v1:0` model via Amazon Bedrock,
    - Complete the process and save your Access Key ID and Secret Access Key.
 
 3. **Enable Model Access in Bedrock**
+
    - Go to Amazon Bedrock in the AWS Console.
    - Navigate to "Model access" and request access to Anthropic Claude 3.7 Sonnet.
    - Wait for approval (usually immediate).
    - Note: Ensure you're in a supported region. Claude 3.7 Sonnet is available in regions like `us-east-1` (N. Virginia), `us-west-2` (Oregon), and others.
 
 4. **Create a Provisioned Throughput**
+
    - In Bedrock, go to "Inference and Assessment" → "Provisioned Throughput".
    - Create a new inference profile for Claude 3.7 Sonnet.
    - Select the model ID: `anthropic.claude-3-7-sonnet-20250219-v1:0`
@@ -241,6 +237,7 @@ To use the `anthropic.claude-3-7-sonnet-20250219-v1:0` model via Amazon Bedrock,
    - Copy the ARN (Amazon Resource Name) of your inference profile.
 
 5. **Configure Environment Variables**
+
    - Add the following to your `.env` file:
 
      ```
@@ -342,67 +339,13 @@ Thanks for your interest in contributing! Review this section before submitting 
 
 ### Structure
 
-```
-frontend/
-├── app
-├── assets
-├── components
-├── context
-├── drizzle
-├── lib
-├── public
-├── server
-├── store
-├── package.json
-├── tsconfig.json
-
-backend/
-└── server
-    ├── src
-    │   ├── db
-    │   ├── middleware
-    │   ├── services
-    │   └── utils
-    ├── package.json
-    ├── tsconfig.json
-    └── ...
-
-tests/
-├── utils
-├── user.test.ts
-├── project.test.ts
-├── github.test.ts
-├── sockets.ts
-├── package.json
-└── tsconfig.json
-```
-
-| Path                  | Description                                                      |
-|-----------------------|------------------------------------------------------------------|
-| `frontend`            | The Next.js application for the frontend.                        |
-| `frontend/server`     | API routes, db, and middlewares used by the frontend.            |
-| `backend/server`      | The Express websocket server and backend logic.                  |
-| `backend/server/src`  | Source code for backend (db, middleware, services, utils, etc.). |
-| `tests`               | Integration and unit tests for the project.                      |
-
-### Development
-
-#### Fork this repo
-
-You can fork this repo by clicking the fork button in the top right corner of this page.
-
-#### Clone repository
-
-```bash
-git clone https://github.com/<your-username>/sandbox.git
-cd sandbox
-```
-
-#### Create a new branch
-
-```bash
-git checkout -b my-new-branch
-```
+| Path                 | Description                                                      |
+| -------------------- | ---------------------------------------------------------------- |
+| `frontend`           | The Next.js application for the frontend.                        |
+| `frontend/server`    | API routes, db, and middlewares used by the frontend.            |
+| `backend/server`     | The Express websocket server and backend logic.                  |
+| `backend/server/src` | Source code for backend (db, middleware, services, utils, etc.). |
+| `tests`              | Integration and unit tests for the project.                      |
 
 ### Code formatting
 
@@ -429,27 +372,3 @@ It should be in the form `category(scope or module): message` in your commit mes
   categories
 
   e.g. `feat(editor): improve tab switching speed`
-
----
-
-## Tech stack
-
-### Frontend
-
-- [Next.js](https://nextjs.org/)
-- [TailwindCSS](https://tailwindcss.com/)
-- [Shadcn UI](https://ui.shadcn.com/)
-- [Clerk](https://clerk.com/)
-- [Monaco](https://microsoft.github.io/monaco-editor/)
-- [Liveblocks](https://liveblocks.io/)
-
-### Backend
-
-- [Cloudflare Workers](https://developers.cloudflare.com/workers/)
-  - [D1 database](https://developers.cloudflare.com/d1/)
-  - [R2 storage](https://developers.cloudflare.com/r2/)
-  - [Workers AI](https://developers.cloudflare.com/workers-ai/)
-- [Express](https://expressjs.com/)
-- [Socket.io](https://socket.io/)
-- [Drizzle ORM](https://orm.drizzle.team/)
-- [E2B](https://e2b.dev/)
