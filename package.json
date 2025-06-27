@@ -1,8 +1,8 @@
 {
   "private": true,
   "workspaces": [
-    "frontend",
-    "backend/server",
+    "web",
+    "server",
     "db",
     "lib"
   ]
