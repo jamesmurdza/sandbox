@@ -1,8 +1,8 @@
 import { Octokit } from "@octokit/core"
 import { eq } from "drizzle-orm"
 // import { createJiti } from "jiti"
-import { db } from "@/server/db"
-import { user } from "@/server/db/schema"
+import { db } from "@gitwit/db"
+import { user } from "@gitwit/db/schema"
 
 export interface GitHubTokenResponse {
   access_token: string

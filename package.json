@@ -1,0 +1,8 @@
+{
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend/server",
+    "db"
+  ]
+}

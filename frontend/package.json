@@ -97,7 +97,8 @@
     "y-protocols": "^1.0.6",
     "yjs": "^13.6.15",
     "zod": "^3.25.49",
-    "zod-openapi": "^4.2.4"
+    "zod-openapi": "^4.2.4",
+    "@gitwit/db": "*"
   },
   "devDependencies": {
     "@types/estree": "^1.0.6",

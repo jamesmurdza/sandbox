@@ -1,0 +1,8 @@
+{
+  "name": "@gitwit/db",
+  "version": "1.0.0",
+  "main": "index.js",
+  "dependencies": {
+    "drizzle-orm": "^0.44.2"
+  }
+}

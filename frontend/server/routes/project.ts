@@ -1,10 +1,6 @@
 import { createRouter } from "@/lib/server/create-app"
 import jsonContent from "@/lib/server/utils"
-import { and, eq, sql } from "drizzle-orm"
-import { describeRoute } from "hono-openapi"
-import { validator as zValidator } from "hono-openapi/zod"
-import z from "zod"
-import { db } from "../db"
+import { db } from "@gitwit/db"
 import {
   sandbox,
   sandboxInsertSchema,
@@ -13,7 +9,11 @@ import {
   user,
   UsersToSandboxes,
   usersToSandboxes,
-} from "../db/schema"
+} from "@gitwit/db/schema"
+import { and, eq, sql } from "drizzle-orm"
+import { describeRoute } from "hono-openapi"
+import { validator as zValidator } from "hono-openapi/zod"
+import z from "zod"
 
 export const projectRouter = createRouter()
   // #region GET /
