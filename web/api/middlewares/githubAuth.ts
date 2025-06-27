@@ -1,5 +1,5 @@
+import { AppBindings } from "@/lib/api/types"
 import { GitHubManager } from "@/lib/github"
-import { AppBindings } from "@/lib/server/types"
 import { db } from "@gitwit/db"
 import { createMiddleware } from "hono/factory"
 

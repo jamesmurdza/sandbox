@@ -1,6 +1,6 @@
 "use client"
 
-import { deleteSandbox, updateSandbox } from "@/lib/actions"
+import { deleteSandbox, updateSandbox } from "@/lib/api/actions"
 import { Sandbox } from "@/lib/types"
 import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"

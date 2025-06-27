@@ -1,5 +1,5 @@
+import { AppBindings } from "@/lib/api/types"
 import { env } from "@/lib/env"
-import { AppBindings } from "@/lib/server/types"
 import { createClerkClient, verifyToken } from "@clerk/backend"
 import { createMiddleware } from "hono/factory"
 

@@ -30,7 +30,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { deleteSandbox, updateSandbox, updateUser } from "@/lib/actions"
+import { deleteSandbox, updateSandbox, updateUser } from "@/lib/api/actions"
 import { socialIcons } from "@/lib/data"
 import { editUserSchema, EditUserSchema } from "@/lib/schema"
 import { TIERS } from "@/lib/tiers"

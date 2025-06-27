@@ -9,7 +9,7 @@ import { fileRouter } from "@/lib/api"
 import { X } from "lucide-react"
 import { useParams } from "next/navigation"
 import * as React from "react"
-import { Button } from "../ui/button"
+import { Button } from "../../ui/button"
 
 export function SessionTimeoutDialog({ isOwner }: { isOwner: boolean }) {
   const { id: projectId } = useParams<{ id: string }>()

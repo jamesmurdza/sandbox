@@ -1,12 +1,12 @@
 "use client"
 
-import { useEditorShortcuts } from "@/components/editor/hooks/useEditorShortcuts"
+import { useEditorShortcuts } from "@/components/project/hooks/useEditorShortcuts"
 import { Sandbox, User } from "@/lib/types"
-import ChangesAlert from "./changes-alert"
-import EditorLayout from "./EditorLayout"
+import ChangesAlert from "./alerts/changes-alert"
+import ProjectLayout from "./project-layout"
 import Sidebar from "./sidebar"
 
-export default function CodeEditor({
+export default function Project({
   userData,
   sandboxData,
 }: {
@@ -23,8 +23,8 @@ export default function CodeEditor({
       <ChangesAlert />
       {/* Sidebar */}
       <Sidebar userId={sandboxData.userId} />
-      {/* Main Editor Layout */}
-      <EditorLayout
+      {/* Main Project Layout */}
+      <ProjectLayout
         isOwner={isOwner}
         projectName={sandboxData.name}
         projectType={sandboxData.type}

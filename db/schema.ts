@@ -11,20 +11,7 @@ import {
 } from "drizzle-orm/pg-core"
 import { createInsertSchema, createUpdateSchema } from "drizzle-zod"
 import z from "zod"
-export const KNOWN_PLATFORMS = [
-  "github",
-  "twitter",
-  "instagram",
-  "bluesky",
-  "linkedin",
-  "youtube",
-  "twitch",
-  "discord",
-  "mastodon",
-  "threads",
-  "gitlab",
-  "generic",
-] as const
+import { KNOWN_PLATFORMS } from "./constants"
 
 export type KnownPlatform = (typeof KNOWN_PLATFORMS)[number]
 export type UserLink = {

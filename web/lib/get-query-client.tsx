@@ -3,6 +3,8 @@ import {
   defaultShouldDehydrateQuery,
   isServer,
 } from "@tanstack/react-query"
+import { QueryClientProvider as TanstackQueryClientProvider } from "@tanstack/react-query"
+import * as React from "react"
 
 function makeQueryClient() {
   return new QueryClient({
@@ -34,4 +36,18 @@ export function getQueryClient() {
     if (!browserQueryClient) browserQueryClient = makeQueryClient()
     return browserQueryClient
   }
+}
+
+export function QueryClientProvider({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  const queryClient = getQueryClient()
+  // const token = await (await auth()).getToken()
+  return (
+    <TanstackQueryClientProvider client={queryClient}>
+      {children}
+    </TanstackQueryClientProvider>
+  )
 }

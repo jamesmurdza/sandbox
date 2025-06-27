@@ -1,4 +1,4 @@
-import { Logo } from "@/components/logo"
+import { Logo } from "@/components/ui/logo"
 
 import CustomButton from "@/components/ui/customButton"
 import { ChevronRight } from "lucide-react"

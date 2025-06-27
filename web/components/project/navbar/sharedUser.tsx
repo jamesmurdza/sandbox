@@ -2,7 +2,7 @@
 
 import Avatar from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
-import { unshareSandbox } from "@/lib/actions"
+import { unshareSandbox } from "@/lib/api/actions"
 import { Loader2, X } from "lucide-react"
 import { useState } from "react"
 

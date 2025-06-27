@@ -1,7 +1,7 @@
 // import { Room } from "@/components/editor/live/room"
 import { apiClient } from "@/api/client"
-import CodeEditor from "@/components/editor/CodeEditorWrapper"
-import Navbar from "@/components/editor/navbar"
+import { ProjectWrapper as Project } from "@/components/project/project-wrapper"
+import Navbar from "@/components/project/navbar"
 import { EditorLayoutProvider } from "@/context/EditorLayoutContext"
 import { SocketProvider } from "@/context/SocketContext"
 import { TerminalProvider } from "@/context/TerminalContext"
@@ -126,7 +126,7 @@ export default async function CodePage({
                 }
               />
               <HydrationBoundary state={dehydrate(queryClient)}>
-                <CodeEditor userData={userData} sandboxData={sandboxData} />
+                <Project userData={userData} sandboxData={sandboxData} />
               </HydrationBoundary>
             </div>
             {/* </Room> */}

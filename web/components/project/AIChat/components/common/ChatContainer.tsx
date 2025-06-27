@@ -1,4 +1,4 @@
-import LoadingDots from "@/components/ui/LoadingDots"
+import LoadingDots from "./LoadingDots"
 import { ChevronDown } from "lucide-react"
 import { useChatScroll } from "../../hooks/useChatScroll"
 import { Message } from "../../lib/types"

@@ -1,4 +1,4 @@
-import createApp from "@/lib/server/create-app"
+import createApp from "@/lib/api/create-app"
 import { clerkAuth } from "./middlewares/clerkAuth"
 import { fileRouter } from "./routes/file"
 import { githubRouter } from "./routes/github"

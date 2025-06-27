@@ -1,12 +1,12 @@
 "use client"
-import { GenerateState } from "@/components/editor/hooks/useMonacoEditor"
+import { GenerateState } from "@/components/project/hooks/useMonacoEditor"
 import { TTab } from "@/lib/types"
 import * as monaco from "monaco-editor"
-import AISuggestionWidget from "./AISuggestionWidget"
-import { GenerateWidget } from "./generate"
-import { useGenerateWidget } from "./hooks/useGenerateWidget"
+import { useGenerateWidget } from "../hooks/useGenerateWidget"
+import EditCodeWidget from "./edit-code-widget"
+import { GenerateWidget } from "./generate-widget"
 
-export interface CopilotElementsProps {
+export interface AIEditElementsProps {
   generateRef: React.RefObject<HTMLDivElement>
   suggestionRef: React.RefObject<HTMLDivElement>
   generateWidgetRef: React.RefObject<HTMLDivElement>
@@ -25,7 +25,7 @@ export interface CopilotElementsProps {
 /**
  * Container for all AI Copilot elements (suggestion widget, generate widget, etc.)
  */
-export default function CopilotElements({
+export default function AIEditElements({
   generateRef,
   generateWidgetRef,
   suggestionRef,
@@ -41,7 +41,7 @@ export default function CopilotElements({
   handleAiEdit,
 }: // suggestionWidget,
 // generateWidget,
-CopilotElementsProps) {
+AIEditElementsProps) {
   const generateInputProps = useGenerateWidget({
     editorRef,
     generate,
@@ -63,7 +63,7 @@ CopilotElementsProps) {
         {...generateInputProps}
       />
       {/* AI Suggestion Widget */}
-      <AISuggestionWidget
+      <EditCodeWidget
         isSelected={isSelected}
         showSuggestion={showSuggestion}
         onAiEdit={handleAiEdit}

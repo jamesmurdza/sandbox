@@ -4,7 +4,7 @@ import remarkGfm from "remark-gfm"
 import { useState } from "react"
 import { Button } from "../../../../ui/button"
 import { Check, Copy } from "lucide-react"
-import { createMarkdownComponents } from "../../lib/markdownComponents"
+import { createMarkdownComponents } from "../../lib/create-markdown-components"
 import { Message } from "../../lib/types"
 import { copyToClipboard } from "../../lib/utils"
 

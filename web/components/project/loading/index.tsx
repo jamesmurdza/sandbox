@@ -1,6 +1,5 @@
 "use client"
 
-import { Logo } from "@/components/logo"
 import {
   Dialog,
   DialogContent,
@@ -8,6 +7,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { Logo } from "@/components/ui/logo"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Loader2, X } from "lucide-react"
 import { useEffect, useState } from "react"

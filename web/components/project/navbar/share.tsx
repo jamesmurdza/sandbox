@@ -19,7 +19,7 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { shareSandbox } from "@/lib/actions"
+import { shareSandbox } from "@/lib/api/actions"
 import { Sandbox } from "@/lib/types"
 import { DialogDescription } from "@radix-ui/react-dialog"
 import { Link, Loader2, UserPlus } from "lucide-react"

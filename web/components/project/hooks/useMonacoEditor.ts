@@ -4,7 +4,7 @@ import {
   configureEditorKeybindings,
   defaultCompilerOptions,
 } from "@/lib/monaco/config"
-import { parseTSConfigToMonacoOptions } from "@/lib/tsconfig"
+import { parseTSConfigToMonacoOptions } from "@/lib/monaco/parse-tsconfig"
 import { TFile, TFolder } from "@/lib/types"
 import { debounce, deepMerge } from "@/lib/utils"
 import { BeforeMount, OnMount } from "@monaco-editor/react"

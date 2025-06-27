@@ -3,9 +3,9 @@
 import { apiClient } from "@/api/client"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
-import { editUserSchema } from "./schema"
-import { UserLink } from "./types"
-import { parseSocialLink } from "./utils"
+import { editUserSchema } from "../schema"
+import { UserLink } from "../types"
+import { parseSocialLink } from "../utils"
 
 export async function createSandbox(body: {
   type: string

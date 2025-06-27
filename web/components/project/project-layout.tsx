@@ -20,14 +20,14 @@ import { useCallback, useRef, useState } from "react"
 import { ImperativePanelHandle } from "react-resizable-panels"
 import Tab from "../ui/tab"
 import AIChat from "./AIChat/AIChat"
-import CopilotElements from "./CopilotElements"
+import AIEditElements from "./ai-edit/ai-edit-elements"
+import { SessionTimeoutDialog } from "./alerts/session-timeout-dialog"
 import { useCodeDiffer } from "./hooks/useCodeDiffer"
 import { useEditorSocket } from "./hooks/useEditorSocket"
 import { useMonacoEditor } from "./hooks/useMonacoEditor"
 import PreviewWindow from "./preview"
-import { SessionTimeoutDialog } from "./session-timeout-dialog"
 import Terminals from "./terminals"
-export interface EditorLayoutProps {
+export interface ProjectLayoutProps {
   isOwner: boolean
   projectName: string
   projectType: string
@@ -37,11 +37,11 @@ export interface EditorLayoutProps {
  * Main editor layout component that handles the resizable panels structure,
  * Monaco editor, preview window, terminals, and AI chat
  */
-export default function EditorLayout({
+export default function ProjectLayout({
   isOwner,
   projectName,
   projectType,
-}: EditorLayoutProps) {
+}: ProjectLayoutProps) {
   const { id: projectId } = useParams<{ id: string }>()
   const { resolvedTheme: theme } = useTheme()
   // Store States
@@ -200,7 +200,7 @@ export default function EditorLayout({
                     options={defaultEditorOptions}
                     value={activeFileContent}
                   />
-                  <CopilotElements
+                  <AIEditElements
                     editorRef={editorRef}
                     cursorLine={cursorLine}
                     isSelected={isSelected}

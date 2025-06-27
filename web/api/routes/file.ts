@@ -1,5 +1,5 @@
-import { createRouter } from "@/lib/server/create-app"
-import jsonContent from "@/lib/server/utils"
+import { createRouter } from "@/lib/api/create-app"
+import jsonContent from "@/lib/api/utils"
 import { CONTAINER_TIMEOUT } from "@gitwit/lib/utils/constants"
 import { describeRoute } from "hono-openapi"
 import { validator as zValidator } from "hono-openapi/zod"

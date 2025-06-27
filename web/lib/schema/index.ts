@@ -1,5 +1,5 @@
+import { KNOWN_PLATFORMS } from "@gitwit/db/constants"
 import { z } from "zod"
-import { KNOWN_PLATFORMS } from "../constants"
 
 export const editUserSchema = z.object({
   id: z.string().trim(),

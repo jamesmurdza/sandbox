@@ -1,5 +1,5 @@
-import { createRouter } from "@/lib/server/create-app"
-import jsonContent from "@/lib/server/utils"
+import { createRouter } from "@/lib/api/create-app"
+import jsonContent from "@/lib/api/utils"
 import { db } from "@gitwit/db"
 import {
   sandbox,

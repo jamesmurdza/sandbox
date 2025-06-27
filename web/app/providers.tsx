@@ -1,6 +1,6 @@
 "use client"
 
-import { QueryClientProvider } from "@/components/query-client"
+import { QueryClientProvider } from "@/lib/get-query-client"
 import { Toaster } from "@/components/ui/sonner"
 import { ThemeProvider } from "@/components/ui/theme-provider"
 import { AppProgressProvider as ProgressProvider } from "@bprogress/next"

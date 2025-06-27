@@ -2,9 +2,9 @@
 
 import { AnimatePresence, motion } from "framer-motion"
 import { Sparkles } from "lucide-react"
-import { Button } from "../ui/button"
+import { Button } from "../../ui/button"
 
-export interface AISuggestionWidgetProps {
+export interface EditCodeWidgetProps {
   isSelected: boolean
   showSuggestion: boolean
   onAiEdit: () => void
@@ -12,15 +12,15 @@ export interface AISuggestionWidgetProps {
 }
 
 /**
- * AI Suggestion Widget that appears when text is selected
+ * Edit Code Widget that appears when text is selected
  * Shows an animated "Edit Code" button with AI capabilities
  */
-export default function AISuggestionWidget({
+export default function EditCodeWidget({
   isSelected,
   showSuggestion,
   onAiEdit,
   suggestionRef,
-}: AISuggestionWidgetProps) {
+}: EditCodeWidgetProps) {
   return (
     <div ref={suggestionRef} className="absolute">
       <AnimatePresence>

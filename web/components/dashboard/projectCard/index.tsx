@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { toggleLike } from "@/lib/actions"
+import { toggleLike } from "@/lib/api/actions"
 import { projectTemplates } from "@/lib/data"
 import { Sandbox } from "@/lib/types"
 import { cn } from "@/lib/utils"

@@ -27,7 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { deleteSandbox, updateSandbox } from "@/lib/actions"
+import { deleteSandbox, updateSandbox } from "@/lib/api/actions"
 import { Sandbox } from "@/lib/types"
 import { useRouter } from "@bprogress/next/app"
 import { Loader2 } from "lucide-react"

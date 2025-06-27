@@ -7,7 +7,7 @@ import { Check, Loader2, RotateCw, Sparkles, X } from "lucide-react"
 import { useTheme } from "next-themes"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
-import { Button } from "../ui/button"
+import { Button } from "../../ui/button"
 
 interface GenerateInputProps {
   width: number

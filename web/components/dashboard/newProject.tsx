@@ -29,7 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { createSandbox } from "@/lib/actions"
+import { createSandbox } from "@/lib/api/actions"
 import { projectTemplates } from "@/lib/data"
 import { useRouter } from "@bprogress/next/app"
 import { useUser } from "@clerk/nextjs"
