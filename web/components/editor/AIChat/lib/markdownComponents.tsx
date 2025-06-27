@@ -1,5 +1,5 @@
+import { apiClient } from "@/api/client"
 import { TTab } from "@/lib/types"
-import { apiClient } from "@/server/client"
 import hljs from "highlight.js"
 import "highlight.js/styles/github.css"
 import "highlight.js/styles/vs2015.css"
@@ -72,10 +72,14 @@ export const createMarkdownComponents = (
               {!mergeDecorationsCollection ? (
                 (() => {
                   if (codeBlockIntendedFile) {
-                    const intendedFileName = codeBlockIntendedFile.split("/").pop() || ""
+                    const intendedFileName =
+                      codeBlockIntendedFile.split("/").pop() || ""
                     const currentFileName = activeFileName
 
-                    if (intendedFileName.toLowerCase() === currentFileName.toLowerCase()) {
+                    if (
+                      intendedFileName.toLowerCase() ===
+                      currentFileName.toLowerCase()
+                    ) {
                       // Correct file - show normal apply
                       return (
                         <ApplyButton
@@ -93,7 +97,8 @@ export const createMarkdownComponents = (
                           onClick={() => {
                             const tab: TTab = {
                               id: codeBlockIntendedFile!,
-                              name: codeBlockIntendedFile!.split("/").pop() || "",
+                              name:
+                                codeBlockIntendedFile!.split("/").pop() || "",
                               saved: true,
                               type: "file",
                             }
@@ -233,7 +238,9 @@ export const createMarkdownComponents = (
 
       if (isFilePath(content)) {
         const isNewFile = content.endsWith("(new file)")
-        const cleanContent = isNewFile ? content.replace(" (new file)", "") : content
+        const cleanContent = isNewFile
+          ? content.replace(" (new file)", "")
+          : content
 
         // Use the clean content directly as the file path - no project name stripping needed
         const filePath = cleanContent.trim()

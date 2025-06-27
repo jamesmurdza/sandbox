@@ -1,6 +1,6 @@
 // React component for download button
+import { apiClient } from "@/api/client"
 import { Button } from "@/components/ui/button"
-import { apiClient } from "@/server/client"
 import { Download } from "lucide-react"
 import { toast } from "sonner"
 
