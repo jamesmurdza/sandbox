@@ -57,11 +57,18 @@ CLERK_SECRET_KEY='🔑'
 
 ### 4. Deploying the database
 
-Create a database:
+Create a database by using default username:
 
 ```
 psql postgres -c "CREATE DATABASE sandbox;"
 ```
+
+Create a database by using postgres username:
+
+```
+psql postgres -U  postgres -c "CREATE DATABASE sandbox;"
+```
+
 
 Update `frontend/.env` and `backend/server/.env` with the database connection string.
 
@@ -69,20 +76,51 @@ Update `frontend/.env` and `backend/server/.env` with the database connection st
 DATABASE_URL=postgresql://localhost:5432/sandbox
 ```
 
+For authentication, use:
+```
+DATABASE_URL=postgresql://<username>:password@localhost:5432/sandbox
+```
+
 Follow this [guide](https://docs.google.com/document/d/1w5dA5daic_sIYB5Seni1KvnFx51pPV2so6lLdN2xa7Q/edit?usp=sharing) for more info.
 
 ### 5. Applying the database schema
 
-Delete the `/backend/server/drizzle/meta` directory.
+Delete the `/frontend/drizzle/meta` directory.
 
-In the `/backend/server/` directory:
+In the `/frontend/` directory:
 
 ```
 npm run generate
 npm run migrate
 ```
 
-### 6. Adding E2B
+### 6. Adding GitHub OAuth
+
+Setup GitHub OAuth for authentication.
+
+Update `/frontend/.env`:
+
+```
+GITHUB_CLIENT_ID=your_github_client_id
+GITHUB_CLIENT_SECRET=your_github_client_secret
+```
+
+To get your GitHub Client ID and Client Secret:
+
+1. Go to [GitHub Developer Settings](https://github.com/settings/developers) and create a new OAuth App
+2. Set the "Authorization callback URL" to `http://localhost:3000/loading` if running locally
+3. Set the "Homepage URL" to `http://localhost:3000` if running locally
+4. Get the "Client ID" and "Client Secret" from the OAuth App
+
+To get a Personal Access Token (PAT):
+
+1. Go to [GitHub Settings > Developer settings > Personal access tokens](https://github.com/settings/tokens)
+2. Click "Generate new token (classic)"
+3. Give it a descriptive name (e.g., "Sandbox Testing")
+4. Select the necessary scopes (typically `repo`, `user`, `read:org`)
+5. Generate the token and copy it securely
+
+### 7. Adding E2B
 
 Setup the E2B account.
 
@@ -92,7 +130,7 @@ Update `/frontend/.env` and `/backend/server/.env`:
 E2B_API_KEY='🔑'
 ```
 
-### 7. Configuring the frontend
+### 8. Configuring the frontend
 
 Update `/frontend/.env`:
 
@@ -121,13 +159,40 @@ Finally, add OpenAI API key for code diffs:
 OPENAI_API_KEY='🔑'
 ```
 
-### 8. Running the IDE
+### 9. Running the IDE
 
 Run `npm run dev` simultaneously in:
 
 ```
 /frontend
 /backend/server
+```
+
+### 10. Running Tests
+
+To run the test suite, ensure both frontend and backend are running.
+
+First, install dependencies in the test directory:
+
+```bash
+cd tests
+npm install
+```
+
+Set up the following environment variables in the test directory:
+
+```
+CLERK_SECRET_KEY=sk_xxxxxxxxxxxxxxxxxxxxxx
+GITHUB_PAT=ghp_xxxxxxxxxxxxxxxxxxxxxx
+CLERK_TEST_USER_ID=user_xxxxxxxxxxxxxxxxxxxxxx
+```
+
+**Note:** The `CLERK_TEST_USER_ID` should match the user ID that was used to sign up and is stored in your PostgreSQL database. You can find this ID in your database's users table or from your Clerk dashboard.
+
+Make sure both frontend and backend servers are running, then execute:
+
+```bash
+npm run test
 ```
 
 ## Setting Up Your AWS Bedrock Keys
@@ -223,16 +288,6 @@ DOKKU_KEY=
 
 The backend server and deployments server can be deployed using AWS's EC2 service. See [our video guide](https://www.youtube.com/watch?v=WN8HQnimjmk) on how to do this.
 
-## connecting to your GitHub account
-
-You can connect your GitHub account to GitWit by following these steps:
-
-1. Go to ``` https://github.com/settings/developers ``` and create a new OAuth App.
-2. Set the "Authorization callback URL" to ``` http://localhost:3000/loading ``` if you running locally
-3. Set the "Homepage URL" to ``` http://localhost:3000 ``` if you running locally
-4. Get the "Client ID" and "Client Secret" from the OAuth App.
-4. Set the "Client ID" and "Client Secret" in the ``` /backend/server/.env ``` file.
-
 ## Creating Custom Templates
 
 Anyone can contribute a custom template for integration in Sandbox. Since Sandbox is built on E2B, there is no limitation to what langauge or runtime a Sandbox can use.
@@ -292,21 +347,43 @@ frontend/
 ├── app
 ├── assets
 ├── components
-└── lib
-backend/
+├── context
+├── drizzle
+├── lib
+├── public
 ├── server
-├── database/
-│   ├── src
-│   └── drizzle
-└── storage
+├── store
+├── package.json
+├── tsconfig.json
+
+backend/
+└── server
+    ├── src
+    │   ├── db
+    │   ├── middleware
+    │   ├── services
+    │   └── utils
+    ├── package.json
+    ├── tsconfig.json
+    └── ...
+
+tests/
+├── utils
+├── user.test.ts
+├── project.test.ts
+├── github.test.ts
+├── sockets.ts
+├── package.json
+└── tsconfig.json
 ```
 
-| Path               | Description                                                                |
-| ------------------ | -------------------------------------------------------------------------- |
-| `frontend`         | The Next.js application for the frontend.                                  |
-| `backend/server`   | The Express websocket server.                                              |
-| `backend/database` | API for interfacing with the D1 database (SQLite).                         |
-| `backend/storage`  | API for interfacing with R2 storage. Service-bound to `/backend/database`. |
+| Path                  | Description                                                      |
+|-----------------------|------------------------------------------------------------------|
+| `frontend`            | The Next.js application for the frontend.                        |
+| `frontend/server`     | API routes, db, and middlewares used by the frontend.            |
+| `backend/server`      | The Express websocket server and backend logic.                  |
+| `backend/server/src`  | Source code for backend (db, middleware, services, utils, etc.). |
+| `tests`               | Integration and unit tests for the project.                      |
 
 ### Development
 
