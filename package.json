@@ -3,6 +3,7 @@
   "workspaces": [
     "frontend",
     "backend/server",
-    "db"
+    "db",
+    "lib"
   ]
 }

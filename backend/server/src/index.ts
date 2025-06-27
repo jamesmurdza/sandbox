@@ -5,13 +5,13 @@ import fs from "fs"
 import { createServer } from "http"
 import { Server, Socket } from "socket.io"
 
+import { ConnectionManager } from "@gitwit/lib/services/ConnectionManager"
+import { DokkuClient } from "@gitwit/lib/services/DokkuClient"
+import { Project } from "@gitwit/lib/services/Project"
+import { createProjectHandlers } from "@gitwit/lib/services/ProjectHandlers"
+import { SecureGitClient } from "@gitwit/lib/services/SecureGitClient"
+import { TFile, TFolder } from "@gitwit/lib/utils/types"
 import { socketAuth } from "./middleware/socketAuth"
-import { ConnectionManager } from "./services/ConnectionManager"
-import { DokkuClient } from "./services/DokkuClient"
-import { Project } from "./services/Project"
-import { createProjectHandlers } from "./services/ProjectHandlers"
-import { SecureGitClient } from "./services/SecureGitClient"
-import { TFile, TFolder } from "./utils/types"
 
 // Log errors and send a notification to the client
 export const handleErrors = (message: string, error: any, socket: Socket) => {

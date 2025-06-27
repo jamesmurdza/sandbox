@@ -1,11 +1,11 @@
 import { createRouter } from "@/lib/server/create-app"
 import jsonContent from "@/lib/server/utils"
+import { CONTAINER_TIMEOUT } from "@gitwit/lib/utils/constants"
 import { describeRoute } from "hono-openapi"
 import { validator as zValidator } from "hono-openapi/zod"
 import z from "zod"
-import { CONTAINER_TIMEOUT } from "../../../backend/server/src/utils/constants"
 
-import { Project } from "../../../backend/server/src/services/Project"
+import { Project } from "@gitwit/lib/services/Project"
 
 export const fileRouter = createRouter()
   // Get file content
