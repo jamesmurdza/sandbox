@@ -5,9 +5,9 @@ import { TerminalManager } from "./TerminalManager"
 // Database imports
 
 // Load the database credentials
+import { db, schema } from "@gitwit/db"
 import "dotenv/config"
 import { eq } from "drizzle-orm"
-import { db, schema } from "../db"
 
 // Initialize database
 

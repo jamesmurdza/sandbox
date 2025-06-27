@@ -2,8 +2,8 @@ import { Socket } from "socket.io"
 import { z } from "zod"
 import { isClerkConfigured, verifyClerkToken } from "../utils/clerk"
 // Load the database credentials
+import { db } from "@gitwit/db"
 import "dotenv/config"
-import { db } from "../db"
 
 // Initialize database
 

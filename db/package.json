@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "dependencies": {
-    "drizzle-orm": "^0.44.2"
+    "drizzle-orm": "^0.44.2",
+    "zod-openapi": "^4.2.4"
   }
 }
