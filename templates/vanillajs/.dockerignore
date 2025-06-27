@@ -1,0 +1,8 @@
+# Ignore git files
+.git
+
+# Ignore E2B files
+e2b*
+
+# Ignore environment-specific node_modules
+node_modules

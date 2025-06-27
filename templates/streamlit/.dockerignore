@@ -1,0 +1,9 @@
+# Ignore Git and system files
+.*
+
+# Ignore E2B files
+e2b*
+build-template.sh
+
+# Ignore environment-specific node_modules
+node_modules
