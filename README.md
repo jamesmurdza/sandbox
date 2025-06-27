@@ -341,22 +341,12 @@ This repository uses [Prettier](https://marketplace.cursorapi.com/items?itemName
 
 ### Commit convention
 
-Before you create a Pull Request, please check that you use the [Conventional Commits format](https://www.conventionalcommits.org/en/v1.0.0/)
+When commiting, please use the [Conventional Commits format](https://www.conventionalcommits.org/en/v1.0.0/). Your commit should be in the form `category: message` using the following categories:
 
-It should be in the form `category(scope or module): message` in your commit message from the following categories:
-
-- `feat / feature`: all changes that introduce completely new code or new
-  features
-
-- `fix`: changes that fix a bug (ideally you will additionally reference an
-  issue if present)
-
-- `refactor`: any code related change that is not a fix nor a feature
-
-- `docs`: changing existing or creating new documentation (i.e. README, docs for
-  usage of a lib or cli usage)
-
-- `chore`: all changes to the repository that do not fit into any of the above
-  categories
-
-  e.g. `feat(editor): improve tab switching speed`
+| Type               | Description                                                                                  |
+| ------------------ | -------------------------------------------------------------------------------------------- |
+| `feat` / `feature` | All changes that introduce completely new code or new features                               |
+| `fix`              | Changes that fix a bug (ideally with a reference to an issue if present)                     |
+| `refactor`         | Any code-related change that is not a fix nor a feature                                      |
+| `docs`             | Changing existing or creating new documentation (e.g., README, usage docs, CLI usage guides) |
+| `chore`            | All changes to the repository that do not fit into any of the above categories               |
