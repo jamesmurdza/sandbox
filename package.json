@@ -5,5 +5,11 @@
     "server",
     "db",
     "lib"
-  ]
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev -w web\" \"npm run dev -w server\""
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
 }
