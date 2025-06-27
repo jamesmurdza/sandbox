@@ -6,18 +6,16 @@ Sandbox is an open-source cloud-based code editing environment with custom AI co
 
 For the latest updates, join our Discord server: [discord.gitwit.dev](https://discord.gitwit.dev/).
 
-## Running Locally
+## Minimal Setup
 
-### 0. Requirements
+A quick overview of the tech before we start: The deployment uses a **NextJS** app for the frontend and an **ExpressJS** server on the backend.
 
-Needed accounts to set up:
+**Required accounts to get started:**
 
 - [Clerk](https://clerk.com/): Used for user authentication.
 - [E2B](https://e2b.dev/): Used for the terminals and live preview.
 - [Anthropic](https://anthropic.com/) or AWS Bedrock: API keys for code generation.
 - [OpenAI](https://openai.com/): API keys for applying AI-generated code diffs.
-
-A quick overview of the tech before we start: The deployment uses a **NextJS** app for the frontend and an **ExpressJS** server on the backend. Presumably that's because NextJS integrates well with Clerk middleware but not with Socket.io.
 
 ### 1. Initial setup
 
@@ -35,9 +33,8 @@ Run `npm install` in:
 /backend/server
 ```
 
-### 2. Adding Clerk
+### 2. Add Clerk
 
-Setup the Clerk account.
 Get the API keys from Clerk.
 
 Update `/frontend/.env`:
@@ -53,44 +50,74 @@ Then, update `backend/server/.env`:
 CLERK_SECRET_KEY='🔑'
 ```
 
-### 4. Deploying the database
+### 3. Add the database
 
-Create a database by using default username:
+Create a database:
 
-```
+```sh
 psql postgres -c "CREATE DATABASE sandbox;"
-```
-
-Create a database by using postgres username:
-
-```
-psql postgres -U  postgres -c "CREATE DATABASE sandbox;"
+# psql postgres -U  postgres -c "CREATE DATABASE sandbox;"
 ```
 
 Update `frontend/.env` and `backend/server/.env` with the database connection string.
 
-```
+```sh
 DATABASE_URL=postgresql://localhost:5432/sandbox
+# DATABASE_URL=postgresql://<username>:password@localhost:5432/sandbox
 ```
 
-For authentication, use:
-
-```
-DATABASE_URL=postgresql://<username>:password@localhost:5432/sandbox
-```
-
-### 5. Applying the database schema
+### 4. Apply the database schema
 
 Delete the `/frontend/drizzle/meta` directory.
 
-In the `/frontend/` directory:
+In the `/frontend/` directory run:
 
 ```
 npm run generate
 npm run migrate
 ```
 
-### 6. Adding GitHub OAuth
+### 5. Add E2B
+
+Setup the E2B account.
+
+Update `/frontend/.env` and `/backend/server/.env`:
+
+```
+E2B_API_KEY='🔑'
+```
+
+### 6. Configure the frontend
+
+Update `/frontend/.env`:
+
+```
+NEXT_PUBLIC_SERVER_URL='http://localhost:4000'
+```
+
+Then add Anthropic and OpenAI API keys:
+
+```
+ANTHROPIC_API_KEY='🔑'
+OPENAI_API_KEY='🔑'
+```
+
+As an alternative to the Anthropic API, you can use AWS Bedrock as described in [this section](#add-inference-on-aws-bedrock).
+
+### 7. Run the IDE
+
+Run `npm run dev` simultaneously in:
+
+```
+/frontend
+/backend/server
+```
+
+## Optional setup
+
+### Add GitHub integration
+<details>
+<summary>Instructions</summary>
 
 Setup GitHub OAuth for authentication.
 
@@ -115,84 +142,11 @@ To get a Personal Access Token (PAT):
 3. Give it a descriptive name (e.g., "Sandbox Testing")
 4. Select the necessary scopes (typically `repo`, `user`, `read:org`)
 5. Generate the token and copy it securely
+</details>
 
-### 7. Adding E2B
-
-Setup the E2B account.
-
-Update `/frontend/.env` and `/backend/server/.env`:
-
-```
-E2B_API_KEY='🔑'
-```
-
-### 8. Configuring the frontend
-
-Update `/frontend/.env`:
-
-```
-NEXT_PUBLIC_SERVER_URL='http://localhost:4000'
-```
-
-Then add EITHER Anthropic direct API key:
-
-```
-ANTHROPIC_API_KEY='🔑'
-```
-
-OR AWS Bedrock configuration (if using Claude through AWS as described in the [Setting Up Your AWS Bedrock Keys](#setting-up-your-aws-bedrock-keys) section):
-
-```
-AWS_ACCESS_KEY_ID='🔑'
-AWS_SECRET_ACCESS_KEY='🔑'
-AWS_REGION='your_aws_region'
-AWS_ARN='arn:aws:bedrock:...'
-```
-
-Finally, add OpenAI API key for code diffs:
-
-```
-OPENAI_API_KEY='🔑'
-```
-
-### 9. Running the IDE
-
-Run `npm run dev` simultaneously in:
-
-```
-/frontend
-/backend/server
-```
-
-### 10. Running Tests
-
-To run the test suite, ensure both frontend and backend are running.
-
-First, install dependencies in the test directory:
-
-```bash
-cd tests
-npm install
-```
-
-Set up the following environment variables in the test directory:
-
-```
-CLERK_SECRET_KEY=sk_xxxxxxxxxxxxxxxxxxxxxx
-GITHUB_PAT=ghp_xxxxxxxxxxxxxxxxxxxxxx
-CLERK_TEST_USER_ID=user_xxxxxxxxxxxxxxxxxxxxxx
-```
-
-**Note:** The `CLERK_TEST_USER_ID` should match the user ID that was used to sign up and is stored in your PostgreSQL database. You can find this ID in your database's users table or from your Clerk dashboard.
-
-Make sure both frontend and backend servers are running, then execute:
-
-```bash
-npm run test
-```
-
-## Setting Up Your AWS Bedrock Keys
-
+### Add inference on AWS Bedrock
+<details>
+<summary>Instructions</summary>
 To use the `anthropic.claude-3-7-sonnet-20250219-v1:0` model via Amazon Bedrock, follow these steps:
 
 1. **Create an AWS Account** (if you don't have one)
@@ -253,9 +207,12 @@ To use the `anthropic.claude-3-7-sonnet-20250219-v1:0` model via Amazon Bedrock,
    - If you encounter issues, check the AWS CloudWatch logs for error messages.
 
 **Note:** Using AWS Bedrock incurs costs based on your usage and provisioned throughput. Review the [AWS Bedrock pricing](https://aws.amazon.com/bedrock/pricing/) before setting up.
+</details>
 
-## Setting up Deployments
+### Add Deployments
 
+<details>
+<summary>Instructions</summary>
 The steps above do not include steps to setup [Dokku](https://github.com/dokku/dokku), which is required for deployments.
 
 **Note:** This is completely optional to set up if you just want to run GitWit Sandbox.
@@ -280,13 +237,12 @@ DOKKU_HOST=
 DOKKU_USERNAME=
 DOKKU_KEY=
 ```
-
-## Deploying to AWS
-
-The backend server and deployments server can be deployed using AWS's EC2 service. See [our video guide](https://www.youtube.com/watch?v=WN8HQnimjmk) on how to do this.
+</details>
 
 ## Creating Custom Templates
 
+<details>
+<summary>Instructions</summary>
 Anyone can contribute a custom template for integration in Sandbox. Since Sandbox is built on E2B, there is no limitation to what langauge or runtime a Sandbox can use.
 
 Currently there are five templates:
@@ -332,6 +288,38 @@ For more information, see:
 
 - [Custom E2B Sandboxes](https://e2b.dev/docs/sandbox-template)
 - [Dokku Builders](https://dokku.com/docs/deployment/builders/builder-management/)
+</details>
+
+## Running Tests
+
+To run the test suite, ensure both frontend and backend are running.
+
+First, install dependencies in the test directory:
+
+```bash
+cd tests
+npm install
+```
+
+Set up the following environment variables in the test directory:
+
+```
+CLERK_SECRET_KEY=sk_xxxxxxxxxxxxxxxxxxxxxx
+GITHUB_PAT=ghp_xxxxxxxxxxxxxxxxxxxxxx
+CLERK_TEST_USER_ID=user_xxxxxxxxxxxxxxxxxxxxxx
+```
+
+**Note:** The `CLERK_TEST_USER_ID` should match the user ID that was used to sign up and is stored in your PostgreSQL database. You can find this ID in your database's users table or from your Clerk dashboard.
+
+Make sure both frontend and backend servers are running, then execute:
+
+```bash
+npm run test
+```
+
+## Deployment
+
+The backend server and deployments server can be deployed using AWS's EC2 service. See [our video guide](https://www.youtube.com/watch?v=WN8HQnimjmk) on how to do this.
 
 ## Contributing
 
