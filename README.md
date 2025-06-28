@@ -68,6 +68,7 @@ Add them to the `.env` file along with the database connection string.
 DATABASE_URL='🔑'
 E2B_API_KEY='🔑'
 CLERK_SECRET_KEY='🔑'
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY='🔑'
 OPENAI_API_KEY='🔑'
 ANTHROPIC_API_KEY='🔑'
 ```
