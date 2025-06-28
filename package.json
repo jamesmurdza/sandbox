@@ -7,7 +7,9 @@
     "lib"
   ],
   "scripts": {
-    "dev": "concurrently \"npm run dev -w web\" \"npm run dev -w server\""
+    "dev": "concurrently \"npm run dev -w web\" \"npm run dev -w server\"",
+    "build:web": "cd web && npm run build",
+    "install:web": "npm install && cd web && npm install"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
