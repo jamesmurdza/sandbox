@@ -26,25 +26,24 @@ git clone https://github.com/jamesmurdza/sandbox
 cd sandbox
 ```
 
-Run `npm install` in:
+Install dependencies:
 
-```
-/frontend
-/backend/server
+```bash
+npm install
 ```
 
 ### 2. Add Clerk
 
 Get the API keys from Clerk.
 
-Update `/frontend/.env`:
+Update `/web/.env`:
 
 ```
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY='🔑'
 CLERK_SECRET_KEY='🔑'
 ```
 
-Then, update `backend/server/.env`:
+Then, update `server/.env`:
 
 ```
 CLERK_SECRET_KEY='🔑'
@@ -59,7 +58,7 @@ psql postgres -c "CREATE DATABASE sandbox;"
 # psql postgres -U  postgres -c "CREATE DATABASE sandbox;"
 ```
 
-Update `frontend/.env` and `backend/server/.env` with the database connection string.
+Update `web/.env` and `server/.env` with the database connection string.
 
 ```sh
 DATABASE_URL=postgresql://localhost:5432/sandbox
@@ -68,9 +67,9 @@ DATABASE_URL=postgresql://localhost:5432/sandbox
 
 ### 4. Apply the database schema
 
-Delete the `/frontend/drizzle/meta` directory.
+Delete the `/web/drizzle/meta` directory.
 
-In the `/frontend/` directory run:
+In the `/web/` directory run:
 
 ```
 npm run generate
@@ -81,7 +80,7 @@ npm run migrate
 
 Setup the E2B account.
 
-Update `/frontend/.env` and `/backend/server/.env`:
+Update `/web/.env` and `/server/.env`:
 
 ```
 E2B_API_KEY='🔑'
@@ -89,7 +88,7 @@ E2B_API_KEY='🔑'
 
 ### 6. Configure the frontend
 
-Update `/frontend/.env`:
+Update `/web/.env`:
 
 ```
 NEXT_PUBLIC_SERVER_URL='http://localhost:4000'
@@ -106,22 +105,22 @@ As an alternative to the Anthropic API, you can use AWS Bedrock as described in 
 
 ### 7. Run the IDE
 
-Run `npm run dev` simultaneously in:
+Start the web app and server in development mode:
 
-```
-/frontend
-/backend/server
+```bash
+npm run dev
 ```
 
 ## Optional setup
 
 ### Add GitHub integration
+
 <details>
 <summary>Instructions</summary>
 
 Setup GitHub OAuth for authentication.
 
-Update `/frontend/.env`:
+Update `/web/.env`:
 
 ```
 GITHUB_CLIENT_ID=your_github_client_id
@@ -145,6 +144,7 @@ To get a Personal Access Token (PAT):
 </details>
 
 ### Add inference on AWS Bedrock
+
 <details>
 <summary>Instructions</summary>
 To use the `anthropic.claude-3-7-sonnet-20250219-v1:0` model via Amazon Bedrock, follow these steps:
@@ -207,6 +207,7 @@ To use the `anthropic.claude-3-7-sonnet-20250219-v1:0` model via Amazon Bedrock,
    - If you encounter issues, check the AWS CloudWatch logs for error messages.
 
 **Note:** Using AWS Bedrock incurs costs based on your usage and provisioned throughput. Review the [AWS Bedrock pricing](https://aws.amazon.com/bedrock/pricing/) before setting up.
+
 </details>
 
 ### Add Deployments
@@ -230,13 +231,14 @@ sudo make install
 systemctl start dokku-daemon
 ```
 
-The Sandbox platform connects to the Dokku server via SSH, using SSH keys specifically generated for this connection. The SSH key is stored on the Sandbox server, and the following environment variables are set in /backend/server/.env:
+The Sandbox platform connects to the Dokku server via SSH, using SSH keys specifically generated for this connection. The SSH key is stored on the Sandbox server, and the following environment variables are set in /server/.env:
 
 ```bash
 DOKKU_HOST=
 DOKKU_USERNAME=
 DOKKU_KEY=
 ```
+
 </details>
 
 ## Creating Custom Templates
@@ -292,7 +294,7 @@ For more information, see:
 
 ## Running Tests
 
-To run the test suite, ensure both frontend and backend are running.
+To run the test suite, ensure both web app and server are running.
 
 First, install dependencies in the test directory:
 
@@ -311,7 +313,7 @@ CLERK_TEST_USER_ID=user_xxxxxxxxxxxxxxxxxxxxxx
 
 **Note:** The `CLERK_TEST_USER_ID` should match the user ID that was used to sign up and is stored in your PostgreSQL database. You can find this ID in your database's users table or from your Clerk dashboard.
 
-Make sure both frontend and backend servers are running, then execute:
+Make sure both web app and server are running, then execute:
 
 ```bash
 npm run test
@@ -327,13 +329,13 @@ Thanks for your interest in contributing! Review this section before submitting 
 
 ### Structure
 
-| Path                 | Description                                                      |
-| -------------------- | ---------------------------------------------------------------- |
-| `frontend`           | The Next.js application for the frontend.                        |
-| `frontend/server`    | API routes, db, and middlewares used by the frontend.            |
-| `backend/server`     | The Express websocket server and backend logic.                  |
-| `backend/server/src` | Source code for backend (db, middleware, services, utils, etc.). |
-| `tests`              | Integration and unit tests for the project.                      |
+| Path         | Description                                                      |
+| ------------ | ---------------------------------------------------------------- |
+| `web`        | The Next.js application for the frontend.                        |
+| `web/api`    | API routes, db, and middlewares used by the frontend.            |
+| `server`     | The Express websocket server and backend logic.                  |
+| `server/src` | Source code for backend (db, middleware, services, utils, etc.). |
+| `tests`      | Integration and unit tests for the project.                      |
 
 ### Code formatting
 
