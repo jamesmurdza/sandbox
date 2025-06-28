@@ -51,7 +51,7 @@ psql postgres -c "CREATE DATABASE sandbox;"
 
 Delete the `/db/drizzle/meta` directory.
 
-In the `/db/` directory run:
+In the `/web/` directory run:
 
 ```
 npm run generate
