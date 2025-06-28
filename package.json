@@ -1,4 +1,5 @@
 {
+  "name": "gitwit",
   "private": true,
   "workspaces": [
     "web",
@@ -7,9 +8,15 @@
     "lib"
   ],
   "scripts": {
-    "dev": "concurrently \"npm run dev -w web\" \"npm run dev -w server\"",
-    "build:web": "cd web && npm run build",
-    "install:web": "npm install && cd web && npm install"
+    "dev": "concurrently -k -n WEB,SERVER -c blue,green \"npm run dev -w web\" \"npm run dev -w server\"",
+    "dev:web": "npm run dev -w web",
+    "dev:server": "npm run dev -w server",
+    "build": "npm run build -w web && npm run build -w server",
+    "build:web": "npm run build -w web",
+    "build:server": "npm run build -w server",
+    "start": "concurrently -k \"npm start -w web\" \"npm start -w server\"",
+    "start:web": "npm start -w web",
+    "start:server": "npm start -w server"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
