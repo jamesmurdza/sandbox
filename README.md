@@ -17,7 +17,7 @@ A quick overview of the tech before we start: The deployment uses a **NextJS** a
 - [Anthropic](https://anthropic.com/) or AWS Bedrock: API keys for code generation.
 - [OpenAI](https://openai.com/): API keys for applying AI-generated code diffs.
 
-### 1. Initial setup
+### 1. Clone the repository
 
 No surprise in the first step:
 
@@ -26,30 +26,21 @@ git clone https://github.com/jamesmurdza/sandbox
 cd sandbox
 ```
 
+Copy .env files:
+
+```bash
+cp .env.example .env
+cp web/.env.example web/.env
+cp server/.env.example server/.env
+```
+
 Install dependencies:
 
 ```bash
 npm install
 ```
 
-### 2. Add Clerk
-
-Get the API keys from Clerk.
-
-Update `/web/.env`:
-
-```
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY='🔑'
-CLERK_SECRET_KEY='🔑'
-```
-
-Then, update `server/.env`:
-
-```
-CLERK_SECRET_KEY='🔑'
-```
-
-### 3. Add the database
+### 2. Create a database
 
 Create a database:
 
@@ -58,52 +49,32 @@ psql postgres -c "CREATE DATABASE sandbox;"
 # psql postgres -U  postgres -c "CREATE DATABASE sandbox;"
 ```
 
-Update `web/.env` and `server/.env` with the database connection string.
+Delete the `/db/drizzle/meta` directory.
 
-```sh
-DATABASE_URL=postgresql://localhost:5432/sandbox
-# DATABASE_URL=postgresql://<username>:password@localhost:5432/sandbox
-```
-
-### 4. Apply the database schema
-
-Delete the `/web/drizzle/meta` directory.
-
-In the `/web/` directory run:
+In the `/db/` directory run:
 
 ```
 npm run generate
 npm run migrate
 ```
 
-### 5. Add E2B
+### 3. Configure environment variables
 
-Setup the E2B account.
+Get API keys for E2B, Clerk, OpenAI, and Anthropic.
 
-Update `/web/.env` and `/server/.env`:
+Add them to the `.env` file along with the database connection string.
 
 ```
+DATABASE_URL='🔑'
 E2B_API_KEY='🔑'
-```
-
-### 6. Configure the frontend
-
-Update `/web/.env`:
-
-```
-NEXT_PUBLIC_SERVER_URL='http://localhost:4000'
-```
-
-Then add Anthropic and OpenAI API keys:
-
-```
-ANTHROPIC_API_KEY='🔑'
+CLERK_SECRET_KEY='🔑'
 OPENAI_API_KEY='🔑'
+ANTHROPIC_API_KEY='🔑'
 ```
 
 As an alternative to the Anthropic API, you can use AWS Bedrock as described in [this section](#add-inference-on-aws-bedrock).
 
-### 7. Run the IDE
+### 4. Run the IDE
 
 Start the web app and server in development mode:
 
@@ -120,7 +91,7 @@ npm run dev
 
 Setup GitHub OAuth for authentication.
 
-Update `/web/.env`:
+Update `.env`:
 
 ```
 GITHUB_CLIENT_ID=your_github_client_id
@@ -231,7 +202,7 @@ sudo make install
 systemctl start dokku-daemon
 ```
 
-The Sandbox platform connects to the Dokku server via SSH, using SSH keys specifically generated for this connection. The SSH key is stored on the Sandbox server, and the following environment variables are set in /server/.env:
+The Sandbox platform connects to the Dokku server via SSH, using SSH keys specifically generated for this connection. The SSH key is stored on the Sandbox server, and the following environment variables are set in `.env`:
 
 ```bash
 DOKKU_HOST=

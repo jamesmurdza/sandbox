@@ -1,5 +1,12 @@
-import cors from "cors"
 import dotenv from "dotenv"
+import path from "path"
+
+// Load parent .env first
+// Then load local .env to override
+dotenv.config({ path: path.resolve(__dirname, "../../.env") })
+dotenv.config({ path: path.resolve(__dirname, "../.env") })
+
+import cors from "cors"
 import express, { Express } from "express"
 import fs from "fs"
 import { createServer } from "http"
@@ -33,9 +40,6 @@ process.on("unhandledRejection", (reason, promise) => {
 
 // Initialize containers and managers
 const connections = new ConnectionManager()
-
-// Load environment variables
-dotenv.config()
 
 // Initialize Express app and create HTTP server
 const app: Express = express()
