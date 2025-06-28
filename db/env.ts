@@ -20,7 +20,6 @@ export const env = {
   // Client-side environment variables
   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: process.env
     .NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY as string,
-  NEXT_PUBLIC_SERVER_PORT: process.env.NEXT_PUBLIC_SERVER_PORT || "4000",
   NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL as string,
   NEXT_PUBLIC_SERVER_URL:
     process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:4000",
