@@ -4,7 +4,7 @@ import "zod-openapi/extend" // For extending the Zod schema with OpenAPI propert
 
 export default defineConfig({
   out: "./drizzle",
-  schema: "../db/schema.ts",
+  schema: "./schema.ts",
   dialect: "postgresql",
   dbCredentials: {
     url: process.env.DATABASE_URL!,
