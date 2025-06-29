@@ -4,6 +4,11 @@
   "main": "index.js",
   "dependencies": {
     "drizzle-orm": "^0.44.2",
-    "zod-openapi": "^4.2.4"
+    "zod-openapi": "^4.2.4",
+    "dotenv": "^16.4.5"
+  },
+  "scripts": {
+    "migrate": "npx drizzle-kit migrate",
+    "generate": "npx drizzle-kit generate"
   }
 }
