@@ -1,6 +1,6 @@
-import { apiClient } from "@/api/client"
 import { useSocket } from "@/context/SocketContext"
 import { TFile } from "@/lib/types"
+import { apiClient } from "@/server/client"
 import { useRef } from "react"
 import ChatContainer from "./components/common/ChatContainer"
 import ChatHeader from "./components/common/ChatHeader"

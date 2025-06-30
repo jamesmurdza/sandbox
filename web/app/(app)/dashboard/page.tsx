@@ -1,6 +1,6 @@
-import { apiClient } from "@/api/client"
 import Dashboard from "@/components/dashboard"
 import Navbar from "@/components/dashboard/navbar"
+import { apiClient } from "@/server/client"
 import { redirect } from "next/navigation"
 
 export default async function DashboardPage() {

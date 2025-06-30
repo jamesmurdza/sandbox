@@ -1,7 +1,7 @@
-import { apiClient } from "@/api/client"
 import ProfilePage from "@/components/profile"
 import ProfileNavbar from "@/components/profile/navbar"
 import { SandboxWithLiked } from "@/lib/types"
+import { apiClient } from "@/server/client"
 import { notFound } from "next/navigation"
 
 export default async function Page({

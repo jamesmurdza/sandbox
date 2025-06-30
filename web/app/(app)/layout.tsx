@@ -1,5 +1,5 @@
-import { apiClient } from "@/api/client"
 import { generateUniqueUsername } from "@/lib/username-generator"
+import { apiClient } from "@/server/client"
 import { currentUser } from "@clerk/nextjs/server"
 import { redirect } from "next/navigation"
 import { toast } from "sonner"

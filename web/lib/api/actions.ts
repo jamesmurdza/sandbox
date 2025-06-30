@@ -1,6 +1,6 @@
 "use server"
 
-import { apiClient } from "@/api/client"
+import { apiClient } from "@/server/client"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { editUserSchema } from "../schema"

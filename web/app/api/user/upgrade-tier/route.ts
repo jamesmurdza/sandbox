@@ -1,4 +1,4 @@
-import { apiClient } from "@/api/client"
+import { apiClient } from "@/server/client"
 import { currentUser } from "@clerk/nextjs/server"
 
 export async function POST(request: Request) {

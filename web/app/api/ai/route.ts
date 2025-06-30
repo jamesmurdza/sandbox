@@ -1,4 +1,3 @@
-import { apiClient } from "@/api/client"
 import {
   ignoredFiles,
   ignoredFolders,
@@ -6,6 +5,7 @@ import {
 import { templateConfigs } from "@/lib/templates"
 import { TIERS } from "@/lib/tiers"
 import { TFile, TFolder } from "@/lib/types"
+import { apiClient } from "@/server/client"
 import { Anthropic } from "@anthropic-ai/sdk"
 import {
   BedrockRuntimeClient,

@@ -1,4 +1,4 @@
-import { apiClient } from "@/api/client"
+import { apiClient } from "@/server/client"
 import { inferFnData, router } from "react-query-kit"
 
 // #region Github
