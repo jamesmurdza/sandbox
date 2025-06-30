@@ -2,7 +2,7 @@ import { apiClient } from "@/api/client"
 import {
   ignoredFiles,
   ignoredFolders,
-} from "@/components/project/AIChat/lib/ignored-paths"
+} from "@/components/project/ai-chat/lib/ignored-paths"
 import { templateConfigs } from "@/lib/templates"
 import { TIERS } from "@/lib/tiers"
 import { TFile, TFolder } from "@/lib/types"
