@@ -1,17 +1,17 @@
 import { createRouter } from "@/lib/api/create-app"
 import jsonContent from "@/lib/api/utils"
-import { eq, sql } from "drizzle-orm"
-import { describeRoute } from "hono-openapi"
-import { validator as zValidator } from "hono-openapi/zod"
-import z from "zod"
-import { db } from "../../../../packages/db"
+import { db } from "@gitwit/db"
 import {
   type Sandbox,
   user,
   userInsertSchema,
   type UsersToSandboxes,
   userUpdateSchema,
-} from "../../../../packages/db/schema"
+} from "@gitwit/db/schema"
+import { eq, sql } from "drizzle-orm"
+import { describeRoute } from "hono-openapi"
+import { validator as zValidator } from "hono-openapi/zod"
+import z from "zod"
 
 interface SandboxWithLiked extends Sandbox {
   liked: boolean
