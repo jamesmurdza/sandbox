@@ -2,8 +2,8 @@ import { isClerkConfigured, verifyClerkToken } from "@gitwit/lib/utils/clerk"
 import { Socket } from "socket.io"
 import { z } from "zod"
 // Load the database credentials
-import { db } from "@gitwit/db"
 import "dotenv/config"
+import { db } from "../../../../packages/db"
 
 // Initialize database
 

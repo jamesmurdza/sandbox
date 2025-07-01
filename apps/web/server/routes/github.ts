@@ -1,13 +1,13 @@
 import { createRouter } from "@/lib/api/create-app"
 import jsonContent from "@/lib/api/utils"
 import { env } from "@/lib/env"
-import { db } from "@gitwit/db"
-import { sandbox as sandboxSchema, user } from "@gitwit/db/schema"
 import { Project } from "@gitwit/lib/services/Project"
 import { and, eq } from "drizzle-orm"
 import { describeRoute } from "hono-openapi"
 import { validator as zValidator } from "hono-openapi/zod"
 import z from "zod"
+import { db } from "../../../../packages/db"
+import { sandbox as sandboxSchema, user } from "../../../../packages/db/schema"
 import { githubAuth } from "../middlewares/githubAuth"
 
 export const githubRouter = createRouter()

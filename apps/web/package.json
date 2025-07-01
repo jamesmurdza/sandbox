@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "migrate": "npx drizzle-kit migrate",
-    "generate": "npx drizzle-kit generate"
+    "generate": "npx drizzle-kit generate",
+    "check-types": "tsc --noEmit"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.1",

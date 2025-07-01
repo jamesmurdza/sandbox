@@ -1,6 +1,6 @@
 // DB Types
 
-import { KNOWN_PLATFORMS } from "@gitwit/db/constants"
+import { KNOWN_PLATFORMS } from "../../../packages/db/constants"
 
 export type User = {
   id: string
