@@ -2,8 +2,16 @@
   "name": "@gitwit/db",
   "version": "1.0.0",
   "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
   "dependencies": {
     "drizzle-orm": "^0.44.2",
     "zod-openapi": "^4.2.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.1",
+    "typescript": "^5.8.3"
   }
 }
