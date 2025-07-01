@@ -6,7 +6,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 // Load parent .env first
 // Then load local .env to override
-dotenv.config({ path: path.resolve(__dirname, "../.env") })
+dotenv.config({ path: path.resolve(__dirname, "../../.env") })
 dotenv.config({ path: path.resolve(__dirname, ".env") })
 
 /** @type {import('next').NextConfig} */

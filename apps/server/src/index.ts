@@ -3,7 +3,7 @@ import path from "path"
 
 // Load parent .env first
 // Then load local .env to override
-dotenv.config({ path: path.resolve(__dirname, "../../.env") })
+dotenv.config({ path: path.resolve(__dirname, "../../../.env") })
 dotenv.config({ path: path.resolve(__dirname, "../.env") })
 
 import cors from "cors"

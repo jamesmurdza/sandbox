@@ -1,4 +1,5 @@
 import createApp from "@/lib/api/create-app"
+import "zod-openapi/extend" // For extending the Zod schema with OpenAPI properties
 import { clerkAuth } from "./middlewares/clerkAuth"
 import { fileRouter } from "./routes/file"
 import { githubRouter } from "./routes/github"

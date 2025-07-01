@@ -1,3 +1,5 @@
+import { env } from "@/lib/env"
+import { User } from "@/lib/types"
 import { AxiosResponse } from "axios"
 import {
   afterAll,
@@ -8,15 +10,8 @@ import {
   test,
 } from "vitest"
 import { apiClient } from "./utils/api"
-import { env } from "./utils/env"
 
-let testUser: {
-  id: string
-  name: string
-  email: string
-  username: string
-  avatarUrl: string
-}
+let testUser: User
 
 const newTestUser = {
   id: "test-user-id-post",
