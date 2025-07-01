@@ -1,3 +1,4 @@
+import { env } from "@/lib/env"
 import { AxiosResponse } from "axios"
 import {
   afterAll,
@@ -8,7 +9,6 @@ import {
   test,
 } from "vitest"
 import { apiClient } from "./utils/api"
-import { env } from "./utils/env"
 
 const BEFORE_ALL_TIMEOUT = 30000 // 30 sec
 

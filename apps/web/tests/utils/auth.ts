@@ -1,6 +1,6 @@
+import { env } from "@/lib/env"
 import axios, { AxiosError } from "axios"
 import dotenv from "dotenv"
-import { env } from "./env"
 
 // Load environment variables from .env file
 dotenv.config()

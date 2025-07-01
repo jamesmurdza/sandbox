@@ -1,10 +1,9 @@
+import { env } from "@/lib/env"
 import axios from "axios"
 import { getCachedToken } from "./auth"
-import { env } from "./env"
-
 
 export const apiClient = axios.create({
-  baseURL: `${env.BACKEND_URL}/api`,
+  baseURL: `${env.NEXT_PUBLIC_APP_URL}/api`,
   validateStatus: () => true, // Accept all status codes
   adapter: "fetch",
 })
@@ -16,4 +15,3 @@ apiClient.interceptors.request.use(async (config) => {
   config.headers["Accept"] = "application/json"
   return config
 })
-
