@@ -12,6 +12,12 @@
     "dev": {
       "persistent": true,
       "cache": false
+    },
+    "start": {
+      "dependsOn": ["build"],
+      "outputs": [],
+      "cache": false,
+      "inputs": []
     }
   }
 }
