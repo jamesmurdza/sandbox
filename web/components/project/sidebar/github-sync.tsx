@@ -43,6 +43,9 @@ export function GitHubSync({ userId }: { userId: string }) {
     onSuccess: () => {
       return queryClient.invalidateQueries(githubRouter.githubUser.getOptions())
     },
+    onError: () => {
+      toast.error("GitHub login failed")
+    },
   })
   const { mutate: getAuthUrl, isPending: isGettingAuthUrl } =
     githubRouter.gethAuthUrl.useMutation({
@@ -78,6 +81,9 @@ export function GitHubSync({ userId }: { userId: string }) {
             )
           })
       },
+      onError: () => {
+        toast.error("Failed to get GitHub authorization URL")
+      },
     })
   const { data: githubUser } = githubRouter.githubUser.useQuery({
     select(data) {
@@ -98,6 +104,9 @@ export function GitHubSync({ userId }: { userId: string }) {
         setCommitMessage("")
         toast.success("Commit created successfully")
       },
+      onError: (error: any) => {
+        toast.error(error.message || "Failed to commit changes")
+      },
     })
   const { mutate: deleteRepo, isPending: isDeletingRepo } =
     githubRouter.removeRepo.useMutation({
@@ -112,6 +121,9 @@ export function GitHubSync({ userId }: { userId: string }) {
             setCommitMessage("")
             toast.success("Repository deleted successfully")
           })
+      },
+      onError: (error: any) => {
+        toast.error(error.message || "Failed to delete repository")
       },
     })
   const hasRepo = repoStatus
@@ -129,6 +141,9 @@ export function GitHubSync({ userId }: { userId: string }) {
           .then(() => {
             toast.success("Repository created successfully")
           })
+      },
+      onError: (error: any) => {
+        toast.error(error.message || "Failed to create repository")
       },
     })
 
@@ -317,6 +332,9 @@ function GithubUserButton({
         return queryClient.invalidateQueries(
           githubRouter.githubUser.getOptions()
         )
+      },
+      onError: () => {
+        toast.error("Failed to logout from GitHub")
       },
     })
 

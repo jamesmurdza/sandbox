@@ -60,10 +60,29 @@ export const githubRouter = router("github", {
           message,
         },
       })
-      if (!res.ok) {
-        throw new Error("Failed to commit changes")
-      }
       const data = await res.json()
+      if (!res.ok) {
+        let errorMessage = "Failed to commit changes"
+        if (
+          typeof data.message === "string" &&
+          typeof (data as any).data === "string"
+        ) {
+          const match = (data as any).data.match(/{.*}/)
+          if (match) {
+            try {
+              const parsed = JSON.parse(match[0])
+              if (parsed.message) {
+                errorMessage += `: ${parsed.message}`
+              }
+            } catch (e) {
+              // ignore JSON parse errors
+            }
+          }
+        } else if (typeof data.message === "string") {
+          errorMessage = data.message
+        }
+        throw new Error(errorMessage)
+      }
       return data
     },
   }),
@@ -74,10 +93,29 @@ export const githubRouter = router("github", {
           projectId,
         },
       })
-      if (!res.ok) {
-        throw new Error("Failed to create repository")
-      }
       const data = await res.json()
+      if (!res.ok) {
+        let errorMessage = "Failed to create repository"
+        if (
+          typeof data.message === "string" &&
+          typeof (data as any).data === "string"
+        ) {
+          const match = (data as any).data.match(/{.*}/)
+          if (match) {
+            try {
+              const parsed = JSON.parse(match[0])
+              if (parsed.message) {
+                errorMessage += `: ${parsed.message}`
+              }
+            } catch (e) {
+              // ignore JSON parse errors
+            }
+          }
+        } else if (typeof data.message === "string") {
+          errorMessage = data.message
+        }
+        throw new Error(errorMessage)
+      }
       return data
     },
   }),
@@ -86,10 +124,29 @@ export const githubRouter = router("github", {
       const res = await apiClient.github.repo.remove.$delete({
         json: { projectId },
       })
-      if (!res.ok) {
-        throw new Error("Failed to remove repository")
-      }
       const data = await res.json()
+      if (!res.ok) {
+        let errorMessage = "Failed to delete repository"
+        if (
+          typeof data.message === "string" &&
+          typeof (data as any).data === "string"
+        ) {
+          const match = (data as any).data.match(/{.*}/)
+          if (match) {
+            try {
+              const parsed = JSON.parse(match[0])
+              if (parsed.message) {
+                errorMessage += `: ${parsed.message}`
+              }
+            } catch (e) {
+              // ignore JSON parse errors
+            }
+          }
+        } else if (typeof data.message === "string") {
+          errorMessage = data.message
+        }
+        throw new Error(errorMessage)
+      }
       return data
     },
   }),
