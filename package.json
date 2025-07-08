@@ -8,12 +8,15 @@
     "lib"
   ],
   "scripts": {
-    "dev": "concurrently -k -n WEB,SERVER -c blue,green \"npm run dev -w web\" \"npm run dev -w server\"",
-    "dev:web": "npm run dev -w web",
-    "dev:server": "npm run dev -w server",
-    "build": "npm run build -w web && npm run build -w server",
-    "build:web": "npm run build -w web",
-    "build:server": "npm run build -w server",
+    "build:deps": "npm run build -w lib && npm run build -w db",
+    "build": "npm run build:deps && npm run build -w web && npm run build -w server",
+    "build:web": "npm run build:deps && npm run build -w web",
+    "build:server": "npm run build:deps && npm run build -w server",
+    "dev:deps": "concurrently -k -n LIB,DB -c yellow,magenta \"npm run dev -w lib\" \"npm run dev -w db\"",
+    "dev": "npm run build:deps && concurrently -k -n WEB,SERVER -c blue,green \"npm run dev -w web\" \"npm run dev -w server\"",
+    "dev:web": "npm run build:deps && npm run dev -w web",
+    "dev:server": "npm run build:deps && npm run dev -w server",
+    "dev:watch": "concurrently -k -n LIB,DB,WEB,SERVER -c yellow,magenta,blue,green \"npm run dev -w lib\" \"npm run dev -w db\" \"npm run dev -w web\" \"npm run dev -w server\"",
     "start": "concurrently -k \"npm start -w web\" \"npm start -w server\"",
     "start:web": "npm start -w web",
     "start:server": "npm start -w server"
