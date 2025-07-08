@@ -42,14 +42,19 @@ npm install
 
 ### 2. Create a database
 
+Install and start Postgres:
+
+```sh
+brew install postgres
+brew services start postgresql
+```
+
 Create a database:
 
 ```sh
 psql postgres -c "CREATE DATABASE sandbox;"
 # psql postgres -U  postgres -c "CREATE DATABASE sandbox;"
 ```
-
-Delete the `/db/drizzle/meta` directory.
 
 In the `/db/` directory run:
 
