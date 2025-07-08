@@ -1,14 +1,20 @@
 {
   "name": "@gitwit/db",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "migrate": "npx drizzle-kit migrate",
+    "generate": "npx drizzle-kit generate"
+  },
   "dependencies": {
     "drizzle-orm": "^0.44.2",
     "zod-openapi": "^4.2.4",
     "dotenv": "^16.4.5"
   },
-  "scripts": {
-    "migrate": "npx drizzle-kit migrate",
-    "generate": "npx drizzle-kit generate"
+  "devDependencies": {
+    "@types/node": "^20.19.1",
+    "typescript": "^5.8.3"
   }
 }
