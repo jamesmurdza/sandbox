@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "e2b": "^1.2.5-autopause.1",
+    "openapi-fetch": "^0.9.8",
     "rate-limiter-flexible": "^7.1.1",
     "simple-git": "^3.28.0",
     "socket.io": "^4.8.1",
