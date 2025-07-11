@@ -263,4 +263,359 @@ export class FileManager {
       })
     )
   }
+
+  /**
+   * Pulls files from GitHub and updates the sandbox filesystem
+   * @param githubFiles - Array of files from GitHub with path and content
+   * @returns Object containing pull results and any conflicts
+   */
+  async pullFromGitHub(
+    githubFiles: Array<{ path: string; content: string }>
+  ): Promise<{
+    success: boolean
+    conflicts: Array<{
+      path: string
+      localContent: string
+      incomingContent: string
+    }>
+    newFiles: string[]
+    deletedFiles: string[]
+    updatedFiles: string[]
+  }> {
+    const conflicts: Array<{
+      path: string
+      localContent: string
+      incomingContent: string
+    }> = []
+    const newFiles: string[] = []
+    const deletedFiles: string[] = []
+    const updatedFiles: string[] = []
+
+    try {
+      // Get current file tree to compare
+      const currentFiles = await this.getFileTree()
+      const currentFilePaths = this.flattenFileTree(currentFiles)
+
+      // Get GitHub file paths
+      const githubFilePaths = githubFiles.map((f) => f.path)
+
+      // Find files to delete (exist locally but not in GitHub)
+      for (const localPath of currentFilePaths) {
+        if (!githubFilePaths.includes(localPath)) {
+          await this.deleteFile(localPath)
+          deletedFiles.push(localPath)
+        }
+      }
+
+      // Process GitHub files
+      for (const githubFile of githubFiles) {
+        const filePath = path.posix.join(this.dirName, githubFile.path)
+        try {
+          // Check if file exists locally
+          const localContent = await this.container.files.read(filePath)
+          if (localContent === undefined) {
+            // New file
+            await this.container.files.write(filePath, githubFile.content)
+            newFiles.push(githubFile.path)
+          } else if (localContent !== githubFile.content) {
+            // File exists but content differs - add to conflicts, do NOT write conflict markers
+            conflicts.push({
+              path: githubFile.path,
+              localContent,
+              incomingContent: githubFile.content,
+            })
+            // Do not update the file yet; wait for user resolution
+          } else {
+            // Content is the same, no action needed
+          }
+        } catch (error) {
+          console.error(`Error processing file ${githubFile.path}:`, error)
+        }
+      }
+
+      // Fix permissions after all file operations
+      await this.fixPermissions()
+
+      // Refresh file tree
+      this.fileWatchCallback?.(await this.getFileTree())
+
+      return {
+        success: true,
+        conflicts,
+        newFiles,
+        deletedFiles,
+        updatedFiles,
+      }
+    } catch (error) {
+      console.error("Error pulling from GitHub:", error)
+      return {
+        success: false,
+        conflicts: [],
+        newFiles: [],
+        deletedFiles: [],
+        updatedFiles: [],
+      }
+    }
+  }
+
+  /**
+   * Apply file-level conflict resolutions after user selects Local or Incoming in modal
+   * @param resolutions - Array of { path, resolution: 'local' | 'incoming', localContent, incomingContent }
+   */
+  async applyFileLevelResolutions(
+    resolutions: Array<{
+      path: string
+      resolution: "local" | "incoming"
+      localContent: string
+      incomingContent: string
+    }>
+  ): Promise<void> {
+    for (const res of resolutions) {
+      const filePath = path.posix.join(this.dirName, res.path)
+      if (res.resolution === "incoming") {
+        await this.container.files.write(filePath, res.incomingContent)
+      } // else keep local (do nothing)
+    }
+    await this.fixPermissions()
+    this.fileWatchCallback?.(await this.getFileTree())
+  }
+
+  /**
+   * Creates Git conflict markers for a file with conflicts
+   * @param localContent - Current local file content
+   * @param githubContent - GitHub file content
+   * @param filePath - Path of the file (for conflict header)
+   * @returns File content with Git conflict markers
+   */
+  private createGitConflictMarkers(
+    localContent: string,
+    githubContent: string,
+    filePath: string
+  ): string {
+    return `<<<<<<< HEAD
+${localContent}
+=======
+${githubContent}
+>>>>>>> origin/main
+`
+  }
+
+  /**
+   * Flattens the file tree to get all file paths
+   * @param files - File tree structure
+   * @returns Array of file paths
+   */
+  private flattenFileTree(files: (TFolder | TFile)[]): string[] {
+    const paths: string[] = []
+
+    const processNode = (node: TFolder | TFile, currentPath: string = "") => {
+      if (node.type === "file") {
+        paths.push(path.posix.join(currentPath, node.name))
+      } else if (node.type === "folder" && node.children) {
+        const folderPath = path.posix.join(currentPath, node.name)
+        node.children.forEach((child) => processNode(child, folderPath))
+      }
+    }
+
+    files.forEach((file) => processNode(file))
+    return paths
+  }
+
+  /**
+   * Resolves conflicts by applying user's choice
+   * @param conflicts - Array of conflicts with user's resolution choice
+   */
+  async resolveConflicts(
+    conflicts: Array<{
+      path: string
+      localContent: string
+      githubContent: string
+      resolution: "local" | "github" | "merged"
+      mergedContent?: string
+    }>
+  ): Promise<void> {
+    for (const conflict of conflicts) {
+      const filePath = path.posix.join(this.dirName, conflict.path)
+
+      let contentToWrite: string
+      switch (conflict.resolution) {
+        case "local":
+          contentToWrite = conflict.localContent
+          break
+        case "github":
+          contentToWrite = conflict.githubContent
+          break
+        case "merged":
+          contentToWrite = conflict.mergedContent || conflict.githubContent
+          break
+        default:
+          contentToWrite = conflict.githubContent
+      }
+
+      await this.container.files.write(filePath, contentToWrite)
+    }
+
+    await this.fixPermissions()
+    this.fileWatchCallback?.(await this.getFileTree())
+  }
+
+  /**
+   * Detects Git conflict markers in a file and parses them
+   * @param content - File content to check for conflicts
+   * @returns Array of conflict sections with line-by-line details
+   */
+  parseGitConflicts(content: string): Array<{
+    startLine: number
+    endLine: number
+    currentLines: string[]
+    incomingLines: string[]
+    separatorLine: number
+  }> {
+    const lines = content.split("\n")
+    const conflicts: Array<{
+      startLine: number
+      endLine: number
+      currentLines: string[]
+      incomingLines: string[]
+      separatorLine: number
+    }> = []
+
+    let i = 0
+    while (i < lines.length) {
+      const line = lines[i]
+
+      // Check for conflict start marker
+      if (line.startsWith("<<<<<<<")) {
+        const startLine = i + 1 // Convert to 1-based line numbers
+        const currentLines: string[] = []
+
+        // Collect current (local) lines
+        i++
+        while (i < lines.length && !lines[i].startsWith("=======")) {
+          currentLines.push(lines[i])
+          i++
+        }
+
+        if (i >= lines.length) break // Malformed conflict
+
+        const separatorLine = i + 1
+        const incomingLines: string[] = []
+
+        // Collect incoming (GitHub) lines
+        i++
+        while (i < lines.length && !lines[i].startsWith(">>>>>>>")) {
+          incomingLines.push(lines[i])
+          i++
+        }
+
+        if (i >= lines.length) break // Malformed conflict
+
+        const endLine = i + 1
+
+        conflicts.push({
+          startLine,
+          endLine,
+          currentLines,
+          incomingLines,
+          separatorLine,
+        })
+      }
+
+      i++
+    }
+
+    return conflicts
+  }
+
+  /**
+   * Resolves a Git conflict by applying user's line-by-line choices
+   * @param content - Original file content with conflict markers
+   * @param resolutions - Array of resolutions for each conflict section
+   * @returns Resolved file content
+   */
+  resolveGitConflicts(
+    content: string,
+    resolutions: Array<{
+      conflictIndex: number
+      resolution: "current" | "incoming" | "manual"
+      manualContent?: string
+    }>
+  ): string {
+    const lines = content.split("\n")
+    const conflicts = this.parseGitConflicts(content)
+
+    // Sort resolutions by conflict index in descending order
+    // so we can replace from bottom to top without affecting line numbers
+    const sortedResolutions = [...resolutions].sort(
+      (a, b) => b.conflictIndex - a.conflictIndex
+    )
+
+    for (const resolution of sortedResolutions) {
+      const conflict = conflicts[resolution.conflictIndex]
+      if (!conflict) continue
+
+      let resolvedContent: string
+
+      switch (resolution.resolution) {
+        case "current":
+          resolvedContent = conflict.currentLines.join("\n")
+          break
+        case "incoming":
+          resolvedContent = conflict.incomingLines.join("\n")
+          break
+        case "manual":
+          resolvedContent =
+            resolution.manualContent || conflict.incomingLines.join("\n")
+          break
+        default:
+          resolvedContent = conflict.incomingLines.join("\n")
+      }
+
+      // Replace the conflict section with resolved content
+      const beforeConflict = lines.slice(0, conflict.startLine - 1)
+      const afterConflict = lines.slice(conflict.endLine)
+      const newLines = [...beforeConflict, resolvedContent, ...afterConflict]
+
+      // Update lines array for next iteration
+      lines.splice(0, lines.length, ...newLines)
+    }
+
+    return lines.join("\n")
+  }
+
+  /**
+   * Checks if a file has Git conflict markers
+   * @param content - File content to check
+   * @returns True if file contains conflict markers
+   */
+  hasGitConflicts(content: string): boolean {
+    return (
+      content.includes("<<<<<<<") &&
+      content.includes("=======") &&
+      content.includes(">>>>>>>")
+    )
+  }
+
+  /**
+   * Read file content by path
+   * @param filePath - Full path to the file
+   * @returns File content or null if file doesn't exist
+   */
+  async readFileByPath(filePath: string): Promise<string | null> {
+    try {
+      const content = await this.container.files.read(filePath)
+      return content || null
+    } catch (error) {
+      return null
+    }
+  }
+
+  /**
+   * Write file content by path
+   * @param filePath - Full path to the file
+   * @param content - Content to write
+   */
+  async writeFileByPath(filePath: string, content: string): Promise<void> {
+    await this.container.files.write(filePath, content)
+  }
 }
