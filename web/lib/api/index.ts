@@ -164,9 +164,9 @@ export const githubRouter = router("github", {
   }),
   checkPullStatus: router.query({
     fetcher: async ({ projectId }: { projectId: string }) => {
-      const res = await apiClient.github.repo["pull/check"].$get({
+      const res = await (apiClient.github.repo as any)["pull/check"].$get({
         query: { projectId },
-      } as any)
+      })
       console.log(res)
       if (!res.ok) {
         throw new Error("Failed to check pull status")
