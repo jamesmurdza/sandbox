@@ -8,36 +8,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { ConflictResolutionProps } from "@/lib/types"
 import { Check } from "lucide-react"
-
-interface ConflictFile {
-  path: string
-  localContent: string
-  incomingContent: string
-}
-
-interface FileResolution {
-  path: string
-  resolutions: Array<{
-    conflictIndex: number
-    resolution: "local" | "incoming"
-    localContent: string
-    incomingContent: string
-  }>
-}
-
-interface ConflictResolutionProps {
-  conflictFiles: ConflictFile[]
-  fileResolutions: FileResolution[]
-  onFileResolutionChange: (
-    fileIdx: number,
-    resolution: "local" | "incoming"
-  ) => void
-  onResolve: () => void
-  onCancel: () => void
-  open: boolean
-  pendingPull: boolean
-}
 
 export function ConflictResolution({
   conflictFiles,
