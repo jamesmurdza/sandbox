@@ -362,6 +362,16 @@ export const githubRouter = createRouter()
           "initial commit from GitWit"
         )
         const repoUrl = `https://github.com/${username}/${repo.repoName}`
+        // Update lastCommit in DB
+        await db
+          .update(sandboxSchema)
+          .set({ lastCommit: repo.commitSha })
+          .where(
+            and(
+              eq(sandboxSchema.id, projectId),
+              eq(sandboxSchema.userId, userId)
+            )
+          )
 
         return c.json(
           {
@@ -442,6 +452,16 @@ export const githubRouter = createRouter()
           files,
           commitMessage || "commit from GitWit"
         )
+        // Update lastCommit in DB
+        await db
+          .update(sandboxSchema)
+          .set({ lastCommit: repo.commitSha })
+          .where(
+            and(
+              eq(sandboxSchema.id, projectId),
+              eq(sandboxSchema.userId, userId)
+            )
+          )
         return c.json(
           {
             success: true,
@@ -523,13 +543,299 @@ export const githubRouter = createRouter()
       }
     }
   )
+  // #endregion
+  // #region GET /repo/pull/check
+  .get(
+    "/repo/pull/check",
+    describeRoute({
+      tags: ["Github"],
+      description: "Check if pull is needed from GitHub",
+      responses: {
+        200: jsonContent(z.object({}), "Pull check completed"),
+        404: jsonContent(z.object({}), "Not Found - Project not found"),
+      },
+    }),
+    zValidator(
+      "query",
+      z.object({
+        projectId: z.string(),
+      })
+    ),
+    async (c) => {
+      const githubManager = c.get("manager")
+      const userId = c.get("user").id
+      const { projectId } = c.req.valid("query")
+
+      try {
+        // Fetch sandbox data
+        const sandbox = await db.query.sandbox.findFirst({
+          where: (sandbox, { eq, and }) =>
+            and(eq(sandbox.id, projectId), eq(sandbox.userId, userId)),
+        })
+
+        if (!sandbox) {
+          return c.json({ success: false, message: "Project not found" }, 404)
+        }
+
+        if (!sandbox.repositoryId) {
+          return c.json(
+            { success: false, message: "No repository linked to this project" },
+            404
+          )
+        }
+
+        // Check if pull is needed
+        const pullCheck = await githubManager.checkIfPullNeeded(
+          sandbox.repositoryId,
+          sandbox.lastCommit || undefined // pass local lastCommit
+        )
+
+        return c.json(
+          {
+            success: true,
+            message: "Pull check completed",
+            data: pullCheck,
+          },
+          200
+        )
+      } catch (error: any) {
+        console.error("Failed to check pull status:", error)
+        return c.json(
+          {
+            success: false,
+            message: "Failed to check pull status",
+            data: error.message,
+          },
+          500
+        )
+      }
+    }
+  )
+  // #endregion
+  // #region POST /repo/pull
+  .post(
+    "/repo/pull",
+    describeRoute({
+      tags: ["Github"],
+      description: "Pull latest changes from GitHub",
+      responses: {
+        200: jsonContent(z.object({}), "Pull completed successfully"),
+        404: jsonContent(z.object({}), "Not Found - Project not found"),
+      },
+    }),
+    zValidator(
+      "json",
+      z.object({
+        projectId: z.string(),
+      })
+    ),
+    async (c) => {
+      const githubManager = c.get("manager")
+      const userId = c.get("user").id
+      const { projectId } = c.req.valid("json")
+
+      try {
+        // Fetch sandbox data
+        const sandbox = await db.query.sandbox.findFirst({
+          where: (sandbox, { eq, and }) =>
+            and(eq(sandbox.id, projectId), eq(sandbox.userId, userId)),
+        })
+
+        if (!sandbox) {
+          return c.json({ success: false, message: "Project not found" }, 404)
+        }
+
+        if (!sandbox.repositoryId) {
+          return c.json(
+            { success: false, message: "No repository linked to this project" },
+            404
+          )
+        }
+
+        // Get latest files from GitHub
+        const githubFiles = await githubManager.getLatestFiles(
+          sandbox.repositoryId
+        )
+
+        // Initialize project and pull files
+        const project = new Project(projectId)
+        await project.initialize()
+
+        if (!project.fileManager) {
+          throw new Error("File manager not initialized")
+        }
+
+        // Pull files from GitHub
+        const pullResult = await project.fileManager.pullFromGitHub(githubFiles)
+
+        // Note: Conflict resolutions are now handled by the separate /repo/resolve-conflicts endpoint
+        // This endpoint only pulls files and detects conflicts
+
+        // Get latest commit SHA from GitHub
+        const latestCommit = await githubManager.getLatestCommitSha(
+          sandbox.repositoryId
+        )
+        await db
+          .update(sandboxSchema)
+          .set({ lastCommit: latestCommit })
+          .where(
+            and(
+              eq(sandboxSchema.id, projectId),
+              eq(sandboxSchema.userId, userId)
+            )
+          )
+
+        return c.json(
+          {
+            success: true,
+            message: "Pull completed successfully",
+            data: pullResult,
+          },
+          200
+        )
+      } catch (error: any) {
+        console.error("Failed to pull from GitHub:", error)
+        return c.json(
+          {
+            success: false,
+            message: "Failed to pull from GitHub",
+            data: error.message,
+          },
+          500
+        )
+      }
+    }
+  )
+  // #endregion
+  // #region POST /repo/resolve-conflicts
+  .post(
+    "/repo/resolve-conflicts",
+    describeRoute({
+      tags: ["Github"],
+      description: "Apply conflict resolutions to files",
+      responses: {
+        200: jsonContent(z.object({}), "Conflicts resolved successfully"),
+        404: jsonContent(z.object({}), "Not Found - Project not found"),
+      },
+    }),
+    zValidator(
+      "json",
+      z.object({
+        projectId: z.string(),
+        conflictResolutions: z.array(
+          z.object({
+            path: z.string(),
+            resolutions: z.array(
+              z.object({
+                conflictIndex: z.number(),
+                resolution: z.enum(["local", "incoming"]),
+                localContent: z.string(),
+                incomingContent: z.string(),
+              })
+            ),
+          })
+        ),
+      })
+    ),
+    async (c) => {
+      const userId = c.get("user").id
+      const { projectId, conflictResolutions } = c.req.valid("json")
+      let project: Project | null = null
+
+      try {
+        // Fetch sandbox data
+        const sandbox = await db.query.sandbox.findFirst({
+          where: (sandbox, { eq, and }) =>
+            and(eq(sandbox.id, projectId), eq(sandbox.userId, userId)),
+        })
+
+        if (!sandbox) {
+          return c.json({ success: false, message: "Project not found" }, 404)
+        }
+
+        if (!sandbox.repositoryId) {
+          return c.json(
+            { success: false, message: "No repository linked to this project" },
+            404
+          )
+        }
+
+        // Initialize project
+        project = new Project(projectId)
+        await project.initialize()
+
+        if (!project.fileManager) {
+          throw new Error("File manager not initialized")
+        }
+
+        // Transform conflict resolutions to match FileManager format
+        const transformedResolutions = conflictResolutions.map((res) => ({
+          path: res.path,
+          resolution:
+            res.resolutions[0]?.resolution === "incoming"
+              ? "incoming"
+              : "local",
+          localContent: res.resolutions[0]?.localContent || "",
+          incomingContent: res.resolutions[0]?.incomingContent || "",
+        })) as Array<{
+          path: string
+          resolution: "incoming" | "local"
+          localContent: string
+          incomingContent: string
+        }>
+
+        // Apply file-level conflict resolutions
+        await project.fileManager.applyFileLevelResolutions(
+          transformedResolutions
+        )
+
+        // Get latest commit SHA from GitHub and update
+        const githubManager = c.get("manager")
+        const latestCommit = await githubManager.getLatestCommitSha(
+          sandbox.repositoryId
+        )
+        await db
+          .update(sandboxSchema)
+          .set({ lastCommit: latestCommit })
+          .where(
+            and(
+              eq(sandboxSchema.id, projectId),
+              eq(sandboxSchema.userId, userId)
+            )
+          )
+
+        return c.json({
+          success: true,
+          message: "Conflicts resolved successfully",
+        })
+      } catch (error) {
+        console.error("Error resolving conflicts:", error)
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error"
+        return c.json(
+          {
+            success: false,
+            message: `Failed to resolve conflicts: ${errorMessage}`,
+          },
+          500
+        )
+      } finally {
+        // Clean up project resources
+        if (project) {
+          await project.disconnect()
+        }
+      }
+    }
+  )
+// #endregion
+// #endregion
+
 // #endregion
 
 // #region Utilities
 /**
  * The function `resolveRepoNameConflict` resolves conflicts in repository names by appending a counter
  * if the name is already taken.
-
  */
 async function resolveRepoNameConflict(
   repoName: string,

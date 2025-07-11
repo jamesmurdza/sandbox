@@ -133,6 +133,42 @@ export class GitHubManager {
   }
 
   /**
+   * Checks if a repository exists by its GitHub repository ID
+   * @param repoId - GitHub repository ID to check
+   * @returns Object containing repository information if found:
+   *          - exists: true/false indicating if repo exists
+   *          - repoId: repository ID if found
+   *          - repoName: repository name if found
+   *          If not found, returns { exists: false }
+   */
+  async repoExistsByID(
+    repoId: string
+  ): Promise<
+    { exists: boolean; repoId: string; repoName: string } | { exists: false }
+  > {
+    try {
+      const response = await this.octokit.request("GET /repositories/:id", {
+        id: repoId,
+      })
+      const githubRepo = response?.data
+      return {
+        exists: !!githubRepo,
+        repoId: githubRepo?.id?.toString() || "",
+        repoName: githubRepo?.name || "",
+      }
+    } catch (error: any) {
+      if (error.status === 404) {
+        console.log(`Repo with id "${repoId}" does not exist`)
+      } else {
+        console.log(`Error checking repo "${repoId}":`, error)
+      }
+      return {
+        exists: false,
+      }
+    }
+  }
+
+  /**
    * Creates a new commit in a GitHub repository with multiple files
    * @param repoID - ID of the target repository
    * @param files - Array of file objects to commit, each containing:
@@ -269,45 +305,192 @@ export class GitHubManager {
       ref: "heads/main",
       sha: newCommit.sha,
     })
-    return { repoName, commitUrl: newCommit.html_url }
+    return { repoName, commitUrl: newCommit.html_url, commitSha: newCommit.sha }
   }
 
   /**
-   * Checks if a repository exists by its GitHub repository ID
-   * @param repoId - GitHub repository ID to check
-   * @returns Object containing repository information if found:
-   *          - exists: true/false indicating if repo exists
-   *          - repoId: repository ID if found
-   *          - repoName: repository name if found
-   *          If not found, returns { exists: false }
+   * Gets the latest commit SHA from GitHub
+   * @param repoId - GitHub repository ID
+   * @returns Latest commit SHA string
    */
-  async repoExistsByID(
-    repoId: string
-  ): Promise<
-    { exists: boolean; repoId: string; repoName: string } | { exists: false }
-  > {
+  async getLatestCommitSha(repoId: string): Promise<string> {
+    const repoInfo = await this.repoExistsByID(repoId)
+    if (!repoInfo.exists) {
+      throw new Error("Repository not found")
+    }
+    const refResponse = await this.octokit.request(
+      "GET /repos/{owner}/{repo}/git/ref/{ref}",
+      {
+        owner: this.username,
+        repo: repoInfo.repoName,
+        ref: "heads/main",
+      }
+    )
+    const ref = refResponse?.data
+    if (!ref || !ref.object?.sha) {
+      throw new Error("Failed to fetch reference for the main branch.")
+    }
+    return ref.object.sha
+  }
+
+  /**
+   * Checks if a pull is needed by comparing local and remote commit hashes
+   * @param repoId - GitHub repository ID
+   * @param localSha - Last synced commit SHA from DB
+   * @returns Object indicating if pull is needed and the latest commit info
+   */
+  async checkIfPullNeeded(
+    repoId: string,
+    localSha?: string
+  ): Promise<{
+    needsPull: boolean
+    latestCommit?: {
+      sha: string
+      message: string
+      date: string
+    }
+  }> {
     try {
-      const response = await this.octokit.request("GET /repositories/:id", {
-        id: repoId,
-      })
-      const githubRepo = response?.data
+      const repoInfo = await this.repoExistsByID(repoId)
+      if (!repoInfo.exists) {
+        throw new Error("Repository not found")
+      }
+      // Get the latest commit from the main branch
+      const refResponse = await this.octokit.request(
+        "GET /repos/{owner}/{repo}/git/ref/{ref}",
+        {
+          owner: this.username,
+          repo: repoInfo.repoName,
+          ref: "heads/main",
+        }
+      )
+      const ref = refResponse?.data
+      if (!ref || !ref.object?.sha) {
+        throw new Error("Failed to fetch reference for the main branch.")
+      }
+      // Get commit details
+      const commitResponse = await this.octokit.request(
+        "GET /repos/{owner}/{repo}/git/commits/{commit_sha}",
+        {
+          owner: this.username,
+          repo: repoInfo.repoName,
+          commit_sha: ref.object.sha,
+        }
+      )
+      const commit = commitResponse?.data
+      if (!commit) {
+        throw new Error("Failed to fetch commit details.")
+      }
+      const needsPull = !localSha || localSha !== commit.sha
       return {
-        exists: !!githubRepo,
-        repoId: githubRepo?.id?.toString() || "",
-        repoName: githubRepo?.name || "",
+        needsPull,
+        latestCommit: {
+          sha: commit.sha,
+          message: commit.message,
+          date: commit.author?.date || new Date().toISOString(),
+        },
       }
-    } catch (error: any) {
-      if (error.status === 404) {
-        console.log(`Repo with id "${repoId}" does not exist`)
-      } else {
-        console.log(`Error checking repo "${repoId}":`, error)
-      }
-      return {
-        exists: false,
-      }
+    } catch (error) {
+      console.error("Error checking if pull is needed:", error)
+      throw error
     }
   }
-  // add a removeRepo
+
+  /**
+   * Gets the latest files from a GitHub repository
+   * @param repoId - GitHub repository ID
+   * @returns Array of file objects with path and content
+   */
+  async getLatestFiles(
+    repoId: string
+  ): Promise<Array<{ path: string; content: string }>> {
+    try {
+      const repoInfo = await this.repoExistsByID(repoId)
+      if (!repoInfo.exists) {
+        throw new Error("Repository not found")
+      }
+
+      // Get the latest tree from the main branch
+      const refResponse = await this.octokit.request(
+        "GET /repos/{owner}/{repo}/git/ref/{ref}",
+        {
+          owner: this.username,
+          repo: repoInfo.repoName,
+          ref: "heads/main",
+        }
+      )
+
+      const ref = refResponse?.data
+      if (!ref || !ref.object?.sha) {
+        throw new Error("Failed to fetch reference for the main branch.")
+      }
+
+      // Get the tree
+      const treeResponse = await this.octokit.request(
+        "GET /repos/{owner}/{repo}/git/trees/{tree_sha}?recursive=1",
+        {
+          owner: this.username,
+          repo: repoInfo.repoName,
+          tree_sha: ref.object.sha,
+        }
+      )
+
+      const tree = treeResponse?.data
+      if (!tree || !tree.tree) {
+        throw new Error("Failed to fetch repository tree.")
+      }
+
+      // Filter out directories and get file contents
+      const files = tree.tree.filter((item: any) => item.type === "blob")
+      const fileContents: Array<{ path: string; content: string }> = []
+
+      // Process files in batches to avoid rate limits
+      const batchSize = 10
+      for (let i = 0; i < files.length; i += batchSize) {
+        const batch = files.slice(i, i + batchSize)
+
+        await Promise.all(
+          batch.map(async (file: any) => {
+            try {
+              const blobResponse = await this.octokit.request(
+                "GET /repos/{owner}/{repo}/git/blobs/{file_sha}",
+                {
+                  owner: this.username,
+                  repo: repoInfo.repoName,
+                  file_sha: file.sha,
+                }
+              )
+
+              const blob = blobResponse?.data
+              if (blob && blob.content) {
+                // Decode base64 content
+                const content = Buffer.from(blob.content, "base64").toString(
+                  "utf-8"
+                )
+                fileContents.push({
+                  path: file.path,
+                  content,
+                })
+              }
+            } catch (error) {
+              console.error(`Failed to fetch file ${file.path}:`, error)
+            }
+          })
+        )
+
+        // Add delay between batches to respect rate limits
+        if (i + batchSize < files.length) {
+          await new Promise((resolve) => setTimeout(resolve, 1000))
+        }
+      }
+
+      return fileContents
+    } catch (error) {
+      console.error("Error getting latest files:", error)
+      throw error
+    }
+  }
+
   /**
    * Removes a repository by its GitHub repository ID
    * @param repoId - GitHub repository ID to remove

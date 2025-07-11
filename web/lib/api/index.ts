@@ -162,6 +162,86 @@ export const githubRouter = router("github", {
       return data
     },
   }),
+  checkPullStatus: router.query({
+    fetcher: async ({ projectId }: { projectId: string }) => {
+      const res = await apiClient.github.repo["pull/check"].$get({
+        query: { projectId },
+      } as any)
+      console.log(res)
+      if (!res.ok) {
+        throw new Error("Failed to check pull status")
+      }
+      const data = await res.json()
+      console.log(data)
+      return data
+    },
+  }),
+  pullFromGithub: router.mutation({
+    mutationFn: async ({ projectId }: { projectId: string }) => {
+      const res = await apiClient.github.repo.pull.$post({
+        json: {
+          projectId,
+        },
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        let errorMessage = "Failed to pull from GitHub"
+        if (
+          typeof data.message === "string" &&
+          typeof (data as any).data === "string"
+        ) {
+          const match = (data as any).data.match(/{.*}/)
+          if (match) {
+            try {
+              const parsed = JSON.parse(match[0])
+              if (parsed.message) {
+                errorMessage += `: ${parsed.message}`
+              }
+            } catch (e) {
+              // ignore JSON parse errors
+            }
+          }
+        } else if (typeof data.message === "string") {
+          errorMessage = data.message
+        }
+        throw new Error(errorMessage)
+      }
+      return data
+    },
+  }),
+  resolveConflicts: router.mutation({
+    mutationFn: async ({
+      projectId,
+      conflictResolutions,
+    }: {
+      projectId: string
+      conflictResolutions: Array<{
+        path: string
+        resolutions: Array<{
+          conflictIndex: number
+          resolution: "local" | "incoming"
+          localContent: string
+          incomingContent: string
+        }>
+      }>
+    }) => {
+      const res = await apiClient.github.repo["resolve-conflicts"].$post({
+        json: {
+          projectId,
+          conflictResolutions,
+        },
+      } as any)
+      const data = await res.json()
+      if (!res.ok) {
+        let errorMessage = "Failed to resolve conflicts"
+        if (typeof data.message === "string") {
+          errorMessage = data.message
+        }
+        throw new Error(errorMessage)
+      }
+      return data
+    },
+  }),
 })
 
 export type GithubUser = NonNullable<
