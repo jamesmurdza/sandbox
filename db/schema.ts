@@ -11,7 +11,10 @@ import {
 } from "drizzle-orm/pg-core"
 import { createInsertSchema, createUpdateSchema } from "drizzle-zod"
 import z from "zod"
+import { extendZodWithOpenApi } from "zod-openapi"
 import { KNOWN_PLATFORMS } from "./constants"
+
+extendZodWithOpenApi(z)
 
 export type KnownPlatform = (typeof KNOWN_PLATFORMS)[number]
 export type UserLink = {

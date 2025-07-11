@@ -2,6 +2,10 @@
   "name": "@gitwit/lib",
   "version": "1.0.0",
   "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
   "dependencies": {
     "e2b": "^1.2.5-autopause.1",
     "rate-limiter-flexible": "^7.1.1",
@@ -11,6 +15,24 @@
     "tar": "^7.4.3"
   },
   "devDependencies": {
-    "@types/ssh2": "^1.15.5"
+    "@types/node": "^20.19.1",
+    "@types/ssh2": "^1.15.5",
+    "typescript": "^5.8.3"
+  },
+  "exports": {
+    "./services/ConnectionManager": "./dist/services/ConnectionManager.js",
+    "./services/DokkuClient": "./dist/services/DokkuClient.js",
+    "./services/FileManager": "./dist/services/FileManager.js",
+    "./services/Project": "./dist/services/Project.js",
+    "./services/ProjectHandlers": "./dist/services/ProjectHandlers.js",
+    "./services/SecureGitClient": "./dist/services/SecureGitClient.js",
+    "./services/SSHSocketClient": "./dist/services/SSHSocketClient.js",
+    "./services/Terminal": "./dist/services/Terminal.js",
+    "./services/TerminalManager": "./dist/services/TerminalManager.js",
+    "./utils/clerk": "./dist/utils/clerk.js",
+    "./utils/constants": "./dist/utils/constants.js",
+    "./utils/lock": "./dist/utils/lock.js",
+    "./utils/ratelimit": "./dist/utils/ratelimit.js",
+    "./utils/types": "./dist/utils/types.js"
   }
 }
