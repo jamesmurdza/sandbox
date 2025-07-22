@@ -1,9 +1,9 @@
-import {useState} from "react";
+import * as React from "react";
 import { Button } from "@/components/ui/button";
 
 
 export default function App() {
-  const [count, setCount] = useState(0);
+  const [count, setCount] = React.useState(0);
 
   return (
     <main className="bg-gray-100 min-h-screen flex items-center justify-center">
