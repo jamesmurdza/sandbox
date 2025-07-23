@@ -283,7 +283,6 @@ npm install
 Set up the following environment variables in the test directory:
 
 ```
-CLERK_SECRET_KEY=sk_xxxxxxxxxxxxxxxxxxxxxx
 GITHUB_PAT=ghp_xxxxxxxxxxxxxxxxxxxxxx
 CLERK_TEST_USER_ID=user_xxxxxxxxxxxxxxxxxxxxxx
 ```
