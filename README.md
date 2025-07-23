@@ -1,8 +1,8 @@
-# GitWit Sandbox 📦🪄
+# GitWit 📦🪄
 
 ![Screenshot 2025-06-26 at 7 45 45 PM](https://github.com/user-attachments/assets/dbb5f9e9-1407-4e28-bc3f-14e2db0ef03d)
 
-Sandbox is an open-source cloud-based code editing environment with custom AI code generation, live preview, real-time collaboration, and AI chat.
+GitWit is an open-source cloud-based code editing environment with custom AI code generation, live preview, real-time collaboration, and AI chat.
 
 For the latest updates, join our Discord server: [discord.gitwit.dev](https://discord.gitwit.dev/).
 
@@ -22,8 +22,8 @@ A quick overview of the tech before we start: The deployment uses a **NextJS** a
 No surprise in the first step:
 
 ```bash
-git clone https://github.com/jamesmurdza/sandbox
-cd sandbox
+git clone https://github.com/jamesmurdza/gitwit
+cd gitwit
 ```
 
 Copy .env files:
@@ -52,8 +52,8 @@ brew services start postgresql
 Create a database:
 
 ```sh
-psql postgres -c "CREATE DATABASE sandbox;"
-# psql postgres -U  postgres -c "CREATE DATABASE sandbox;"
+psql postgres -c "CREATE DATABASE gitwit;"
+# psql postgres -U  postgres -c "CREATE DATABASE gitwit;"
 ```
 
 In the `/db/` directory run:
@@ -115,7 +115,7 @@ To get a Personal Access Token (PAT):
 
 1. Go to [GitHub Settings > Developer settings > Personal access tokens](https://github.com/settings/tokens)
 2. Click "Generate new token (classic)"
-3. Give it a descriptive name (e.g., "Sandbox Testing")
+3. Give it a descriptive name (e.g., "GitWit Testing")
 4. Select the necessary scopes (typically `repo`, `user`, `read:org`)
 5. Generate the token and copy it securely
 </details>
@@ -193,7 +193,7 @@ To use the `anthropic.claude-3-7-sonnet-20250219-v1:0` model via Amazon Bedrock,
 <summary>Instructions</summary>
 The steps above do not include steps to setup [Dokku](https://github.com/dokku/dokku), which is required for deployments.
 
-**Note:** This is completely optional to set up if you just want to run GitWit Sandbox.
+**Note:** This is completely optional to set up if you just want to run GitWit.
 
 Setting up deployments first requires a separate domain (such as gitwit.app, which we use).
 
@@ -208,7 +208,7 @@ sudo make install
 systemctl start dokku-daemon
 ```
 
-The Sandbox platform connects to the Dokku server via SSH, using SSH keys specifically generated for this connection. The SSH key is stored on the Sandbox server, and the following environment variables are set in `.env`:
+The GitWit platform connects to the Dokku server via SSH, using SSH keys specifically generated for this connection. The SSH key is stored on the GitWit server, and the following environment variables are set in `.env`:
 
 ```bash
 DOKKU_HOST=
@@ -222,7 +222,7 @@ DOKKU_KEY=
 
 <details>
 <summary>Instructions</summary>
-Anyone can contribute a custom template for integration in Sandbox. Since Sandbox is built on E2B, there is no limitation to what langauge or runtime a Sandbox can use.
+Anyone can contribute a custom template for integration in GitWit. Since GitWit is built on E2B, there is no limitation to what langauge or runtime a GitWit can use.
 
 Currently there are five templates:
 
@@ -259,7 +259,7 @@ Now, run the command to start your development server.
 
 To see the running server, visit the public url `https://<PORT>-xxxxxxxxxxxxxxxxxxx.e2b-staging.com`.
 
-If you've done this and it works, let us know and we'll add your template to Sandbox! Please reach out to us [on Discord](https://discord.gitwit.dev/) with any questions or to submit your working template.
+If you've done this and it works, let us know and we'll add your template to GitWit! Please reach out to us [on Discord](https://discord.gitwit.dev/) with any questions or to submit your working template.
 
 Note: In the future, we will add a way to specify the command triggered by the "Run" button (e.g. "npm run dev").
 
