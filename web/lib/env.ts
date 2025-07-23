@@ -12,7 +12,6 @@ export const env = createEnv({
     AWS_ACCESS_KEY_ID: z.string().min(1).optional(),
     AWS_SECRET_ACCESS_KEY: z.string().min(1).optional(),
     AWS_REGION: z.string().min(1).optional().default("us-east-1"),
-    AWS_BUCKET: z.string().min(1).optional().default("gitwit-sandbox"),
     DATABASE_URL: z.string().url().min(1),
     NODE_ENV: z
       .enum(["development", "production", "test"])
