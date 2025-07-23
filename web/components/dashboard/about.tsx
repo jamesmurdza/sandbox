@@ -41,7 +41,7 @@ export default function AboutModal({
             </div>
             <div className="text-sm">
               <a 
-                href="https://github.com/jamesmurdza/sandbox/issues" 
+                href="https://github.com/jamesmurdza/gitwit/issues" 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="text-primary hover:underline"

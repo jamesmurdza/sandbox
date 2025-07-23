@@ -176,7 +176,7 @@ export default function NewProjectModal({
                   <p>No templates found</p>
                   <Button size="xs" asChild>
                     <a
-                      href="https://github.com/jamesmurdza/sandbox"
+                      href="https://github.com/jamesmurdza/gitwit"
                       target="_blank"
                     >
                       Contribute
