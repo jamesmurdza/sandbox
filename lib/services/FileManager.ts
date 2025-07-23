@@ -33,54 +33,39 @@ export class FileManager {
   }
 
   async getFileTree(): Promise<(TFolder | TFile)[]> {
-    // Run the command to retrieve paths
-    // Ignore node_modules until we make this faster
-    const result = await this.container.commands.run(
-      `cd /home/user/project && find * \\( -path 'node_modules' -prune \\) -o \\( -type d -exec echo {}/ \\; -o -type f -exec echo {} \\; \\)`
-    )
-
-    // Process the stdout into an array of paths
-    const paths = result.stdout.trim().split("\n")
-
-    // Root folder structure
-    const root: TFolder = { id: "/", type: "folder", name: "/", children: [] }
-
-    // Iterate through paths to build the hierarchy
-    paths.forEach((path) => {
-      const parts = path.split("/").filter((part) => part) // Split and remove empty parts
-      let current: TFolder = root
-
-      for (let i = 0; i < parts.length; i++) {
-        const part = parts[i]
-        const isFile = i === parts.length - 1 && !path.endsWith("/") // Last part and not a folder
-        const existing = current.children.find((child) => child.name === part)
-
-        if (existing) {
-          if (!isFile) {
-            current = existing as TFolder // Navigate to the existing folder
-          }
-        } else {
-          if (isFile) {
-            const file: TFile = {
-              id: `/${parts.join("/")}`,
-              type: "file",
-              name: part,
-            }
-            current.children.push(file)
-          } else {
-            const folder: TFolder = {
-              id: `/${parts.slice(0, i + 1).join("/")}`,
-              type: "folder",
-              name: part,
-              children: [],
-            }
-            current.children.push(folder)
-            current = folder // Move to the newly created folder
-          }
+    // Helper function to recursively build the file tree, skipping node_modules
+    const buildTree = async (dirPath: string): Promise<TFolder> => {
+      const entries = await this.container.files.list(dirPath)
+      const folder: TFolder = {
+        id: dirPath,
+        type: "folder",
+        name: dirPath === this.dirName ? "/" : path.posix.basename(dirPath),
+        children: [],
+      }
+      for (const entry of entries) {
+        // Skip node_modules directories (case-insensitive)
+        if (
+          entry.type === "dir" &&
+          entry.name.toLowerCase() === "node_modules"
+        ) {
+          continue
+        }
+        const entryPath = path.posix.join(dirPath, entry.name)
+        if (entry.type === "dir") {
+          const subfolder = await buildTree(entryPath)
+          folder.children.push(subfolder)
+        } else if (entry.type === "file") {
+          folder.children.push({
+            id: entryPath.replace(this.dirName, "") || "/" + entry.name,
+            type: "file",
+            name: entry.name,
+          })
         }
       }
-    })
+      return folder
+    }
 
+    const root = await buildTree(this.dirName)
     return root.children
   }
 
@@ -381,26 +366,6 @@ export class FileManager {
   }
 
   /**
-   * Creates Git conflict markers for a file with conflicts
-   * @param localContent - Current local file content
-   * @param githubContent - GitHub file content
-   * @param filePath - Path of the file (for conflict header)
-   * @returns File content with Git conflict markers
-   */
-  private createGitConflictMarkers(
-    localContent: string,
-    githubContent: string,
-    filePath: string
-  ): string {
-    return `<<<<<<< HEAD
-${localContent}
-=======
-${githubContent}
->>>>>>> origin/main
-`
-  }
-
-  /**
    * Flattens the file tree to get all file paths
    * @param files - File tree structure
    * @returns Array of file paths
@@ -457,143 +422,6 @@ ${githubContent}
 
     await this.fixPermissions()
     this.fileWatchCallback?.(await this.getFileTree())
-  }
-
-  /**
-   * Detects Git conflict markers in a file and parses them
-   * @param content - File content to check for conflicts
-   * @returns Array of conflict sections with line-by-line details
-   */
-  parseGitConflicts(content: string): Array<{
-    startLine: number
-    endLine: number
-    currentLines: string[]
-    incomingLines: string[]
-    separatorLine: number
-  }> {
-    const lines = content.split("\n")
-    const conflicts: Array<{
-      startLine: number
-      endLine: number
-      currentLines: string[]
-      incomingLines: string[]
-      separatorLine: number
-    }> = []
-
-    let i = 0
-    while (i < lines.length) {
-      const line = lines[i]
-
-      // Check for conflict start marker
-      if (line.startsWith("<<<<<<<")) {
-        const startLine = i + 1 // Convert to 1-based line numbers
-        const currentLines: string[] = []
-
-        // Collect current (local) lines
-        i++
-        while (i < lines.length && !lines[i].startsWith("=======")) {
-          currentLines.push(lines[i])
-          i++
-        }
-
-        if (i >= lines.length) break // Malformed conflict
-
-        const separatorLine = i + 1
-        const incomingLines: string[] = []
-
-        // Collect incoming (GitHub) lines
-        i++
-        while (i < lines.length && !lines[i].startsWith(">>>>>>>")) {
-          incomingLines.push(lines[i])
-          i++
-        }
-
-        if (i >= lines.length) break // Malformed conflict
-
-        const endLine = i + 1
-
-        conflicts.push({
-          startLine,
-          endLine,
-          currentLines,
-          incomingLines,
-          separatorLine,
-        })
-      }
-
-      i++
-    }
-
-    return conflicts
-  }
-
-  /**
-   * Resolves a Git conflict by applying user's line-by-line choices
-   * @param content - Original file content with conflict markers
-   * @param resolutions - Array of resolutions for each conflict section
-   * @returns Resolved file content
-   */
-  resolveGitConflicts(
-    content: string,
-    resolutions: Array<{
-      conflictIndex: number
-      resolution: "current" | "incoming" | "manual"
-      manualContent?: string
-    }>
-  ): string {
-    const lines = content.split("\n")
-    const conflicts = this.parseGitConflicts(content)
-
-    // Sort resolutions by conflict index in descending order
-    // so we can replace from bottom to top without affecting line numbers
-    const sortedResolutions = [...resolutions].sort(
-      (a, b) => b.conflictIndex - a.conflictIndex
-    )
-
-    for (const resolution of sortedResolutions) {
-      const conflict = conflicts[resolution.conflictIndex]
-      if (!conflict) continue
-
-      let resolvedContent: string
-
-      switch (resolution.resolution) {
-        case "current":
-          resolvedContent = conflict.currentLines.join("\n")
-          break
-        case "incoming":
-          resolvedContent = conflict.incomingLines.join("\n")
-          break
-        case "manual":
-          resolvedContent =
-            resolution.manualContent || conflict.incomingLines.join("\n")
-          break
-        default:
-          resolvedContent = conflict.incomingLines.join("\n")
-      }
-
-      // Replace the conflict section with resolved content
-      const beforeConflict = lines.slice(0, conflict.startLine - 1)
-      const afterConflict = lines.slice(conflict.endLine)
-      const newLines = [...beforeConflict, resolvedContent, ...afterConflict]
-
-      // Update lines array for next iteration
-      lines.splice(0, lines.length, ...newLines)
-    }
-
-    return lines.join("\n")
-  }
-
-  /**
-   * Checks if a file has Git conflict markers
-   * @param content - File content to check
-   * @returns True if file contains conflict markers
-   */
-  hasGitConflicts(content: string): boolean {
-    return (
-      content.includes("<<<<<<<") &&
-      content.includes("=======") &&
-      content.includes(">>>>>>>")
-    )
   }
 
   /**
