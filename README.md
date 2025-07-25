@@ -255,11 +255,13 @@ To deploy and test templates, you must have an [E2B account](https://e2b.dev/) a
 e2b auth login
 ```
 
-Then, navigate to your template directory and run the following command where **TEMPLATENAME** is the name of your template:
+To deploy a template to E2B, run:
 
 ```
-e2b template build -d e2b.Dockerfile -n TEMPLATENAME
+npm run templates:deploy [TEMPLATENAME]
 ```
+
+Leaving out the TEMPLATENAME parameter will redeploy all previously deployed templates.
 
 Finally, to test your template run:
 

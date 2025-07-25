@@ -24,7 +24,8 @@
     "dev:watch": "concurrently -k -n LIB,DB,WEB,SERVER -c yellow,magenta,blue,green \"npm run dev -w lib\" \"npm run dev -w db\" \"npm run dev -w web\" \"npm run dev -w server\"",
     "start": "concurrently -k \"npm start -w web\" \"npm start -w server\"",
     "start:web": "npm start -w web",
-    "start:server": "npm start -w server"
+    "start:server": "npm start -w server",
+    "templates:deploy": "npm run deploy -w templates"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
