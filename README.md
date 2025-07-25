@@ -56,13 +56,14 @@ psql postgres -c "CREATE DATABASE gitwit;"
 # psql postgres -U  postgres -c "CREATE DATABASE gitwit;"
 ```
 
-In the `/db/` directory run:
+Initialize the database schema:
 
 ```
-npm run generate
-npm run migrate
+npm run db:generate
+npm run db:migrate
 ```
 
+After making any changes to your database schema, run these commands again to update your local database. The migration files created are not committed to version control.
 ### 3. Configure environment variables
 
 Get API keys for E2B, Clerk, OpenAI, and Anthropic.
