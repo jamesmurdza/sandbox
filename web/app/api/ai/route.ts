@@ -2,7 +2,6 @@ import {
   ignoredFiles,
   ignoredFolders,
 } from "@/components/project/ai-chat/lib/ignored-paths"
-import { templateConfigs } from "@/lib/templates"
 import { TIERS } from "@/lib/tiers"
 import { TFile, TFolder } from "@/lib/types"
 import { apiClient } from "@/server/client"
@@ -12,6 +11,7 @@ import {
   InvokeModelWithResponseStreamCommand,
 } from "@aws-sdk/client-bedrock-runtime"
 import { currentUser } from "@clerk/nextjs/server"
+import { templateConfigs } from "@gitwit/templates"
 
 // Initialize clients based on available credentials
 const useBedrockClient = !!(

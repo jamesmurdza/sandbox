@@ -5,10 +5,11 @@
     "web",
     "server",
     "db",
-    "lib"
+    "lib",
+    "templates"
   ],
   "scripts": {
-    "build:deps": "npm run build -w lib && npm run build -w db",
+    "build:deps": "npm run build -w lib && npm run build -w db && npm run build -w templates",
     "build": "npm run build:deps && npm run build -w web && npm run build -w server",
     "build:web": "npm run build:deps && npm run build -w web",
     "build:server": "npm run build:deps && npm run build -w server",
