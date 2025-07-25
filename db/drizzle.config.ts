@@ -4,11 +4,16 @@ import { defineConfig } from "drizzle-kit"
 import path from "path"
 import "zod-openapi/extend" // For extending the Zod schema with OpenAPI properties
 
-// Load environment variables from parent directory
+// Load environment variables
+if (process.env.NODE_ENV === "production")
+  dotenv.config({ path: path.resolve(__dirname, "../.env.production") })
 dotenv.config({ path: path.resolve(__dirname, "../.env") })
 
 export default defineConfig({
-  out: "./drizzle",
+  out:
+    process.env.NODE_ENV === "production"
+      ? "./drizzle-production"
+      : "./drizzle",
   schema: "./schema.ts",
   dialect: "postgresql",
   dbCredentials: {

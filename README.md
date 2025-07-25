@@ -64,6 +64,28 @@ npm run db:migrate
 ```
 
 After making any changes to your database schema, run these commands again to update your local database. The migration files created are not committed to version control.
+
+#### Production database management
+
+<details>
+<summary>Instructions</summary>
+Create a `.env.production` file with your production database credentials:
+
+```
+DATABASE_URL=
+```
+
+Initialize or migrate the database:
+
+```
+npm run db:generate:prod
+npm run db:migrate:prod
+```
+
+Production migration files **are** committed to version control.
+
+</details>
+
 ### 3. Configure environment variables
 
 Get API keys for E2B, Clerk, OpenAI, and Anthropic.
