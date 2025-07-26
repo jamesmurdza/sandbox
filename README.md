@@ -245,19 +245,11 @@ DOKKU_KEY=
 
 <details>
 <summary>Instructions</summary>
-Anyone can contribute a custom template for integration in GitWit. Since GitWit is built on E2B, there is no limitation to what langauge or runtime a GitWit can use.
+Templates are pre-built environments which serve as the basis for new projects. Each template is spawned from its own [E2B sandbox template](https://e2b.dev/docs/sandbox-template).
 
-Currently there are five templates:
+Each template is a directory inside the `templates` directory. The template should have at least an `e2b.Dockerfile`, which is used by E2B to create the development environment. Optionally, a `Dockerfile` can be added which will be [used by Dokku](https://dokku.com/docs/deployment/builders/builder-management/) to create the project build when it is deployed.
 
-- [jamesmurdza/dokku-reactjs-template](https://github.com/jamesmurdza/dokku-reactjs-template)
-- [jamesmurdza/dokku-vanillajs-template](https://github.com/jamesmurdza/dokku-vanillajs-template)
-- [jamesmurdza/dokku-nextjs-template](https://github.com/jamesmurdza/dokku-nextjs-template)
-- [jamesmurdza/dokku-streamlit-template](https://github.com/jamesmurdza/dokku-streamlit-template)
-- [omarrwd/dokku-php-template](https://github.com/omarrwd/dokku-php-template)
-
-To create your own template, you can fork one of the above templates or start with a new blank repository. The template should have at least an `e2b.Dockerfile`, which is used by E2B to create the development environment. Optionally, a `Dockerfile` can be added which will be used to create the project build when it is deployed.
-
-To test the template, you must have an [E2B account](https://e2b.dev/) and the [E2B CLI tools](https://e2b.dev/docs/cli) installed. Then, in the Terminal, run:
+To deploy and test templates, you must have an [E2B account](https://e2b.dev/) and the [E2B CLI tools](https://e2b.dev/docs/cli) installed. Then, run:
 
 ```
 e2b auth login
@@ -284,12 +276,6 @@ To see the running server, visit the public url `https://<PORT>-xxxxxxxxxxxxxxxx
 
 If you've done this and it works, let us know and we'll add your template to GitWit! Please reach out to us [on Discord](https://discord.gitwit.dev/) with any questions or to submit your working template.
 
-Note: In the future, we will add a way to specify the command triggered by the "Run" button (e.g. "npm run dev").
-
-For more information, see:
-
-- [Custom E2B Sandboxes](https://e2b.dev/docs/sandbox-template)
-- [Dokku Builders](https://dokku.com/docs/deployment/builders/builder-management/)
 </details>
 
 ## Running Tests
