@@ -33,40 +33,64 @@ export class FileManager {
   }
 
   async getFileTree(): Promise<(TFolder | TFile)[]> {
-    // Helper function to recursively build the file tree, skipping node_modules
-    const buildTree = async (dirPath: string): Promise<TFolder> => {
-      const entries = await this.container.files.list(dirPath)
-      const folder: TFolder = {
-        id: dirPath,
-        type: "folder",
-        name: dirPath === this.dirName ? "/" : path.posix.basename(dirPath),
-        children: [],
-      }
-      for (const entry of entries) {
-        // Skip node_modules directories (case-insensitive)
-        if (
-          entry.type === "dir" &&
-          entry.name.toLowerCase() === "node_modules"
-        ) {
-          continue
-        }
-        const entryPath = path.posix.join(dirPath, entry.name)
-        if (entry.type === "dir") {
-          const subfolder = await buildTree(entryPath)
-          folder.children.push(subfolder)
-        } else if (entry.type === "file") {
-          folder.children.push({
-            id: entryPath.replace(this.dirName, "") || "/" + entry.name,
-            type: "file",
-            name: entry.name,
-          })
-        }
-      }
-      return folder
-    }
+    // Get project paths
+    const paths = await this.getProjectPaths()
 
-    const root = await buildTree(this.dirName)
+    // Root folder structure
+    const root: TFolder = { id: "/", type: "folder", name: "/", children: [] }
+
+    // Iterate through paths to build the hierarchy
+    paths.forEach((path) => {
+      const parts = path.split("/").filter((part) => part) // Split and remove empty parts
+      let current: TFolder = root
+
+      for (let i = 0; i < parts.length; i++) {
+        const part = parts[i]
+        const isFile = i === parts.length - 1 && !path.endsWith("/") // Last part and not a folder
+        const existing = current.children.find((child) => child.name === part)
+
+        if (existing) {
+          if (!isFile) {
+            current = existing as TFolder // Navigate to the existing folder
+          }
+        } else {
+          if (isFile) {
+            const file: TFile = {
+              id: `/${parts.join("/")}`,
+              type: "file",
+              name: part,
+            }
+            current.children.push(file)
+          } else {
+            const folder: TFolder = {
+              id: `/${parts.slice(0, i + 1).join("/")}`,
+              type: "folder",
+              name: part,
+              children: [],
+            }
+            current.children.push(folder)
+            current = folder // Move to the newly created folder
+          }
+        }
+      }
+    })
+
     return root.children
+  }
+
+  /**
+   * Execute command to get project file paths and process the output
+   * @returns Array of file and folder paths
+   */
+  private async getProjectPaths(): Promise<string[]> {
+    // Run the command to retrieve paths
+    // Ignore node_modules until we make this faster
+    const result = await this.container.commands.run(
+      `cd /home/user/project && find * \\( -path 'node_modules' -prune \\) -o \\( -type d -exec echo {}/ \\; -o -type f -exec echo {} \\; \\)`
+    )
+
+    // Process the stdout into an array of paths
+    return result.stdout.trim().split("\n")
   }
 
   // Start watching the filesystem for changes
@@ -278,44 +302,44 @@ export class FileManager {
 
     try {
       // Get current file tree to compare
-      const currentFiles = await this.getFileTree()
-      const currentFilePaths = this.flattenFileTree(currentFiles)
+      //const currentFiles = await this.getFileTree() no need to get whole tree only paths needed
+      const currentFilePaths = await this.getProjectPaths() //gets all paths in project
 
       // Get GitHub file paths
       const githubFilePaths = githubFiles.map((f) => f.path)
 
       // Find files to delete (exist locally but not in GitHub)
       for (const localPath of currentFilePaths) {
-        if (!githubFilePaths.includes(localPath)) {
-          await this.deleteFile(localPath)
-          deletedFiles.push(localPath)
+        if (!localPath.endsWith("/")) {
+          //excludes folder paths
+          if (!githubFilePaths.includes(localPath)) {
+            await this.deleteFile(localPath)
+            deletedFiles.push(localPath)
+          }
         }
       }
 
       // Process GitHub files
       for (const githubFile of githubFiles) {
         const filePath = path.posix.join(this.dirName, githubFile.path)
-        try {
-          // Check if file exists locally
-          const localContent = await this.container.files.read(filePath)
-          if (localContent === undefined) {
-            // New file
-            await this.container.files.write(filePath, githubFile.content)
-            newFiles.push(githubFile.path)
-          } else if (localContent !== githubFile.content) {
-            // File exists but content differs - add to conflicts, do NOT write conflict markers
-            conflicts.push({
-              path: githubFile.path,
-              localContent,
-              incomingContent: githubFile.content,
-            })
-            // Do not update the file yet; wait for user resolution
-          } else {
-            // Content is the same, no action needed
-          }
-        } catch (error) {
-          console.error(`Error processing file ${githubFile.path}:`, error)
+
+        // Safely read file content (returns null if file doesn't exist)
+        const localContent = await this.safeReadFile(filePath)
+
+        if (localContent === null) {
+          // New file - create it
+          await this.container.files.write(filePath, githubFile.content)
+          newFiles.push(githubFile.path)
+        } else if (localContent !== githubFile.content) {
+          // File exists but content differs - add to conflicts
+          conflicts.push({
+            path: githubFile.path,
+            localContent,
+            incomingContent: githubFile.content,
+          })
+          // Do not update the file yet; wait for user resolution
         }
+        // If content is the same, no action needed
       }
 
       // Fix permissions after all file operations
@@ -363,27 +387,6 @@ export class FileManager {
     }
     await this.fixPermissions()
     this.fileWatchCallback?.(await this.getFileTree())
-  }
-
-  /**
-   * Flattens the file tree to get all file paths
-   * @param files - File tree structure
-   * @returns Array of file paths
-   */
-  private flattenFileTree(files: (TFolder | TFile)[]): string[] {
-    const paths: string[] = []
-
-    const processNode = (node: TFolder | TFile, currentPath: string = "") => {
-      if (node.type === "file") {
-        paths.push(path.posix.join(currentPath, node.name))
-      } else if (node.type === "folder" && node.children) {
-        const folderPath = path.posix.join(currentPath, node.name)
-        node.children.forEach((child) => processNode(child, folderPath))
-      }
-    }
-
-    files.forEach((file) => processNode(file))
-    return paths
   }
 
   /**
@@ -445,5 +448,26 @@ export class FileManager {
    */
   async writeFileByPath(filePath: string, content: string): Promise<void> {
     await this.container.files.write(filePath, content)
+  }
+
+  /**
+   * Safely read file content, returns null if file doesn't exist
+   * @param filePath - Full path to the file
+   * @returns File content or null if file doesn't exist
+   */
+  private async safeReadFile(filePath: string): Promise<string | null> {
+    try {
+      const content = await this.container.files.read(filePath)
+      return content || null
+    } catch (error: any) {
+      if (
+        error.name === "NotFoundError" ||
+        error.message?.includes("does not exist")
+      ) {
+        return null
+      }
+      // Re-throw other errors
+      throw error
+    }
   }
 }
