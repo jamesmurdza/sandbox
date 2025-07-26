@@ -318,16 +318,6 @@ The backend server and deployments server can be deployed using AWS's EC2 servic
 
 Thanks for your interest in contributing! Review this section before submitting your first pull request. If you need any help, feel free contact us [on Discord](https://discord.gitwit.dev/).
 
-### Structure
-
-| Path         | Description                                                      |
-| ------------ | ---------------------------------------------------------------- |
-| `web`        | The Next.js application for the frontend.                        |
-| `web/api`    | API routes, db, and middlewares used by the frontend.            |
-| `server`     | The Express websocket server and backend logic.                  |
-| `server/src` | Source code for backend (db, middleware, services, utils, etc.). |
-| `tests`      | Integration and unit tests for the project.                      |
-
 ### Code formatting
 
 This repository uses [Prettier](https://marketplace.cursorapi.com/items?itemName=esbenp.prettier-vscode) for code formatting, which you will be prompted to install when you open the project. The formatting rules are specified in [.prettierrc](.prettierrc).
@@ -336,10 +326,10 @@ This repository uses [Prettier](https://marketplace.cursorapi.com/items?itemName
 
 When commiting, please use the [Conventional Commits format](https://www.conventionalcommits.org/en/v1.0.0/). Your commit should be in the form `category: message` using the following categories:
 
-| Type               | Description                                                                                  |
-| ------------------ | -------------------------------------------------------------------------------------------- |
-| `feat` / `feature` | All changes that introduce completely new code or new features                               |
-| `fix`              | Changes that fix a bug (ideally with a reference to an issue if present)                     |
-| `refactor`         | Any code-related change that is not a fix nor a feature                                      |
-| `docs`             | Changing existing or creating new documentation (e.g., README, usage docs, CLI usage guides) |
-| `chore`            | All changes to the repository that do not fit into any of the above categories               |
+| Type       | Description                                                                                  |
+| ---------- | -------------------------------------------------------------------------------------------- |
+| `feat`     | All changes that introduce completely new code or new features                               |
+| `fix`      | Changes that fix a bug (ideally with a reference to an issue if present)                     |
+| `refactor` | Any code-related change that is not a fix nor a feature                                      |
+| `docs`     | Changing existing or creating new documentation (e.g., README, usage docs, CLI usage guides) |
+| `chore`    | All changes to the repository that do not fit into any of the above categories               |
