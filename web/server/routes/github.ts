@@ -8,6 +8,7 @@ import { and, eq } from "drizzle-orm"
 import { describeRoute } from "hono-openapi"
 import { validator as zValidator } from "hono-openapi/zod"
 import z from "zod"
+import { GithubSyncManager } from "../../../lib/services/GithubSyncManager"
 import { githubAuth } from "../middlewares/githubAuth"
 
 export const githubRouter = createRouter()
@@ -584,8 +585,22 @@ export const githubRouter = createRouter()
           )
         }
 
+        // Create GithubSyncManager instance
+        const project = new Project(projectId)
+        await project.initialize()
+
+        if (!project.fileManager || !project.container) {
+          throw new Error("Project not properly initialized")
+        }
+
+        const githubSyncManager = new GithubSyncManager(
+          githubManager,
+          project.fileManager,
+          project.container
+        )
+
         // Check if pull is needed
-        const pullCheck = await githubManager.checkIfPullNeeded(
+        const pullCheck = await githubSyncManager.checkIfPullNeeded(
           sandbox.repositoryId,
           sandbox.lastCommit || undefined // pass local lastCommit
         )
@@ -652,27 +667,34 @@ export const githubRouter = createRouter()
           )
         }
 
-        // Get latest files from GitHub
-        const githubFiles = await githubManager.getLatestFiles(
-          sandbox.repositoryId
-        )
-
-        // Initialize project and pull files
+        // Initialize project
         const project = new Project(projectId)
         await project.initialize()
 
-        if (!project.fileManager) {
-          throw new Error("File manager not initialized")
+        if (!project.fileManager || !project.container) {
+          throw new Error("Project not properly initialized")
         }
 
+        // Create GithubSyncManager instance
+        const githubSyncManager = new GithubSyncManager(
+          githubManager,
+          project.fileManager,
+          project.container
+        )
+
+        // Get latest files from GitHub
+        const githubFiles = await githubSyncManager.getLatestFiles(
+          sandbox.repositoryId
+        )
+
         // Pull files from GitHub
-        const pullResult = await project.fileManager.pullFromGitHub(githubFiles)
+        const pullResult = await githubSyncManager.pullFromGitHub(githubFiles)
 
         // Note: Conflict resolutions are now handled by the separate /repo/resolve-conflicts endpoint
         // This endpoint only pulls files and detects conflicts
 
         // Get latest commit SHA from GitHub
-        const latestCommit = await githubManager.getLatestCommitSha(
+        const latestCommit = await githubSyncManager.getLatestCommitSha(
           sandbox.repositoryId
         )
         await db
@@ -764,9 +786,17 @@ export const githubRouter = createRouter()
         project = new Project(projectId)
         await project.initialize()
 
-        if (!project.fileManager) {
-          throw new Error("File manager not initialized")
+        if (!project.fileManager || !project.container) {
+          throw new Error("Project not properly initialized")
         }
+
+        // Create GithubSyncManager instance
+        const githubManager = c.get("manager")
+        const githubSyncManager = new GithubSyncManager(
+          githubManager,
+          project.fileManager,
+          project.container
+        )
 
         // Transform conflict resolutions to match FileManager format
         const transformedResolutions = conflictResolutions.map((res) => ({
@@ -785,13 +815,12 @@ export const githubRouter = createRouter()
         }>
 
         // Apply file-level conflict resolutions
-        await project.fileManager.applyFileLevelResolutions(
+        await githubSyncManager.applyFileLevelResolutions(
           transformedResolutions
         )
 
         // Get latest commit SHA from GitHub and update
-        const githubManager = c.get("manager")
-        const latestCommit = await githubManager.getLatestCommitSha(
+        const latestCommit = await githubSyncManager.getLatestCommitSha(
           sandbox.repositoryId
         )
         await db

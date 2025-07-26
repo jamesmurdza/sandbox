@@ -82,7 +82,7 @@ export class FileManager {
    * Execute command to get project file paths and process the output
    * @returns Array of file and folder paths
    */
-  private async getProjectPaths(): Promise<string[]> {
+  async getProjectPaths(): Promise<string[]> {
     // Run the command to retrieve paths
     // Ignore node_modules until we make this faster
     const result = await this.container.commands.run(
@@ -274,188 +274,11 @@ export class FileManager {
   }
 
   /**
-   * Pulls files from GitHub and updates the sandbox filesystem
-   * @param githubFiles - Array of files from GitHub with path and content
-   * @returns Object containing pull results and any conflicts
-   */
-  async pullFromGitHub(
-    githubFiles: Array<{ path: string; content: string }>
-  ): Promise<{
-    success: boolean
-    conflicts: Array<{
-      path: string
-      localContent: string
-      incomingContent: string
-    }>
-    newFiles: string[]
-    deletedFiles: string[]
-    updatedFiles: string[]
-  }> {
-    const conflicts: Array<{
-      path: string
-      localContent: string
-      incomingContent: string
-    }> = []
-    const newFiles: string[] = []
-    const deletedFiles: string[] = []
-    const updatedFiles: string[] = []
-
-    try {
-      // Get current file tree to compare
-      //const currentFiles = await this.getFileTree() no need to get whole tree only paths needed
-      const currentFilePaths = await this.getProjectPaths() //gets all paths in project
-
-      // Get GitHub file paths
-      const githubFilePaths = githubFiles.map((f) => f.path)
-
-      // Find files to delete (exist locally but not in GitHub)
-      for (const localPath of currentFilePaths) {
-        if (!localPath.endsWith("/")) {
-          //excludes folder paths
-          if (!githubFilePaths.includes(localPath)) {
-            await this.deleteFile(localPath)
-            deletedFiles.push(localPath)
-          }
-        }
-      }
-
-      // Process GitHub files
-      for (const githubFile of githubFiles) {
-        const filePath = path.posix.join(this.dirName, githubFile.path)
-
-        // Safely read file content (returns null if file doesn't exist)
-        const localContent = await this.safeReadFile(filePath)
-
-        if (localContent === null) {
-          // New file - create it
-          await this.container.files.write(filePath, githubFile.content)
-          newFiles.push(githubFile.path)
-        } else if (localContent !== githubFile.content) {
-          // File exists but content differs - add to conflicts
-          conflicts.push({
-            path: githubFile.path,
-            localContent,
-            incomingContent: githubFile.content,
-          })
-          // Do not update the file yet; wait for user resolution
-        }
-        // If content is the same, no action needed
-      }
-
-      // Fix permissions after all file operations
-      await this.fixPermissions()
-
-      // Refresh file tree
-      this.fileWatchCallback?.(await this.getFileTree())
-
-      return {
-        success: true,
-        conflicts,
-        newFiles,
-        deletedFiles,
-        updatedFiles,
-      }
-    } catch (error) {
-      console.error("Error pulling from GitHub:", error)
-      return {
-        success: false,
-        conflicts: [],
-        newFiles: [],
-        deletedFiles: [],
-        updatedFiles: [],
-      }
-    }
-  }
-
-  /**
-   * Apply file-level conflict resolutions after user selects Local or Incoming in modal
-   * @param resolutions - Array of { path, resolution: 'local' | 'incoming', localContent, incomingContent }
-   */
-  async applyFileLevelResolutions(
-    resolutions: Array<{
-      path: string
-      resolution: "local" | "incoming"
-      localContent: string
-      incomingContent: string
-    }>
-  ): Promise<void> {
-    for (const res of resolutions) {
-      const filePath = path.posix.join(this.dirName, res.path)
-      if (res.resolution === "incoming") {
-        await this.container.files.write(filePath, res.incomingContent)
-      } // else keep local (do nothing)
-    }
-    await this.fixPermissions()
-    this.fileWatchCallback?.(await this.getFileTree())
-  }
-
-  /**
-   * Resolves conflicts by applying user's choice
-   * @param conflicts - Array of conflicts with user's resolution choice
-   */
-  async resolveConflicts(
-    conflicts: Array<{
-      path: string
-      localContent: string
-      githubContent: string
-      resolution: "local" | "github" | "merged"
-      mergedContent?: string
-    }>
-  ): Promise<void> {
-    for (const conflict of conflicts) {
-      const filePath = path.posix.join(this.dirName, conflict.path)
-
-      let contentToWrite: string
-      switch (conflict.resolution) {
-        case "local":
-          contentToWrite = conflict.localContent
-          break
-        case "github":
-          contentToWrite = conflict.githubContent
-          break
-        case "merged":
-          contentToWrite = conflict.mergedContent || conflict.githubContent
-          break
-        default:
-          contentToWrite = conflict.githubContent
-      }
-
-      await this.container.files.write(filePath, contentToWrite)
-    }
-
-    await this.fixPermissions()
-    this.fileWatchCallback?.(await this.getFileTree())
-  }
-
-  /**
-   * Read file content by path
-   * @param filePath - Full path to the file
-   * @returns File content or null if file doesn't exist
-   */
-  async readFileByPath(filePath: string): Promise<string | null> {
-    try {
-      const content = await this.container.files.read(filePath)
-      return content || null
-    } catch (error) {
-      return null
-    }
-  }
-
-  /**
-   * Write file content by path
-   * @param filePath - Full path to the file
-   * @param content - Content to write
-   */
-  async writeFileByPath(filePath: string, content: string): Promise<void> {
-    await this.container.files.write(filePath, content)
-  }
-
-  /**
    * Safely read file content, returns null if file doesn't exist
    * @param filePath - Full path to the file
    * @returns File content or null if file doesn't exist
    */
-  private async safeReadFile(filePath: string): Promise<string | null> {
+  async safeReadFile(filePath: string): Promise<string | null> {
     try {
       const content = await this.container.files.read(filePath)
       return content || null
