@@ -30,9 +30,9 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { createSandbox } from "@/lib/api/actions"
-import { projectTemplates } from "@/lib/data"
 import { useRouter } from "@bprogress/next/app"
 import { useUser } from "@clerk/nextjs"
+import { projectTemplates } from "@gitwit/templates"
 import { ChevronLeft, ChevronRight, Loader2, Search } from "lucide-react"
 import { Button } from "../ui/button"
 

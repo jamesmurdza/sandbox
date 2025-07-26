@@ -1,5 +1,5 @@
-import { TemplateConfig } from "@/lib/templates"
 import { TFile, TFolder, TTab } from "@/lib/types"
+import { TemplateConfig } from "@gitwit/templates"
 import * as monaco from "monaco-editor"
 import { Socket } from "socket.io-client"
 

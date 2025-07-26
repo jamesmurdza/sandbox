@@ -6,7 +6,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { projectTemplates } from "@/lib/data"
+import { projectTemplates } from "@gitwit/templates"
 import { ChevronRight } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"

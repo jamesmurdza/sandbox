@@ -7,7 +7,6 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "build-template": "e2b template build -d e2b.Dockerfile -n gitwit-nextjs"
   },
   "dependencies": {
     "next": "^14.1.0",

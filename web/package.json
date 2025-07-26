@@ -97,7 +97,8 @@
     "zod": "^3.25.49",
     "zod-openapi": "^4.2.4",
     "@gitwit/db": "*",
-    "@gitwit/lib": "*"
+    "@gitwit/lib": "*",
+    "@gitwit/templates": "*"
   },
   "devDependencies": {
     "@types/estree": "^1.0.6",

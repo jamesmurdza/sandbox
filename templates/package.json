@@ -1,0 +1,31 @@
+{
+  "name": "@gitwit/templates",
+  "version": "1.0.0",
+  "description": "Reusable project templates for GitWit",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "deploy": "sh deploy.sh"
+  },
+  "exports": {
+    ".": "./dist/index.js",
+    "./configs": "./dist/index.js",
+    "./nextjs": "./nextjs",
+    "./reactjs": "./reactjs",
+    "./streamlit": "./streamlit",
+    "./vanillajs": "./vanillajs"
+  },
+  "files": [
+    "dist",
+    "nextjs",
+    "reactjs",
+    "streamlit",
+    "vanillajs"
+  ],
+  "devDependencies": {
+    "typescript": "^5.8.3",
+    "@types/node": "^20.19.1"
+  }
+}

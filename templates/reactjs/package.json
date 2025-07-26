@@ -7,7 +7,6 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "build-template": "e2b template build -d e2b.Dockerfile -n gitwit-reactjs"
   },
   "keywords": [],
   "author": "",
