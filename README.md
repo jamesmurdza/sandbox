@@ -69,6 +69,7 @@ After making any changes to your database schema, run these commands again to up
 
 <details>
 <summary>Instructions</summary>
+
 Create a `.env.production` file with your production database credentials:
 
 ```
@@ -147,6 +148,7 @@ To get a Personal Access Token (PAT):
 
 <details>
 <summary>Instructions</summary>
+
 To use the `anthropic.claude-3-7-sonnet-20250219-v1:0` model via Amazon Bedrock, follow these steps:
 
 1. **Create an AWS Account** (if you don't have one)
@@ -214,6 +216,7 @@ To use the `anthropic.claude-3-7-sonnet-20250219-v1:0` model via Amazon Bedrock,
 
 <details>
 <summary>Instructions</summary>
+
 The steps above do not include steps to setup [Dokku](https://github.com/dokku/dokku), which is required for deployments.
 
 **Note:** This is completely optional to set up if you just want to run GitWit.
@@ -245,6 +248,7 @@ DOKKU_KEY=
 
 <details>
 <summary>Instructions</summary>
+
 Templates are pre-built environments which serve as the basis for new projects. Each template is spawned from its own [E2B sandbox template](https://e2b.dev/docs/sandbox-template).
 
 Each template is a directory inside the `templates` directory. The template should have at least an `e2b.Dockerfile`, which is used by E2B to create the development environment. Optionally, a `Dockerfile` can be added which will be [used by Dokku](https://dokku.com/docs/deployment/builders/builder-management/) to create the project build when it is deployed.
