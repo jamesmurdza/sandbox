@@ -1,8 +1,10 @@
 "use client"
 
+import { streamChat } from "@/app/actions/ai"
 import { cn } from "@/lib/utils"
 import { useRouter } from "@bprogress/next/app"
 import { Editor } from "@monaco-editor/react"
+import { readStreamableValue } from "ai/rsc"
 import { Check, Loader2, RotateCw, Sparkles, X } from "lucide-react"
 import { useTheme } from "next-themes"
 import { useCallback, useEffect, useRef, useState } from "react"
@@ -85,43 +87,20 @@ function GenerateInput({
       const selectedCode = data.code
       const instruction = regenerate ? currentPrompt : input
 
-      const response = await fetch("/api/ai", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          messages: [
-            {
-              role: "user",
-              content: instruction,
-            },
-          ],
-          context: selectedCode,
-          activeFileContent: null,
-          isEditMode: true,
-          fileName: data.fileName,
-          line: data.line,
+      const { output } = await streamChat(
+        [{ role: "user", content: instruction }],
+        {
           templateType: "code",
-        }),
-      })
+          activeFileContent: selectedCode,
+          projectName: data.fileName,
+          isEditMode: true,
+        }
+      )
 
-      if (!response.ok) {
-        const error = await response.text()
-        toast.error(error)
-        return
-      }
-
-      const reader = response.body?.getReader()
-      const decoder = new TextDecoder()
       let result = ""
 
-      if (reader) {
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) break
-          result += decoder.decode(value, { stream: true })
-        }
+      for await (const chunk of readStreamableValue(output)) {
+        result += chunk
       }
 
       // Clean up any potential markdown or explanation text
@@ -214,7 +193,7 @@ function GenerateInput({
       </form>
       {expanded ? (
         <>
-          <div className="rounded-md border border-muted-foreground w-full h-28 overflow-y-scroll p-2">
+          <div className="rounded-md border border-muted-foreground w-full h-28 overflow-y-scroll p-2 bg-muted">
             <Editor
               height="100%"
               defaultLanguage={editor.language}
@@ -251,7 +230,7 @@ function GenerateInput({
               disabled={loading.generate || loading.regenerate}
               variant="outline"
               size="sm"
-              className="bg-transparent border-muted-foreground"
+              className="bg-muted border-muted-foreground"
             >
               {loading.regenerate ? (
                 <>

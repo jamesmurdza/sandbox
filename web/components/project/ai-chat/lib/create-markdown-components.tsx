@@ -23,7 +23,9 @@ export const createMarkdownComponents = (
   tabs: TTab[],
   projectId: string,
   mergeDecorationsCollection?: monaco.editor.IEditorDecorationsCollection,
-  setMergeDecorationsCollection?: (collection: undefined) => void
+  setMergeDecorationsCollection?: (collection: undefined) => void,
+  templateType?: string,
+  projectName?: string
 ): Components => {
   // State to track the intended file for the next code block
   let intendedFile: string | null = null
@@ -84,6 +86,8 @@ export const createMarkdownComponents = (
                           activeFileContent={activeFileContent}
                           editorRef={editorRef}
                           onApply={handleApplyCode}
+                          templateType={templateType}
+                          projectName={projectName}
                         />
                       )
                     } else {
@@ -120,6 +124,8 @@ export const createMarkdownComponents = (
                       activeFileContent={activeFileContent}
                       editorRef={editorRef}
                       onApply={handleApplyCode}
+                      templateType={templateType}
+                      projectName={projectName}
                     />
                   )
                 })()

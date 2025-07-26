@@ -111,6 +111,8 @@ export default function AIChat({
           selectFile,
           tabs,
           projectId,
+          templateType,
+          projectName,
         }}
       />
 

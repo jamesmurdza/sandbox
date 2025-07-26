@@ -22,7 +22,7 @@ export default function EditCodeWidget({
   suggestionRef,
 }: EditCodeWidgetProps) {
   return (
-    <div ref={suggestionRef} className="absolute">
+    <div ref={suggestionRef} className="relative">
       <AnimatePresence>
         {isSelected && showSuggestion && (
           <motion.div
@@ -30,8 +30,17 @@ export default function EditCodeWidget({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ ease: "easeOut", duration: 0.2 }}
+            className="absolute z-50"
           >
-            <Button size="xs" type="submit" onClick={onAiEdit}>
+            <Button
+              size="xs"
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                onAiEdit()
+              }}
+              className="shadow-md"
+            >
               <Sparkles className="h-3 w-3 mr-1" />
               Edit Code
             </Button>
