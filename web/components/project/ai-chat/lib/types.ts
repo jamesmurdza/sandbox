@@ -121,6 +121,8 @@ export interface MessageProps {
   selectFile: (tab: TTab) => void
   tabs: TTab[]
   projectId: string
+  templateType?: string
+  projectName?: string
 }
 
 // Context tabs props interface

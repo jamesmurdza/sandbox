@@ -1,4 +1,6 @@
+import { streamChat } from "@/app/actions/ai"
 import { TFile, TFolder } from "@/lib/types"
+import { readStreamableValue } from "ai/rsc"
 import { nanoid } from "nanoid"
 import { useRef, useState } from "react"
 import { ContextTab, Message } from "../lib/types"
@@ -92,48 +94,28 @@ export function useChat(
     abortControllerRef.current = new AbortController()
 
     try {
-      const anthropicMessages = updatedMessages.map((msg) => ({
-        role: msg.role === "user" ? "human" : "assistant",
-        content: msg.content,
-      }))
-
-      const response = await fetch("/api/ai", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: anthropicMessages,
-          context: context || undefined,
-          activeFileContent,
-          templateType,
-          files,
-          projectName,
-        }),
-        signal: abortControllerRef.current.signal,
+      const { output } = await streamChat(updatedMessages, {
+        templateType,
+        activeFileContent,
+        files,
+        projectName,
+        isEditMode: false,
       })
 
-      if (!response.ok) {
-        throw new Error(await response.text())
-      }
-
-      const reader = response.body?.getReader()
-      const decoder = new TextDecoder()
       const assistantMessage: Message = { role: "assistant", content: "" }
       setMessages([...updatedMessages, assistantMessage])
       setIsLoading(false)
 
-      if (reader) {
-        let buffer = ""
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) break
-          buffer += decoder.decode(value, { stream: true })
+      let buffer = ""
+      for await (const chunk of readStreamableValue(output)) {
+        if (abortControllerRef.current?.signal.aborted) break
 
-          setMessages((prev) => {
-            const updated = [...prev]
-            updated[updated.length - 1].content = buffer
-            return updated
-          })
-        }
+        buffer += chunk
+        setMessages((prev) => {
+          const updated = [...prev]
+          updated[updated.length - 1].content = buffer
+          return updated
+        })
       }
     } catch (error: any) {
       if (error.name === "AbortError") {

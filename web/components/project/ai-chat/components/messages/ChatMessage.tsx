@@ -20,6 +20,8 @@ export default function ChatMessage({
   selectFile,
   tabs,
   projectId,
+  templateType,
+  projectName,
 }: MessageProps) {
   /**
    * Handle asking about code
@@ -74,6 +76,8 @@ export default function ChatMessage({
           mergeDecorationsCollection={mergeDecorationsCollection}
           setMergeDecorationsCollection={setMergeDecorationsCollection}
           askAboutCode={askAboutCode}
+          templateType={templateType}
+          projectName={projectName}
         />
       )}
     </div>
