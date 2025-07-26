@@ -133,6 +133,42 @@ export class GitHubManager {
   }
 
   /**
+   * Checks if a repository exists by its GitHub repository ID
+   * @param repoId - GitHub repository ID to check
+   * @returns Object containing repository information if found:
+   *          - exists: true/false indicating if repo exists
+   *          - repoId: repository ID if found
+   *          - repoName: repository name if found
+   *          If not found, returns { exists: false }
+   */
+  async repoExistsByID(
+    repoId: string
+  ): Promise<
+    { exists: boolean; repoId: string; repoName: string } | { exists: false }
+  > {
+    try {
+      const response = await this.octokit.request("GET /repositories/:id", {
+        id: repoId,
+      })
+      const githubRepo = response?.data
+      return {
+        exists: !!githubRepo,
+        repoId: githubRepo?.id?.toString() || "",
+        repoName: githubRepo?.name || "",
+      }
+    } catch (error: any) {
+      if (error.status === 404) {
+        console.log(`Repo with id "${repoId}" does not exist`)
+      } else {
+        console.log(`Error checking repo "${repoId}":`, error)
+      }
+      return {
+        exists: false,
+      }
+    }
+  }
+
+  /**
    * Creates a new commit in a GitHub repository with multiple files
    * @param repoID - ID of the target repository
    * @param files - Array of file objects to commit, each containing:
@@ -269,45 +305,9 @@ export class GitHubManager {
       ref: "heads/main",
       sha: newCommit.sha,
     })
-    return { repoName, commitUrl: newCommit.html_url }
+    return { repoName, commitUrl: newCommit.html_url, commitSha: newCommit.sha }
   }
 
-  /**
-   * Checks if a repository exists by its GitHub repository ID
-   * @param repoId - GitHub repository ID to check
-   * @returns Object containing repository information if found:
-   *          - exists: true/false indicating if repo exists
-   *          - repoId: repository ID if found
-   *          - repoName: repository name if found
-   *          If not found, returns { exists: false }
-   */
-  async repoExistsByID(
-    repoId: string
-  ): Promise<
-    { exists: boolean; repoId: string; repoName: string } | { exists: false }
-  > {
-    try {
-      const response = await this.octokit.request("GET /repositories/:id", {
-        id: repoId,
-      })
-      const githubRepo = response?.data
-      return {
-        exists: !!githubRepo,
-        repoId: githubRepo?.id?.toString() || "",
-        repoName: githubRepo?.name || "",
-      }
-    } catch (error: any) {
-      if (error.status === 404) {
-        console.log(`Repo with id "${repoId}" does not exist`)
-      } else {
-        console.log(`Error checking repo "${repoId}":`, error)
-      }
-      return {
-        exists: false,
-      }
-    }
-  }
-  // add a removeRepo
   /**
    * Removes a repository by its GitHub repository ID
    * @param repoId - GitHub repository ID to remove

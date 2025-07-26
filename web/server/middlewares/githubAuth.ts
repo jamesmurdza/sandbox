@@ -1,7 +1,7 @@
 import { AppBindings } from "@/lib/api/types"
-import { GitHubManager } from "@/lib/github"
 import { db } from "@gitwit/db"
 import { createMiddleware } from "hono/factory"
+import { GitHubManager } from "../../../lib/services/github"
 
 export interface GithubAppBindings extends AppBindings {
   Variables: AppBindings["Variables"] & {
