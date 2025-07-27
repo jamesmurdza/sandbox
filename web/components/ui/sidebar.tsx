@@ -5,7 +5,6 @@ import { buttonVariants } from "@/components/ui/button"
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
@@ -264,11 +263,9 @@ export function Sidebar({
 }: SidebarProps) {
   return (
     <SidebarProvider defaultActiveItem={defaultActiveItem}>
-      <TooltipProvider>
-        <div className={cn("flex h-full", className)} {...props}>
-          {children}
-        </div>
-      </TooltipProvider>
+      <div className={cn("flex h-full", className)} {...props}>
+        {children}
+      </div>
     </SidebarProvider>
   )
 }

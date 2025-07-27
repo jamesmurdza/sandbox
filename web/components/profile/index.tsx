@@ -27,7 +27,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { deleteSandbox, updateSandbox, updateUser } from "@/lib/api/actions"
@@ -185,37 +184,35 @@ function ProfileCard({
     <Card className="mb-6 md:mb-0 sticky top-6">
       {isOwnProfile && (
         <div className="absolute top-2 right-2 flex flex-col gap-2">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  onClick={toggleEdit}
-                  aria-label={isEditing ? "close edit form" : "open edit form"}
-                  size="smIcon"
-                  variant="secondary"
-                  className="rounded-full relative"
-                >
-                  {isEditing ? (
-                    <X className="size-4" />
-                  ) : showAddMoreInfoBanner ? (
-                    <>
-                      <Sparkles className="size-4 text-yellow-400 z-[2]" />
-                      <div className="z-[1] absolute inset-0 rounded-full bg-secondary animate-ping" />
-                    </>
-                  ) : (
-                    <Edit className="size-4" />
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>
-                  {showAddMoreInfoBanner
-                    ? "Add more information to your profile"
-                    : "Edit your profile"}
-                </p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                onClick={toggleEdit}
+                aria-label={isEditing ? "close edit form" : "open edit form"}
+                size="smIcon"
+                variant="secondary"
+                className="rounded-full relative"
+              >
+                {isEditing ? (
+                  <X className="size-4" />
+                ) : showAddMoreInfoBanner ? (
+                  <>
+                    <Sparkles className="size-4 text-yellow-400 z-[2]" />
+                    <div className="z-[1] absolute inset-0 rounded-full bg-secondary animate-ping" />
+                  </>
+                ) : (
+                  <Edit className="size-4" />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>
+                {showAddMoreInfoBanner
+                  ? "Add more information to your profile"
+                  : "Edit your profile"}
+              </p>
+            </TooltipContent>
+          </Tooltip>
         </div>
       )}
       <CardContent className="flex flex-col gap-4 pt-6">
