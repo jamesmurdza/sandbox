@@ -26,7 +26,6 @@ export const AIRequestSchema = z.object({
   maxTokens: z.number().positive().optional(),
   maxSteps: z.number().positive().optional().default(1),
   stream: z.boolean().optional().default(true),
-  tools: z.record(z.any()).optional(),
   context: z.object({
     userId: z.string(),
     projectId: z.string().optional(),

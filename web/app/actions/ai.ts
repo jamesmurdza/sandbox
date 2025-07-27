@@ -4,6 +4,7 @@ import { currentUser } from "@clerk/nextjs/server"
 import { AIClient, createAIClient, createAIProvider } from "@gitwit/ai"
 import { StreamHandler, defaultTools } from "@gitwit/ai/utils"
 import { createStreamableValue } from "ai/rsc"
+import { TIERS } from "../../lib/tiers"
 
 export async function streamChat(
   messages: Array<{ role: "user" | "assistant" | "system"; content: string }>,
@@ -24,11 +25,16 @@ export async function streamChat(
 
   ;(async () => {
     try {
+      const provider = createAIProvider({
+        provider: "anthropic",
+        modelId: TIERS.FREE.anthropicModel,
+        tools: context?.isEditMode ? undefined : defaultTools,
+      })
+
       const aiClient = await createAIClient({
         userId: user.id,
         projectId: context?.projectName,
-        tools: defaultTools,
-        disableTools: context?.isEditMode,
+        provider: provider,
       })
 
       const response = await aiClient.chat({

@@ -120,10 +120,9 @@ export class AIClient {
     })
 
     try {
-      // Validate request and include tools only if enabled
+      // Validate request
       const validatedRequest = AIRequestSchema.parse({
         ...request,
-        tools: this.toolsEnabled ? this.tools : undefined,
         context: {
           userId: this.config.userId,
           projectId: this.config.projectId,
@@ -241,6 +240,7 @@ export class AIClient {
 export async function createAIClient(options: {
   userId: string
   projectId?: string
+  provider?: AIProvider
   tools?: Record<string, AITool>
   disableTools?: boolean
 }): Promise<AIClient> {

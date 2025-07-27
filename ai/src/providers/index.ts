@@ -73,7 +73,10 @@ export class AIProvider {
    * @throws {Error} When an unsupported provider is specified
    */
   private initializeModel(config: AIProviderConfig): LanguageModel {
-    this.logger.debug("Initializing model", config)
+    this.logger.debug("Initializing model", {
+      provider: config.provider,
+      modelId: config.modelId,
+    })
 
     switch (config.provider) {
       case "anthropic":
