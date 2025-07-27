@@ -136,6 +136,7 @@ export const sandbox = pgTable("sandbox", {
   viewCount: integer("viewCount").default(0).notNull(),
   containerId: text("containerId"),
   repositoryId: text("repositoryId"),
+  lastCommit: text("lastCommit"),
 })
 
 export const sandboxInsertSchema = createInsertSchema(sandbox, {
@@ -165,6 +166,10 @@ export const sandboxInsertSchema = createInsertSchema(sandbox, {
   repositoryId: (schema) =>
     schema.openapi({
       description: "Repository ID for the sandbox",
+    }),
+  lastCommit: (schema) =>
+    schema.openapi({
+      description: "Last synced commit SHA for the sandbox",
     }),
 }).omit({
   id: true,
@@ -196,6 +201,10 @@ export const sandboxUpdateSchema = createUpdateSchema(sandbox, {
   repositoryId: (schema) =>
     schema.openapi({
       description: "Repository ID for the sandbox",
+    }),
+  lastCommit: (schema) =>
+    schema.openapi({
+      description: "Last synced commit SHA for the sandbox",
     }),
 }).omit({
   type: true, // Type is not updatable

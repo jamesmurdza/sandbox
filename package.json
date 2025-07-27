@@ -18,6 +18,8 @@
     "db:migrate:prod": "NODE_ENV=production npm run migrate -w db",
     "db:generate": "npm run generate -w db",
     "db:generate:prod": "NODE_ENV=production npm run generate -w db",
+    "db:studio": "npm run studio -w db",
+    "db:studio:prod": "NODE_ENV=production npm run studio -w db",
     "dev:deps": "concurrently -k -n LIB,DB -c yellow,magenta \"npm run dev -w lib\" \"npm run dev -w db\"",
     "dev": "npm run build:deps && concurrently -k -n WEB,SERVER -c blue,green \"npm run dev -w web\" \"npm run dev -w server\"",
     "dev:web": "npm run build:deps && npm run dev -w web",

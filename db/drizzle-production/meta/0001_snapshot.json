@@ -1,6 +1,6 @@
 {
-  "id": "16424eb2-7cd3-464f-bc43-e1561278f888",
-  "prevId": "00000000-0000-0000-0000-000000000000",
+  "id": "e6876f25-3f19-4d42-9127-ae2a1d90464f",
+  "prevId": "16424eb2-7cd3-464f-bc43-e1561278f888",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -67,6 +67,12 @@
         },
         "repositoryId": {
           "name": "repositoryId",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "lastCommit": {
+          "name": "lastCommit",
           "type": "text",
           "primaryKey": false,
           "notNull": false

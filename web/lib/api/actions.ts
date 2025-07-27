@@ -18,6 +18,7 @@ export async function createSandbox(body: {
       ...body,
       repositoryId: null,
       containerId: null,
+      lastCommit: null,
       createdAt: new Date(),
     },
   })

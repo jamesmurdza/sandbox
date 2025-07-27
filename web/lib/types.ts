@@ -84,3 +84,32 @@ export type TFileData = {
   id: string
   data: string
 }
+
+interface ConflictFile {
+  path: string
+  localContent: string
+  incomingContent: string
+}
+
+export interface FileResolution {
+  path: string
+  resolutions: Array<{
+    conflictIndex: number
+    resolution: "local" | "incoming"
+    localContent: string
+    incomingContent: string
+  }>
+}
+
+export interface ConflictResolutionProps {
+  conflictFiles: ConflictFile[]
+  fileResolutions: FileResolution[]
+  onFileResolutionChange: (
+    fileIdx: number,
+    resolution: "local" | "incoming"
+  ) => void
+  onResolve: () => void
+  onCancel: () => void
+  open: boolean
+  pendingPull: boolean
+}
