@@ -3,7 +3,7 @@ import { TIERS } from "@gitwit/web/lib/tiers"
 import { RateLimiter } from "../middleware/rate-limiter"
 import { UsageTracker } from "../middleware/usage-tracker"
 import { AIProvider, createAIProvider } from "../providers"
-import { AIRequest, AIRequestSchema, AITierConfig } from "../types"
+import { AIRequest, AIRequestSchema, AITierConfig, AITool } from "../types"
 import { logger, PromptBuilder } from "../utils"
 
 /**
@@ -14,6 +14,8 @@ export interface AIClientConfig {
   projectId?: string
   provider?: AIProvider
   tierConfig?: AITierConfig
+  tools?: Record<string, AITool>
+  disableTools?: boolean
 }
 
 /**
@@ -25,6 +27,11 @@ export interface AIClientConfig {
  * const response = await client.chat({
  *   messages: [{ role: "user", content: "Hello, AI!" }],
  *   stream: true
+ *   tools: {
+ *     weather: weatherTool,
+ *     filesystem: fileSystemTool,
+ *     project: projectTool,
+ *   }
  * })
  * ```
  */
@@ -35,6 +42,8 @@ export class AIClient {
   private promptBuilder: PromptBuilder
   private config: AIClientConfig
   private logger: typeof logger
+  private tools: Record<string, AITool> = {}
+  private toolsEnabled: boolean
 
   /**
    * Creates a new AI client instance
@@ -43,7 +52,12 @@ export class AIClient {
    */
   constructor(config: AIClientConfig) {
     this.config = config
-    this.provider = config.provider || createAIProvider()
+    this.toolsEnabled = !config.disableTools // Tools enabled by default, disabled if flag is set
+    this.tools = this.toolsEnabled ? config.tools || {} : {}
+
+    // Pass tools to provider when creating it (empty if disabled)
+    this.provider = config.provider || createAIProvider({ tools: this.tools })
+
     this.rateLimiter = new RateLimiter(config.userId)
     this.usageTracker = new UsageTracker(config.userId)
     this.promptBuilder = new PromptBuilder()
@@ -57,6 +71,8 @@ export class AIClient {
     this.logger.info("AI Client initialized", {
       provider: this.provider.constructor.name,
       tierConfig: config.tierConfig,
+      toolCount: Object.keys(this.tools).length,
+      toolsEnabled: this.toolsEnabled,
     })
   }
 
@@ -99,12 +115,15 @@ export class AIClient {
     this.logger.debug("Chat request received", {
       mode: request.mode || "chat",
       messageCount: request.messages?.length,
+      toolCount: Object.keys(this.tools).length,
+      toolsEnabled: this.toolsEnabled,
     })
 
     try {
-      // Validate request
+      // Validate request and include tools only if enabled
       const validatedRequest = AIRequestSchema.parse({
         ...request,
+        tools: this.toolsEnabled ? this.tools : undefined,
         context: {
           userId: this.config.userId,
           projectId: this.config.projectId,
@@ -144,6 +163,7 @@ export class AIClient {
         mode: validatedRequest.mode,
         duration,
         streaming: validatedRequest.stream,
+        toolsUsed: this.toolsEnabled,
       })
 
       return response
@@ -152,6 +172,7 @@ export class AIClient {
       this.logger.error("Chat request failed", error, {
         mode: request.mode,
         duration,
+        toolsEnabled: this.toolsEnabled,
       })
       throw new Error("Failed to generate AI response")
     }
@@ -182,18 +203,46 @@ export class AIClient {
       mode: "merge",
     })
   }
+
+  /**
+   * Toggle tools on or off for this client instance
+   *
+   * @param enabled - Whether to enable or disable tools
+   */
+  setToolsEnabled(enabled: boolean): void {
+    this.toolsEnabled = enabled
+    this.tools = enabled ? this.config.tools || {} : {}
+
+    // Recreate provider with new tools configuration
+    this.provider = createAIProvider({ tools: this.tools })
+
+    this.logger.info("Tools toggled", {
+      toolsEnabled: this.toolsEnabled,
+      toolCount: Object.keys(this.tools).length,
+    })
+  }
+
+  /**
+   * Get the current tools enabled state
+   *
+   * @returns Whether tools are currently enabled
+   */
+  areToolsEnabled(): boolean {
+    return this.toolsEnabled
+  }
 }
 
 /**
  * Factory function for creating an AI client instance per request
  *
- * @param userId - The unique identifier of the user making AI requests
- * @param projectId - Optional project identifier for context-aware AI responses
+ * @param options - Configuration options for creating the AI client
  * @returns Promise that resolves to a configured AI client instance
  */
-export async function createAIClient(
-  userId: string,
+export async function createAIClient(options: {
+  userId: string
   projectId?: string
-): Promise<AIClient> {
-  return AIClient.create({ userId, projectId })
+  tools?: Record<string, AITool>
+  disableTools?: boolean
+}): Promise<AIClient> {
+  return AIClient.create(options)
 }

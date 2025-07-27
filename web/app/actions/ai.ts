@@ -2,7 +2,7 @@
 
 import { currentUser } from "@clerk/nextjs/server"
 import { AIClient, createAIClient, createAIProvider } from "@gitwit/ai"
-import { StreamHandler } from "@gitwit/ai/utils"
+import { StreamHandler, defaultTools } from "@gitwit/ai/utils"
 import { createStreamableValue } from "ai/rsc"
 
 export async function streamChat(
@@ -24,11 +24,17 @@ export async function streamChat(
 
   ;(async () => {
     try {
-      const aiClient = await createAIClient(user.id, context?.projectName)
+      const aiClient = await createAIClient({
+        userId: user.id,
+        projectId: context?.projectName,
+        tools: defaultTools,
+        disableTools: context?.isEditMode,
+      })
 
       const response = await aiClient.chat({
         messages,
         mode: context?.isEditMode ? "edit" : "chat",
+        maxSteps: 3,
         context: {
           userId: user.id,
           projectId: context?.projectName,
@@ -103,7 +109,6 @@ export async function merge(
 
     const responseData = await response.json()
     return responseData.content || ""
-
   } catch (error) {
     throw error
   }

@@ -1,6 +1,15 @@
 import { z } from "zod"
 
 /**
+ * Tool definition interface for AI function calling
+ */
+export interface AITool {
+  description: string
+  parameters: z.ZodSchema<any>
+  execute: (args: any) => Promise<any> | any
+}
+
+/**
  * Zod schema for validating AI request objects
  * Ensures all required fields are present and properly typed
  */
@@ -15,7 +24,9 @@ export const AIRequestSchema = z.object({
   model: z.string().optional(),
   temperature: z.number().min(0).max(2).optional().default(0.7),
   maxTokens: z.number().positive().optional(),
+  maxSteps: z.number().positive().optional().default(1),
   stream: z.boolean().optional().default(true),
+  tools: z.record(z.any()).optional(),
   context: z.object({
     userId: z.string(),
     projectId: z.string().optional(),
@@ -57,6 +68,7 @@ export interface AIProviderConfig {
   region?: string
   modelId?: string
   baseURL?: string
+  tools?: Record<string, AITool>
 }
 
 /**
