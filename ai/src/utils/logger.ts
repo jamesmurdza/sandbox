@@ -1,3 +1,5 @@
+import chalk from "chalk"
+
 /**
  * Context interface for logger instances
  * Allows attaching metadata to log messages
@@ -56,9 +58,9 @@ class Logger {
             .map(([k, v]) => `${k}=${v}`)
             .join(" ")}`
         : ""
-    const extraStr = extra ? ` ${JSON.stringify(extra)}` : ""
+    const extraStr = extra ? ` ${JSON.stringify(extra, null, 2)}` : ""
 
-    return `[AI] → ${level}: ${message}${contextStr}${extraStr}`
+    return `${chalk.yellow("[AI]")} ${level}: ${message}${contextStr}${extraStr}`
   }
 
   /**
