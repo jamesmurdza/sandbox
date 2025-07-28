@@ -132,7 +132,11 @@ export function GitHubSync({ userId }: { userId: string }) {
     })
 
   // Get changed files for validation
-  const { data: changedFilesData } = githubRouter.getChangedFiles.useQuery({
+  const {
+    data: changedFilesData,
+    isLoading: isChangedFilesLoading,
+    isFetching: isChangedFilesFetching,
+  } = githubRouter.getChangedFiles.useQuery({
     variables: { projectId },
   })
 
@@ -518,7 +522,9 @@ export function GitHubSync({ userId }: { userId: string }) {
                 size="xs"
                 className="w-full font-normal"
                 onClick={handlePull}
-                disabled={pendingPull}
+                disabled={
+                  pendingPull || isChangedFilesLoading || isChangedFilesFetching
+                }
               >
                 {pendingPull ? (
                   <Loader2 className="animate-spin mr-2 size-3" />
@@ -583,6 +589,8 @@ export function GitHubSync({ userId }: { userId: string }) {
     pullStatus,
     pendingPull,
     handleSyncToGithub,
+    isChangedFilesLoading,
+    isChangedFilesFetching,
   ])
 
   React.useEffect(() => {
