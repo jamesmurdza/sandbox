@@ -1,4 +1,4 @@
-import { fileRouter, FileTree } from "@/lib/api"
+import { fileRouter, FileTree, githubRouter } from "@/lib/api"
 import { sortFileExplorer } from "@/lib/utils"
 import { useAppStore } from "@/store/context"
 import { useQueryClient } from "@tanstack/react-query"
@@ -30,6 +30,12 @@ export function useFileTree() {
             })
           )
           .then(() => {
+            // Invalidate changed files query to refresh the list
+            queryClient.invalidateQueries(
+              githubRouter.getChangedFiles.getOptions({
+                projectId,
+              })
+            )
             toast.success(message)
           })
       },
@@ -48,6 +54,12 @@ export function useFileTree() {
             })
           )
           .then(() => {
+            // Invalidate changed files query to refresh the list
+            queryClient.invalidateQueries(
+              githubRouter.getChangedFiles.getOptions({
+                projectId,
+              })
+            )
             toast.success(message)
           })
       },
@@ -66,6 +78,12 @@ export function useFileTree() {
             })
           )
           .then(() => {
+            // Invalidate changed files query to refresh the list
+            queryClient.invalidateQueries(
+              githubRouter.getChangedFiles.getOptions({
+                projectId,
+              })
+            )
             toast.success(message)
           })
       },
@@ -78,6 +96,12 @@ export function useFileTree() {
     onSuccess(_, { fileId }) {
       setTabs((tabs) =>
         tabs.map((tab) => (tab.id === fileId ? { ...tab, saved: true } : tab))
+      )
+      // Invalidate changed files query to refresh the list
+      queryClient.invalidateQueries(
+        githubRouter.getChangedFiles.getOptions({
+          projectId,
+        })
       )
     },
   })
@@ -127,6 +151,12 @@ export function useFileTree() {
       // Always refetch after error or success
       queryClient.invalidateQueries(
         fileRouter.fileTree.getOptions({ projectId })
+      )
+      // Invalidate changed files query to refresh the list
+      queryClient.invalidateQueries(
+        githubRouter.getChangedFiles.getOptions({
+          projectId,
+        })
       )
     },
   })

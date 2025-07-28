@@ -30,6 +30,7 @@ import { useParams } from "next/navigation"
 import * as React from "react"
 import { useState } from "react"
 import { toast } from "sonner"
+import { ChangedFiles } from "./changed-files"
 import { ConflictResolution } from "./conflict-resolution"
 
 const REDIRECT_URI = "/loading"
@@ -110,6 +111,20 @@ export function GitHubSync({ userId }: { userId: string }) {
       onSuccess() {
         setCommitMessage("")
         toast.success("Commit created successfully")
+
+        // Optimistically clear the changed files immediately after successful commit
+        const changedFilesKey = githubRouter.getChangedFiles.getKey({
+          projectId,
+        })
+        queryClient.setQueryData(changedFilesKey, {
+          success: true,
+          message: "Changed files retrieved successfully",
+          data: {
+            modified: [],
+            created: [],
+            deleted: [],
+          },
+        })
       },
       onError: (error: any) => {
         toast.error(error.message || "Failed to commit changes")
@@ -446,6 +461,7 @@ export function GitHubSync({ userId }: { userId: string }) {
                 </DropdownMenu>
               </div>
             </div>
+
             <div className="flex flex-col gap-2 mt-2">
               <Textarea
                 placeholder="Add a commit message here..."
@@ -486,6 +502,8 @@ export function GitHubSync({ userId }: { userId: string }) {
                 Pull from GitHub
               </Button>
             </div>
+
+            <ChangedFiles />
           </>
         )
       } else {

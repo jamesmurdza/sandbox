@@ -1,6 +1,6 @@
 "use client"
 
-import { fileRouter } from "@/lib/api"
+import { fileRouter, githubRouter } from "@/lib/api"
 import { validateName } from "@/lib/utils"
 import { useQueryClient } from "@tanstack/react-query"
 import { Loader2 } from "lucide-react"
@@ -35,6 +35,12 @@ export default function New({
             })
           )
           .then(() => {
+            // Invalidate changed files query to refresh the list
+            queryClient.invalidateQueries(
+              githubRouter.getChangedFiles.getOptions({
+                projectId,
+              })
+            )
             stopEditing()
           })
       },
@@ -52,6 +58,12 @@ export default function New({
             })
           )
           .then(() => {
+            // Invalidate changed files query to refresh the list
+            queryClient.invalidateQueries(
+              githubRouter.getChangedFiles.getOptions({
+                projectId,
+              })
+            )
             stopEditing()
           })
       },

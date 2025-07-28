@@ -1,15 +1,20 @@
 import { createRouter } from "@/lib/api/create-app"
 import jsonContent from "@/lib/api/utils"
 import { env } from "@/lib/env"
+import { TFile, TFolder } from "@/lib/types"
 import { db } from "@gitwit/db"
 import { sandbox as sandboxSchema, user } from "@gitwit/db/schema"
 import { Project } from "@gitwit/lib/services/Project"
 import { and, eq } from "drizzle-orm"
 import { describeRoute } from "hono-openapi"
 import { validator as zValidator } from "hono-openapi/zod"
+import path from "path"
 import z from "zod"
 import { GithubSyncManager } from "../../../lib/services/GithubSyncManager"
 import { githubAuth } from "../middlewares/githubAuth"
+
+// Import minimatch using require to avoid webpack issues
+const minimatch = require("minimatch")
 
 export const githubRouter = createRouter()
   // #region GET /auth_url
@@ -347,18 +352,8 @@ export const githubRouter = createRouter()
         project = new Project(projectId)
         await project.initialize()
 
-        if (!project.fileManager || !project.container) {
-          throw new Error("Project not properly initialized")
-        }
-
-        const githubSyncManager = new GithubSyncManager(
-          githubManager,
-          project.fileManager,
-          project.container
-        )
-
         // Get the README.md file that GitHub created
-        const githubFiles = await githubSyncManager.getLatestFiles(id)
+        const githubFiles = await githubManager.getLatestFiles(id)
         const readmeFile = githubFiles.find((file) => file.path === "README.md")
 
         if (readmeFile && project.fileManager) {
@@ -424,7 +419,7 @@ export const githubRouter = createRouter()
         )
       } finally {
         // Clean up project resources
-        if (project !== null) {
+        if (project) {
           await project.disconnect()
         }
       }
@@ -888,12 +883,289 @@ export const githubRouter = createRouter()
       }
     }
   )
+  // #endregion
+  // #region GET /repo/changed-files
+  .get(
+    "/repo/changed-files",
+    describeRoute({
+      tags: ["Github"],
+      description: "Get changed files since last commit",
+      responses: {
+        200: jsonContent(z.object({}), "Changed files retrieved successfully"),
+        404: jsonContent(z.object({}), "Not Found - Project not found"),
+      },
+    }),
+    zValidator(
+      "query",
+      z.object({
+        projectId: z.string(),
+      })
+    ),
+    async (c) => {
+      const githubManager = c.get("manager")
+      const userId = c.get("user").id
+      const { projectId } = c.req.valid("query")
+      let project: Project | null = null
+
+      try {
+        // Fetch sandbox data
+        const sandbox = await db.query.sandbox.findFirst({
+          where: (sandbox, { eq, and }) =>
+            and(eq(sandbox.id, projectId), eq(sandbox.userId, userId)),
+        })
+
+        if (!sandbox) {
+          return c.json({ success: false, message: "Project not found" }, 404)
+        }
+
+        if (!sandbox.repositoryId) {
+          return c.json(
+            { success: false, message: "No repository linked to this project" },
+            404
+          )
+        }
+
+        if (!sandbox.lastCommit) {
+          return c.json(
+            { success: false, message: "No previous commit found" },
+            404
+          )
+        }
+
+        // Initialize project
+        project = new Project(projectId)
+        await project.initialize()
+
+        if (!project.fileManager) {
+          throw new Error("File manager not initialized")
+        }
+
+        // Get current local files
+        const currentFileTree = await project.fileManager.getFileTree()
+        const currentFiles = flattenFileTreeForComparison(currentFileTree)
+
+        // Get file contents for current files
+        const currentFilesWithContent: Array<{
+          path: string
+          content: string
+        }> = []
+        for (const filePath of currentFiles) {
+          // Skip hidden files (files that start with '.')
+          if (filePath.includes("/.") || filePath.startsWith(".")) {
+            continue
+          }
+
+          try {
+            const content = await project.fileManager.getFile(`/${filePath}`)
+            if (content !== undefined && content !== null) {
+              currentFilesWithContent.push({
+                path: filePath,
+                content: String(content),
+              })
+            }
+          } catch (error) {
+            console.error(`Error reading file ${filePath}:`, error)
+          }
+        }
+
+        // Get .gitignore content to filter ignored files
+        let gitignoreContent: string | undefined
+        try {
+          const gitignoreFile = await project.fileManager.getFile("/.gitignore")
+          if (gitignoreFile !== undefined && gitignoreFile !== null) {
+            gitignoreContent = String(gitignoreFile)
+          }
+        } catch (error) {
+          // .gitignore doesn't exist, which is fine
+          console.log("No .gitignore file found")
+        }
+
+        // Filter out ignored files from current files
+        const filteredCurrentFiles = filterIgnoredFiles(
+          currentFilesWithContent,
+          gitignoreContent
+        ).filter((file) => file.content !== undefined) as Array<{
+          path: string
+          content: string
+        }>
+
+        // Get last committed files from GitHub
+        const lastCommittedFiles = await githubManager.getFilesFromCommit(
+          sandbox.repositoryId,
+          sandbox.lastCommit
+        )
+
+        // Filter out hidden files and ignored files from last committed files
+        const filteredLastCommittedFiles = filterIgnoredFiles(
+          lastCommittedFiles.filter(
+            (file) => !file.path.includes("/.") && !file.path.startsWith(".")
+          ),
+          gitignoreContent
+        ).filter((file) => file.content !== undefined) as Array<{
+          path: string
+          content: string
+        }>
+
+        // Compare and categorize changes
+        const changes = compareFiles(
+          filteredCurrentFiles,
+          filteredLastCommittedFiles
+        )
+
+        return c.json(
+          {
+            success: true,
+            message: "Changed files retrieved successfully",
+            data: changes,
+          },
+          200
+        )
+      } catch (error: any) {
+        console.error("Failed to get changed files:", error)
+        return c.json(
+          {
+            success: false,
+            message: "Failed to get changed files",
+            data: error.message,
+          },
+          500
+        )
+      } finally {
+        // Clean up project resources
+        if (project !== null) {
+          await project.disconnect()
+        }
+      }
+    }
+  )
 // #endregion
 // #endregion
 
 // #endregion
 
 // #region Utilities
+/**
+ * Parses .gitignore patterns and filters files that should be ignored
+ * @param files - Array of files with paths
+ * @param gitignoreContent - Content of .gitignore file
+ * @returns Array of files that should not be ignored
+ */
+function filterIgnoredFiles(
+  files: Array<{ path: string; content?: string }>,
+  gitignoreContent?: string
+): Array<{ path: string; content?: string }> {
+  // First, filter out hidden files (files that start with '.')
+  const nonHiddenFiles = files.filter(
+    (file) => !file.path.includes("/.") && !file.path.startsWith(".")
+  )
+
+  if (!gitignoreContent) {
+    return nonHiddenFiles
+  }
+
+  // Parse .gitignore patterns
+  const ignorePatterns = gitignoreContent
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith("#")) // Remove comments and empty lines
+
+  return nonHiddenFiles.filter((file) => {
+    // Check if file matches any ignore pattern
+    return !ignorePatterns.some((pattern) => {
+      // Handle different pattern types
+      if (pattern.startsWith("/")) {
+        // Absolute path from root
+        return minimatch(file.path, pattern.slice(1))
+      } else if (pattern.endsWith("/")) {
+        // Directory pattern
+        return minimatch(file.path, pattern + "**")
+      } else {
+        // Regular pattern
+        return minimatch(file.path, pattern)
+      }
+    })
+  })
+}
+
+/**
+ * Flattens file tree to get all file paths for comparison
+ * @param files - File tree structure
+ * @returns Array of file paths
+ */
+function flattenFileTreeForComparison(files: (TFolder | TFile)[]): string[] {
+  const paths: string[] = []
+
+  const processNode = (node: TFolder | TFile, currentPath: string = "") => {
+    if (node.type === "file") {
+      paths.push(path.posix.join(currentPath, node.name))
+    } else if (node.type === "folder" && node.children) {
+      const folderPath = path.posix.join(currentPath, node.name)
+      node.children.forEach((child: TFolder | TFile) =>
+        processNode(child, folderPath)
+      )
+    }
+  }
+
+  files.forEach((file) => processNode(file))
+  return paths
+}
+
+/**
+ * Compares current files with last committed files and categorizes changes
+ * @param currentFiles - Current local files with content
+ * @param lastCommittedFiles - Last committed files from GitHub
+ * @returns Object with categorized changes
+ */
+function compareFiles(
+  currentFiles: Array<{ path: string; content: string }>,
+  lastCommittedFiles: Array<{ path: string; content: string }>
+) {
+  const currentFileMap = new Map(
+    currentFiles.map((file) => [file.path, file.content])
+  )
+  const lastCommittedFileMap = new Map(
+    lastCommittedFiles.map((file) => [file.path, file.content])
+  )
+
+  const modified: Array<{
+    path: string
+    localContent: string
+    remoteContent: string
+  }> = []
+  const created: Array<{ path: string; content: string }> = []
+  const deleted: Array<{ path: string }> = []
+
+  // Find modified and created files
+  for (const [path, content] of currentFileMap) {
+    const lastCommittedContent = lastCommittedFileMap.get(path)
+    if (lastCommittedContent === undefined) {
+      // File exists locally but not in last commit
+      created.push({ path, content })
+    } else if (lastCommittedContent !== content) {
+      // File exists in both but content differs
+      modified.push({
+        path,
+        localContent: content,
+        remoteContent: lastCommittedContent,
+      })
+    }
+  }
+
+  // Find deleted files
+  for (const [path] of lastCommittedFileMap) {
+    if (!currentFileMap.has(path)) {
+      // File exists in last commit but not locally
+      deleted.push({ path })
+    }
+  }
+
+  return {
+    modified,
+    created,
+    deleted,
+  }
+}
+
 /**
  * The function `resolveRepoNameConflict` resolves conflicts in repository names by appending a counter
  * if the name is already taken.
@@ -929,6 +1201,18 @@ async function collectFilesForCommit(project: Project) {
     return []
   }
 
+  // Get .gitignore content to filter ignored files
+  let gitignoreContent: string | undefined
+  try {
+    const gitignoreFile = await project.fileManager?.getFile("/.gitignore")
+    if (gitignoreFile !== undefined && gitignoreFile !== null) {
+      gitignoreContent = String(gitignoreFile)
+    }
+  } catch (error) {
+    // .gitignore doesn't exist, which is fine
+    console.log("No .gitignore file found")
+  }
+
   const files: { id: any; data: any }[] = []
 
   // Recursively process the file tree
@@ -938,6 +1222,12 @@ async function collectFilesForCommit(project: Project) {
     children?: any
   }) => {
     if (node.type === "file") {
+      // Skip hidden files (files that start with '.')
+      const filePath = node.id.replace(/^\/+/, "") // Remove leading slashes
+      if (filePath.includes("/.") || filePath.startsWith(".")) {
+        return
+      }
+
       const content = await project.fileManager?.getFile(node.id)
       if (content) {
         files.push({ id: node.id, data: content })
@@ -951,6 +1241,22 @@ async function collectFilesForCommit(project: Project) {
 
   for (const node of fileTree) {
     await processNode(node)
+  }
+
+  // Apply .gitignore filtering to the collected files
+  if (gitignoreContent) {
+    const filesWithPaths = files.map((file) => ({
+      path: file.id.replace(/^\/+/, ""),
+      content: file.data,
+    }))
+
+    const filteredFiles = filterIgnoredFiles(filesWithPaths, gitignoreContent)
+
+    // Convert back to the format expected by createCommit
+    return filteredFiles.map((file) => ({
+      id: `/${file.path}`,
+      data: file.content || "",
+    }))
   }
 
   return files
