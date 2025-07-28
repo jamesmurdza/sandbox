@@ -4,6 +4,7 @@ import { generateText, LanguageModel, streamText, Tool, tool } from "ai"
 import { z } from "zod"
 import { AIProviderConfig, AIRequest, AITool } from "../types"
 import { logger, StreamHandler } from "../utils"
+import { TIERS } from "@gitwit/web/lib/tiers"
 
 /**
  * AI provider class that handles communication with different AI services
@@ -73,12 +74,12 @@ export class AIProvider {
   private initializeModel(config: AIProviderConfig): LanguageModel {
     this.logger.debug("Initializing model", {
       provider: config.provider,
-      modelId: config.modelId,
+      modelId: config.modelId || TIERS.FREE.anthropicModel,
     })
 
     switch (config.provider) {
       case "anthropic":
-        return anthropic(config.modelId || "claude-3-5-sonnet-20241022")
+        return anthropic(config.modelId || TIERS.FREE.anthropicModel)
 
       case "openai":
         return openai(config.modelId || "gpt-4o-mini")
