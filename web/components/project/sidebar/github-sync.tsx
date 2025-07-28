@@ -131,8 +131,27 @@ export function GitHubSync({ userId }: { userId: string }) {
       },
     })
 
+  // Get changed files for validation
+  const { data: changedFilesData } = githubRouter.getChangedFiles.useQuery({
+    variables: { projectId },
+  })
+
   // Handle sync with pull check
   const handleSyncToGithub = async () => {
+    // Check if there are any changed files
+    const changedFiles = changedFilesData?.data
+    const hasChanges =
+      changedFiles &&
+      (changedFiles.modified?.length || 0) +
+        (changedFiles.created?.length || 0) +
+        (changedFiles.deleted?.length || 0) >
+        0
+
+    if (!hasChanges) {
+      toast.error("No files to commit")
+      return
+    }
+
     // Check if pull is needed before pushing
     const pullStatus = await githubRouter.checkPullStatus.fetcher({
       projectId,
@@ -474,7 +493,14 @@ export function GitHubSync({ userId }: { userId: string }) {
                 size="xs"
                 className="w-full font-normal"
                 onClick={handleSyncToGithub}
-                disabled={isSyncingToGithub}
+                disabled={
+                  isSyncingToGithub ||
+                  !changedFilesData?.data ||
+                  (changedFilesData.data.modified?.length || 0) +
+                    (changedFilesData.data.created?.length || 0) +
+                    (changedFilesData.data.deleted?.length || 0) ===
+                    0
+                }
               >
                 {isSyncingToGithub ? (
                   <Loader2 className="animate-spin mr-2 size-3" />
