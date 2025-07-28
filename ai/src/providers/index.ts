@@ -213,13 +213,22 @@ export function createAIProvider(
     ...overrides,
   }
 
-  // Auto-detect provider based on available environment variables
-  if (process.env.ANTHROPIC_API_KEY) {
-    config.provider = "anthropic"
-    config.apiKey = process.env.ANTHROPIC_API_KEY
-  } else if (process.env.OPENAI_API_KEY) {
-    config.provider = "openai"
-    config.apiKey = process.env.OPENAI_API_KEY
+  // Only auto-detect provider if not explicitly specified in overrides
+  if (!overrides?.provider) {
+    if (process.env.ANTHROPIC_API_KEY) {
+      config.provider = "anthropic"
+      config.apiKey = process.env.ANTHROPIC_API_KEY
+    } else if (process.env.OPENAI_API_KEY) {
+      config.provider = "openai"
+      config.apiKey = process.env.OPENAI_API_KEY
+    }
+  } else {
+    // Set the appropriate API key based on the explicitly chosen provider
+    if (overrides.provider === "anthropic" && process.env.ANTHROPIC_API_KEY) {
+      config.apiKey = process.env.ANTHROPIC_API_KEY
+    } else if (overrides.provider === "openai" && process.env.OPENAI_API_KEY) {
+      config.apiKey = process.env.OPENAI_API_KEY
+    }
   }
 
   return new AIProvider(config)
