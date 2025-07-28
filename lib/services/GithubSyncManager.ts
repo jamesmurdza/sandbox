@@ -273,12 +273,14 @@ export class GithubSyncManager {
   }
 
   /**
-   * Gets the latest files from a GitHub repository
+   * Gets files from a specific commit or latest commit in a GitHub repository
    * @param repoId - GitHub repository ID
+   * @param commitSha - Optional specific commit SHA. If not provided, gets latest commit from main branch
    * @returns Array of file objects with path and content
    */
-  async getLatestFiles(
-    repoId: string
+  async getFilesFromCommit(
+    repoId: string,
+    commitSha?: string
   ): Promise<Array<{ path: string; content: string }>> {
     try {
       const repoInfo = await this.githubManager.repoExistsByID(repoId)
@@ -286,19 +288,40 @@ export class GithubSyncManager {
         throw new Error("Repository not found")
       }
 
-      // Get the latest tree from the main branch
-      const refResponse = await this.githubManager.octokit.request(
-        "GET /repos/{owner}/{repo}/git/ref/{ref}",
-        {
-          owner: this.githubManager.username,
-          repo: repoInfo.repoName,
-          ref: "heads/main",
-        }
-      )
+      let treeSha: string
 
-      const ref = refResponse?.data
-      if (!ref || !ref.object?.sha) {
-        throw new Error("Failed to fetch reference for the main branch.")
+      if (commitSha) {
+        // Get the commit details for specific commit
+        const commitResponse = await this.githubManager.octokit.request(
+          "GET /repos/{owner}/{repo}/git/commits/{commit_sha}",
+          {
+            owner: this.githubManager.username,
+            repo: repoInfo.repoName,
+            commit_sha: commitSha,
+          }
+        )
+
+        const commit = commitResponse?.data
+        if (!commit || !commit.tree) {
+          throw new Error("Failed to fetch commit details.")
+        }
+        treeSha = commit.tree.sha
+      } else {
+        // Get the latest tree from the main branch
+        const refResponse = await this.githubManager.octokit.request(
+          "GET /repos/{owner}/{repo}/git/ref/{ref}",
+          {
+            owner: this.githubManager.username,
+            repo: repoInfo.repoName,
+            ref: "heads/main",
+          }
+        )
+
+        const ref = refResponse?.data
+        if (!ref || !ref.object?.sha) {
+          throw new Error("Failed to fetch reference for the main branch.")
+        }
+        treeSha = ref.object.sha
       }
 
       // Get the tree
@@ -307,7 +330,7 @@ export class GithubSyncManager {
         {
           owner: this.githubManager.username,
           repo: repoInfo.repoName,
-          tree_sha: ref.object.sha,
+          tree_sha: treeSha,
         }
       )
 
@@ -362,8 +385,19 @@ export class GithubSyncManager {
 
       return fileContents
     } catch (error) {
-      console.error("Error getting latest files:", error)
+      console.error("Error getting files from commit:", error)
       throw error
     }
+  }
+
+  /**
+   * Gets the latest files from a GitHub repository
+   * @param repoId - GitHub repository ID
+   * @returns Array of file objects with path and content
+   */
+  async getLatestFiles(
+    repoId: string
+  ): Promise<Array<{ path: string; content: string }>> {
+    return await this.getFilesFromCommit(repoId) //no commit sha needed as we want latest commit
   }
 }

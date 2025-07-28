@@ -352,8 +352,18 @@ export const githubRouter = createRouter()
         project = new Project(projectId)
         await project.initialize()
 
+        if (!project.fileManager || !project.container) {
+          throw new Error("Project not properly initialized")
+        }
+
+        const githubSyncManager = new GithubSyncManager(
+          githubManager,
+          project.fileManager,
+          project.container
+        )
+
         // Get the README.md file that GitHub created
-        const githubFiles = await githubManager.getLatestFiles(id)
+        const githubFiles = await githubSyncManager.getLatestFiles(id)
         const readmeFile = githubFiles.find((file) => file.path === "README.md")
 
         if (readmeFile && project.fileManager) {
@@ -936,9 +946,15 @@ export const githubRouter = createRouter()
         project = new Project(projectId)
         await project.initialize()
 
-        if (!project.fileManager) {
+        if (!project.fileManager || !project.container) {
           throw new Error("File manager not initialized")
         }
+
+        const githubSyncManager = new GithubSyncManager(
+          githubManager,
+          project.fileManager,
+          project.container
+        )
 
         // Get current local files
         const currentFileTree = await project.fileManager.getFileTree()
@@ -990,7 +1006,7 @@ export const githubRouter = createRouter()
         }>
 
         // Get last committed files from GitHub
-        const lastCommittedFiles = await githubManager.getFilesFromCommit(
+        const lastCommittedFiles = await githubSyncManager.getFilesFromCommit(
           sandbox.repositoryId,
           sandbox.lastCommit
         )
