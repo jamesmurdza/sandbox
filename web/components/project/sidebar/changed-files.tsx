@@ -60,12 +60,12 @@ export function ChangedFiles({ className }: ChangedFilesProps) {
         {isFetching && <Loader2 className="w-3 h-3 animate-spin" />}
       </div>
 
-      <div className="space-y-1 max-h-32 overflow-y-auto">
+      <div className="space-y-1 ">
         {/* Modified files */}
         {changedFiles.modified?.map((file: any) => (
           <div
             key={`modified-${file.path}`}
-            className="flex items-center gap-2 text-sm"
+            className="flex items-center gap-2 text-sm py-1"
           >
             <FileEdit className="w-4 h-4 text-yellow-500 flex-shrink-0" />
             <span className="text-foreground truncate">{file.path}</span>
@@ -79,7 +79,7 @@ export function ChangedFiles({ className }: ChangedFilesProps) {
         {changedFiles.created?.map((file: any) => (
           <div
             key={`created-${file.path}`}
-            className="flex items-center gap-2 text-sm"
+            className="flex items-center gap-2 text-sm py-1"
           >
             <FilePlus className="w-4 h-4 text-green-500 flex-shrink-0" />
             <span className="text-foreground truncate">{file.path}</span>
@@ -93,7 +93,7 @@ export function ChangedFiles({ className }: ChangedFilesProps) {
         {changedFiles.deleted?.map((file: any) => (
           <div
             key={`deleted-${file.path}`}
-            className="flex items-center gap-2 text-sm"
+            className="flex items-center gap-2 text-sm py-1"
           >
             <FileX className="w-4 h-4 text-red-500 flex-shrink-0" />
             <span className="text-foreground truncate">{file.path}</span>
