@@ -1,14 +1,14 @@
-import { bedrock } from "@ai-sdk/amazon-bedrock"
 import { anthropic } from "@ai-sdk/anthropic"
 import { openai } from "@ai-sdk/openai"
 import { generateText, LanguageModel, streamText, Tool, tool } from "ai"
 import { z } from "zod"
 import { AIProviderConfig, AIRequest, AITool } from "../types"
 import { logger, StreamHandler } from "../utils"
+import { TIERS } from "@gitwit/web/lib/tiers"
 
 /**
  * AI provider class that handles communication with different AI services
- * Supports Anthropic Claude, AWS Bedrock, and OpenAI models
+ * Supports Anthropic Claude and OpenAI models
  *
  * @example
  * ```typescript
@@ -69,23 +69,17 @@ export class AIProvider {
    *
    * @param config - Provider configuration object
    * @returns Initialized language model instance
-   * @throws {Error} When AWS region is missing for Bedrock provider
    * @throws {Error} When an unsupported provider is specified
    */
   private initializeModel(config: AIProviderConfig): LanguageModel {
     this.logger.debug("Initializing model", {
       provider: config.provider,
-      modelId: config.modelId,
+      modelId: config.modelId || TIERS.FREE.anthropicModel,
     })
 
     switch (config.provider) {
       case "anthropic":
-        return anthropic(config.modelId || "claude-3-5-sonnet-20241022")
-
-      case "bedrock":
-        if (!config.region) throw new Error("AWS region required for Bedrock")
-        const arn = config.modelId || process.env.AWS_ARN!
-        return bedrock(arn)
+        return anthropic(config.modelId || TIERS.FREE.anthropicModel)
 
       case "openai":
         return openai(config.modelId || "gpt-4o-mini")
@@ -219,17 +213,22 @@ export function createAIProvider(
     ...overrides,
   }
 
-  // Auto-detect provider based on available environment variables
-  if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
-    config.provider = "bedrock"
-    config.region = process.env.AWS_REGION || "us-east-1"
-    config.modelId = process.env.AWS_ARN
-  } else if (process.env.ANTHROPIC_API_KEY) {
-    config.provider = "anthropic"
-    config.apiKey = process.env.ANTHROPIC_API_KEY
-  } else if (process.env.OPENAI_API_KEY) {
-    config.provider = "openai"
-    config.apiKey = process.env.OPENAI_API_KEY
+  // Only auto-detect provider if not explicitly specified in overrides
+  if (!overrides?.provider) {
+    if (process.env.ANTHROPIC_API_KEY) {
+      config.provider = "anthropic"
+      config.apiKey = process.env.ANTHROPIC_API_KEY
+    } else if (process.env.OPENAI_API_KEY) {
+      config.provider = "openai"
+      config.apiKey = process.env.OPENAI_API_KEY
+    }
+  } else {
+    // Set the appropriate API key based on the explicitly chosen provider
+    if (overrides.provider === "anthropic" && process.env.ANTHROPIC_API_KEY) {
+      config.apiKey = process.env.ANTHROPIC_API_KEY
+    } else if (overrides.provider === "openai" && process.env.OPENAI_API_KEY) {
+      config.apiKey = process.env.OPENAI_API_KEY
+    }
   }
 
   return new AIProvider(config)

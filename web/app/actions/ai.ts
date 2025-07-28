@@ -25,16 +25,12 @@ export async function streamChat(
 
   ;(async () => {
     try {
-      const provider = createAIProvider({
-        provider: "anthropic",
-        modelId: TIERS.FREE.anthropicModel,
-        tools: context?.isEditMode ? undefined : defaultTools,
-      })
 
       const aiClient = await createAIClient({
         userId: user.id,
         projectId: context?.projectName,
-        provider: provider,
+        tools: defaultTools,
+        disableTools: context?.isEditMode,
       })
 
       const response = await aiClient.chat({

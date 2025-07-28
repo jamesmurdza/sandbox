@@ -9,9 +9,6 @@ export const env = createEnv({
     CLERK_SECRET_KEY: z.string().min(1),
     ANTHROPIC_API_KEY: z.string().min(1).optional(),
     OPENAI_API_KEY: z.string().min(1),
-    AWS_ACCESS_KEY_ID: z.string().min(1).optional(),
-    AWS_SECRET_ACCESS_KEY: z.string().min(1).optional(),
-    AWS_REGION: z.string().min(1).optional().default("us-east-1"),
     DATABASE_URL: z.string().url().min(1),
     NODE_ENV: z
       .enum(["development", "production", "test"])

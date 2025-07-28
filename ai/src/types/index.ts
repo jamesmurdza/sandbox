@@ -62,7 +62,7 @@ export interface AICompletionResponse {
  * Configuration interface for AI provider setup
  */
 export interface AIProviderConfig {
-  provider: "anthropic" | "bedrock" | "openai"
+  provider: "anthropic" | "openai"
   apiKey?: string
   region?: string
   modelId?: string
