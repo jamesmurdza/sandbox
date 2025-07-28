@@ -1,20 +1,16 @@
 import { createRouter } from "@/lib/api/create-app"
 import jsonContent from "@/lib/api/utils"
 import { env } from "@/lib/env"
-import { TFile, TFolder } from "@/lib/types"
 import { db } from "@gitwit/db"
 import { sandbox as sandboxSchema, user } from "@gitwit/db/schema"
 import { Project } from "@gitwit/lib/services/Project"
 import { and, eq } from "drizzle-orm"
 import { describeRoute } from "hono-openapi"
 import { validator as zValidator } from "hono-openapi/zod"
-import path from "path"
+import minimatch from "minimatch"
 import z from "zod"
 import { GithubSyncManager } from "../../../lib/services/GithubSyncManager"
 import { githubAuth } from "../middlewares/githubAuth"
-
-// Import minimatch using require to avoid webpack issues
-const minimatch = require("minimatch")
 
 export const githubRouter = createRouter()
   // #region GET /auth_url
@@ -957,8 +953,8 @@ export const githubRouter = createRouter()
         )
 
         // Get current local files
-        const currentFileTree = await project.fileManager.getFileTree()
-        const currentFiles = flattenFileTreeForComparison(currentFileTree)
+        const currentFiles = await project.fileManager.getProjectPaths()
+        console.log("currentFiles", currentFiles)
 
         // Get file contents for current files
         const currentFilesWithContent: Array<{
@@ -967,7 +963,11 @@ export const githubRouter = createRouter()
         }> = []
         for (const filePath of currentFiles) {
           // Skip hidden files (files that start with '.')
-          if (filePath.includes("/.") || filePath.startsWith(".")) {
+          if (
+            filePath.includes("/.") ||
+            filePath.startsWith(".") ||
+            filePath.endsWith("/")
+          ) {
             continue
           }
 
@@ -1021,6 +1021,9 @@ export const githubRouter = createRouter()
           path: string
           content: string
         }>
+
+        console.log("filteredLastCommittedFiles", filteredLastCommittedFiles)
+        console.log("filteredCurrentFiles", filteredCurrentFiles)
 
         // Compare and categorize changes
         const changes = compareFiles(
@@ -1104,29 +1107,6 @@ function filterIgnoredFiles(
 }
 
 /**
- * Flattens file tree to get all file paths for comparison
- * @param files - File tree structure
- * @returns Array of file paths
- */
-function flattenFileTreeForComparison(files: (TFolder | TFile)[]): string[] {
-  const paths: string[] = []
-
-  const processNode = (node: TFolder | TFile, currentPath: string = "") => {
-    if (node.type === "file") {
-      paths.push(path.posix.join(currentPath, node.name))
-    } else if (node.type === "folder" && node.children) {
-      const folderPath = path.posix.join(currentPath, node.name)
-      node.children.forEach((child: TFolder | TFile) =>
-        processNode(child, folderPath)
-      )
-    }
-  }
-
-  files.forEach((file) => processNode(file))
-  return paths
-}
-
-/**
  * Compares current files with last committed files and categorizes changes
  * @param currentFiles - Current local files with content
  * @param lastCommittedFiles - Last committed files from GitHub
@@ -1153,7 +1133,11 @@ function compareFiles(
 
   // Find modified and created files
   for (const [path, content] of currentFileMap) {
+    console.log("aaa")
     const lastCommittedContent = lastCommittedFileMap.get(path)
+    console.log("lastCommittedContent", lastCommittedContent)
+    console.log("content", content)
+    console.log("path", path)
     if (lastCommittedContent === undefined) {
       // File exists locally but not in last commit
       created.push({ path, content })
@@ -1212,8 +1196,8 @@ async function resolveRepoNameConflict(
  * @returns Array of files for commit
  */
 async function collectFilesForCommit(project: Project) {
-  const fileTree = await project.fileManager?.getFileTree()
-  if (!fileTree || fileTree.length === 0) {
+  const currentFiles = await project.fileManager?.getProjectPaths()
+  if (!currentFiles || currentFiles.length === 0) {
     return []
   }
 
@@ -1231,38 +1215,34 @@ async function collectFilesForCommit(project: Project) {
 
   const files: { id: any; data: any }[] = []
 
-  // Recursively process the file tree
-  const processNode = async (node: {
-    type: string
-    id: any
-    children?: any
-  }) => {
-    if (node.type === "file") {
-      // Skip hidden files (files that start with '.')
-      const filePath = node.id.replace(/^\/+/, "") // Remove leading slashes
-      if (filePath.includes("/.") || filePath.startsWith(".")) {
-        return
-      }
-
-      const content = await project.fileManager?.getFile(node.id)
-      if (content) {
-        files.push({ id: node.id, data: content })
-      }
-    } else if (node.type === "folder" && node.children) {
-      for (const child of node.children) {
-        await processNode(child)
-      }
+  // Process each file path
+  for (const filePath of currentFiles) {
+    // Skip folders (paths ending with "/")
+    if (filePath.endsWith("/")) {
+      continue
     }
-  }
 
-  for (const node of fileTree) {
-    await processNode(node)
+    // Skip hidden files (files that start with '.')
+    if (filePath.includes("/.") || filePath.startsWith(".")) {
+      continue
+    }
+
+    try {
+      // Add leading slash for getFile() call
+      const content = await project.fileManager?.getFile(`/${filePath}`)
+      if (content) {
+        // Use filePath with leading slash as id for GitHub API
+        files.push({ id: `/${filePath}`, data: content })
+      }
+    } catch (error) {
+      console.error(`Error reading file ${filePath}:`, error)
+    }
   }
 
   // Apply .gitignore filtering to the collected files
   if (gitignoreContent) {
     const filesWithPaths = files.map((file) => ({
-      path: file.id.replace(/^\/+/, ""),
+      path: file.id.replace(/^\/+/, ""), // Remove leading slash for filtering
       content: file.data,
     }))
 
@@ -1270,7 +1250,7 @@ async function collectFilesForCommit(project: Project) {
 
     // Convert back to the format expected by createCommit
     return filteredFiles.map((file) => ({
-      id: `/${file.path}`,
+      id: `/${file.path}`, // Add leading slash back for GitHub API
       data: file.content || "",
     }))
   }
