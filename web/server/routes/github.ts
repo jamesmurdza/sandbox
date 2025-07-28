@@ -954,7 +954,6 @@ export const githubRouter = createRouter()
 
         // Get current local files
         const currentFiles = await project.fileManager.getProjectPaths()
-        console.log("currentFiles", currentFiles)
 
         // Get file contents for current files
         const currentFilesWithContent: Array<{
@@ -1021,9 +1020,6 @@ export const githubRouter = createRouter()
           path: string
           content: string
         }>
-
-        console.log("filteredLastCommittedFiles", filteredLastCommittedFiles)
-        console.log("filteredCurrentFiles", filteredCurrentFiles)
 
         // Compare and categorize changes
         const changes = compareFiles(
@@ -1133,11 +1129,7 @@ function compareFiles(
 
   // Find modified and created files
   for (const [path, content] of currentFileMap) {
-    console.log("aaa")
     const lastCommittedContent = lastCommittedFileMap.get(path)
-    console.log("lastCommittedContent", lastCommittedContent)
-    console.log("content", content)
-    console.log("path", path)
     if (lastCommittedContent === undefined) {
       // File exists locally but not in last commit
       created.push({ path, content })

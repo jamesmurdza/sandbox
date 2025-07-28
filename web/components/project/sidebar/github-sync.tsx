@@ -309,7 +309,7 @@ export function GitHubSync({ userId }: { userId: string }) {
       const pullStatus = await githubRouter.checkPullStatus.fetcher({
         projectId,
       })
-      console.log("pullStatus", pullStatus)
+
       if (!pullStatus?.data?.needsPull) {
         toast.info("Already up to date with GitHub")
         return
