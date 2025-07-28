@@ -273,7 +273,6 @@ export class GitHubManager {
       {
         owner: username,
         repo: repoName,
-        base_tree: baseTree.tree.sha,
         tree: blobs as any,
       }
     )
