@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Textarea } from "@/components/ui/textarea"
+import { useGitHubLoadingStates } from "@/hooks/useGitHubLoadingStates"
 import { githubRouter, type GithubUser } from "@/lib/api"
 import { cn, createPopupTracker } from "@/lib/utils"
 import { useQueryClient } from "@tanstack/react-query"
@@ -41,58 +42,65 @@ export function GitHubSync({ userId }: { userId: string }) {
   const [showConflictModal, setShowConflictModal] = useState(false)
   const [conflictFiles, setConflictFiles] = useState<any[]>([])
   const [fileResolutions, setFileResolutions] = useState<any[]>([])
-  const [pendingPull, setPendingPull] = useState(false)
   const queryClient = useQueryClient()
+  // Use global loading states
   const {
-    mutate: handleGithubLogin,
-    isPending: isLoggingIn,
-    reset: resetGithubLogin,
-  } = githubRouter.login.useMutation({
-    onSuccess: () => {
-      return queryClient.invalidateQueries(githubRouter.githubUser.getOptions())
-    },
-    onError: () => {
-      toast.error("GitHub login failed")
-    },
-  })
-  const { mutate: getAuthUrl, isPending: isGettingAuthUrl } =
-    githubRouter.gethAuthUrl.useMutation({
-      onSuccess({ data: { auth_url } }) {
-        const tracker = createPopupTracker()
+    isGettingAuthUrl,
+    isLoggingIn,
+    isSyncingToGithub,
+    isCreatingRepo,
+    isDeletingRepo,
+    isPulling,
+  } = useGitHubLoadingStates()
 
-        return new Promise<{ code: string }>((resolve, reject) => {
-          tracker.openPopup(auth_url, {
-            onUrlChange(newUrl) {
-              if (newUrl.includes(REDIRECT_URI)) {
-                const urlParams = new URLSearchParams(new URL(newUrl).search)
-                const code = urlParams.get("code")
-                tracker.closePopup()
-
-                if (code) {
-                  resolve({ code })
-                } else {
-                  reject(new Error("No code received"))
-                }
-              }
-            },
-            onClose() {
-              reject(new Error("Authentication window closed"))
-            },
-          })
-        })
-          .then(({ code }) => {
-            handleGithubLogin({ code })
-          })
-          .catch((error) => {
-            toast.error(
-              error instanceof Error ? error.message : "Authentication failed"
-            )
-          })
+  const { mutate: handleGithubLogin, reset: resetGithubLogin } =
+    githubRouter.login.useMutation({
+      onSuccess: () => {
+        return queryClient.invalidateQueries(
+          githubRouter.githubUser.getOptions()
+        )
       },
       onError: () => {
-        toast.error("Failed to get GitHub authorization URL")
+        toast.error("GitHub login failed")
       },
     })
+  const { mutate: getAuthUrl } = githubRouter.gethAuthUrl.useMutation({
+    onSuccess({ data: { auth_url } }) {
+      const tracker = createPopupTracker()
+
+      return new Promise<{ code: string }>((resolve, reject) => {
+        tracker.openPopup(auth_url, {
+          onUrlChange(newUrl) {
+            if (newUrl.includes(REDIRECT_URI)) {
+              const urlParams = new URLSearchParams(new URL(newUrl).search)
+              const code = urlParams.get("code")
+              tracker.closePopup()
+
+              if (code) {
+                resolve({ code })
+              } else {
+                reject(new Error("No code received"))
+              }
+            }
+          },
+          onClose() {
+            reject(new Error("Authentication window closed"))
+          },
+        })
+      })
+        .then(({ code }) => {
+          handleGithubLogin({ code })
+        })
+        .catch((error) => {
+          toast.error(
+            error instanceof Error ? error.message : "Authentication failed"
+          )
+        })
+    },
+    onError: () => {
+      toast.error("Failed to get GitHub authorization URL")
+    },
+  })
   const { data: githubUser } = githubRouter.githubUser.useQuery({
     select(data) {
       return data?.data
@@ -106,30 +114,29 @@ export function GitHubSync({ userId }: { userId: string }) {
       return data.data
     },
   })
-  const { mutate: syncToGithub, isPending: isSyncingToGithub } =
-    githubRouter.createCommit.useMutation({
-      onSuccess() {
-        setCommitMessage("")
-        toast.success("Commit created successfully")
+  const { mutate: syncToGithub } = githubRouter.createCommit.useMutation({
+    onSuccess() {
+      setCommitMessage("")
+      toast.success("Commit created successfully")
 
-        // Optimistically clear the changed files immediately after successful commit
-        const changedFilesKey = githubRouter.getChangedFiles.getKey({
-          projectId,
-        })
-        queryClient.setQueryData(changedFilesKey, {
-          success: true,
-          message: "Changed files retrieved successfully",
-          data: {
-            modified: [],
-            created: [],
-            deleted: [],
-          },
-        })
-      },
-      onError: (error: any) => {
-        toast.error(error.message || "Failed to commit changes")
-      },
-    })
+      // Optimistically clear the changed files immediately after successful commit
+      const changedFilesKey = githubRouter.getChangedFiles.getKey({
+        projectId,
+      })
+      queryClient.setQueryData(changedFilesKey, {
+        success: true,
+        message: "Changed files retrieved successfully",
+        data: {
+          modified: [],
+          created: [],
+          deleted: [],
+        },
+      })
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Failed to commit changes")
+    },
+  })
 
   // Get changed files for validation
   const {
@@ -180,44 +187,42 @@ export function GitHubSync({ userId }: { userId: string }) {
       message: commitMessage || "Update from GitWit",
     })
   }
-  const { mutate: deleteRepo, isPending: isDeletingRepo } =
-    githubRouter.removeRepo.useMutation({
-      onSuccess() {
-        return queryClient
-          .invalidateQueries(
-            githubRouter.repoStatus.getOptions({
-              projectId: projectId,
-            })
-          )
-          .then(() => {
-            setCommitMessage("")
-            toast.success("Repository deleted successfully")
+  const { mutate: deleteRepo } = githubRouter.removeRepo.useMutation({
+    onSuccess() {
+      return queryClient
+        .invalidateQueries(
+          githubRouter.repoStatus.getOptions({
+            projectId: projectId,
           })
-      },
-      onError: (error: any) => {
-        toast.error(error.message || "Failed to delete repository")
-      },
-    })
+        )
+        .then(() => {
+          setCommitMessage("")
+          toast.success("Repository deleted successfully")
+        })
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Failed to delete repository")
+    },
+  })
   const hasRepo = repoStatus
     ? repoStatus.existsInDB && repoStatus.existsInGitHub
     : false
-  const { mutate: handleCreateRepo, isPending: isCreatingRepo } =
-    githubRouter.createRepo.useMutation({
-      onSuccess() {
-        return queryClient
-          .invalidateQueries(
-            githubRouter.repoStatus.getOptions({
-              projectId: projectId,
-            })
-          )
-          .then(() => {
-            toast.success("Repository created successfully")
+  const { mutate: handleCreateRepo } = githubRouter.createRepo.useMutation({
+    onSuccess() {
+      return queryClient
+        .invalidateQueries(
+          githubRouter.repoStatus.getOptions({
+            projectId: projectId,
           })
-      },
-      onError: (error: any) => {
-        toast.error(error.message || "Failed to create repository")
-      },
-    })
+        )
+        .then(() => {
+          toast.success("Repository created successfully")
+        })
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Failed to create repository")
+    },
+  })
 
   // Pull-related queries and mutations
   const { data: pullStatus } = githubRouter.checkPullStatus.useQuery({
@@ -228,67 +233,65 @@ export function GitHubSync({ userId }: { userId: string }) {
     enabled: hasRepo, // Only check if repo exists
   })
 
-  const { mutate: pullFromGithub, isPending: isPulling } =
-    githubRouter.pullFromGithub.useMutation({
-      onSuccess(data: any) {
-        const result = data?.data
+  const { mutate: pullFromGithub } = githubRouter.pullFromGithub.useMutation({
+    onSuccess(data: any) {
+      const result = data?.data
 
-        if (result?.conflicts && result.conflicts.length > 0) {
-          // Show toast and modal for file-level conflict resolution
-          toast.warning(
-            `${result.conflicts.length} file${
-              result.conflicts.length !== 1 ? "s" : ""
-            } have conflicts that need to be resolved.`,
-            {
-              duration: 4000,
-            }
+      if (result?.conflicts && result.conflicts.length > 0) {
+        // Show toast and modal for file-level conflict resolution
+        toast.warning(
+          `${result.conflicts.length} file${
+            result.conflicts.length !== 1 ? "s" : ""
+          } have conflicts that need to be resolved.`,
+          {
+            duration: 4000,
+          }
+        )
+        setConflictFiles(result.conflicts)
+        setShowConflictModal(true)
+      } else {
+        // No conflicts, show success message
+        const messages = []
+        if (result?.newFiles?.length > 0) {
+          messages.push(
+            `${result.newFiles.length} new file${
+              result.newFiles.length !== 1 ? "s" : ""
+            } added`
           )
-          setConflictFiles(result.conflicts)
-          setShowConflictModal(true)
-        } else {
-          // No conflicts, show success message
-          const messages = []
-          if (result?.newFiles?.length > 0) {
-            messages.push(
-              `${result.newFiles.length} new file${
-                result.newFiles.length !== 1 ? "s" : ""
-              } added`
-            )
-          }
-          if (result?.updatedFiles?.length > 0) {
-            messages.push(
-              `${result.updatedFiles.length} file${
-                result.updatedFiles.length !== 1 ? "s" : ""
-              } updated`
-            )
-          }
-          if (result?.deletedFiles?.length > 0) {
-            messages.push(
-              `${result.deletedFiles.length} file${
-                result.deletedFiles.length !== 1 ? "s" : ""
-              } deleted`
-            )
-          }
-
-          const message =
-            messages.length > 0
-              ? messages.join(", ")
-              : "Pull completed successfully"
-          toast.success(message)
-
-          // Refresh file tree
-          queryClient.invalidateQueries()
         }
-      },
-      onError: (error: any) => {
-        toast.error(error.message || "Failed to pull from GitHub")
-      },
-    })
+        if (result?.updatedFiles?.length > 0) {
+          messages.push(
+            `${result.updatedFiles.length} file${
+              result.updatedFiles.length !== 1 ? "s" : ""
+            } updated`
+          )
+        }
+        if (result?.deletedFiles?.length > 0) {
+          messages.push(
+            `${result.deletedFiles.length} file${
+              result.deletedFiles.length !== 1 ? "s" : ""
+            } deleted`
+          )
+        }
 
-  const { mutate: resolveConflicts, isPending: isResolving } =
+        const message =
+          messages.length > 0
+            ? messages.join(", ")
+            : "Pull completed successfully"
+        toast.success(message)
+
+        // Refresh file tree
+        queryClient.invalidateQueries()
+      }
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Failed to pull from GitHub")
+    },
+  })
+
+  const { mutate: resolveConflicts } =
     githubRouter.resolveConflicts.useMutation({
       onSuccess() {
-        setPendingPull(false)
         setFileResolutions([])
         setConflictFiles([])
         toast.success("Conflicts resolved successfully")
@@ -296,13 +299,11 @@ export function GitHubSync({ userId }: { userId: string }) {
       },
       onError: (error: any) => {
         toast.error(error.message || "Failed to resolve conflicts")
-        setPendingPull(false)
       },
     })
 
   // Always enabled pull button
   const handlePull = async () => {
-    setPendingPull(true)
     try {
       // Always check if pull is needed
       const pullStatus = await githubRouter.checkPullStatus.fetcher({
@@ -311,70 +312,18 @@ export function GitHubSync({ userId }: { userId: string }) {
       console.log("pullStatus", pullStatus)
       if (!pullStatus?.data?.needsPull) {
         toast.info("Already up to date with GitHub")
-        setPendingPull(false)
         return
       }
-      // If pull is needed, perform the pull
-      githubRouter.pullFromGithub
-        .mutationFn({ projectId })
-        .then((data: any) => {
-          const result = data?.data
-          if (result?.conflicts && result.conflicts.length > 0) {
-            // Show toast and modal for file-level conflict resolution
-            toast.warning(
-              `${result.conflicts.length} file${
-                result.conflicts.length !== 1 ? "s" : ""
-              } have conflicts that need to be resolved.`,
-              {
-                duration: 4000,
-              }
-            )
-            setConflictFiles(result.conflicts)
-            setShowConflictModal(true)
-          } else {
-            // No conflicts, show success message
-            const messages = []
-            if (result?.newFiles?.length > 0)
-              messages.push(
-                `${result.newFiles.length} new file${
-                  result.newFiles.length !== 1 ? "s" : ""
-                } added`
-              )
-            if (result?.updatedFiles?.length > 0)
-              messages.push(
-                `${result.updatedFiles.length} file${
-                  result.updatedFiles.length !== 1 ? "s" : ""
-                } updated`
-              )
-            if (result?.deletedFiles?.length > 0)
-              messages.push(
-                `${result.deletedFiles.length} file${
-                  result.deletedFiles.length !== 1 ? "s" : ""
-                } deleted`
-              )
-            toast.success(
-              messages.length > 0
-                ? messages.join(", ")
-                : "Pull completed successfully"
-            )
-            queryClient.invalidateQueries()
-          }
-          setPendingPull(false)
-        })
-        .catch((error: any) => {
-          toast.error(error.message || "Failed to pull from GitHub")
-          setPendingPull(false)
-        })
+      // If pull is needed, perform the pull using the mutation
+      pullFromGithub({ projectId })
     } catch (error: any) {
       toast.error(error.message || "Failed to check pull status")
-      setPendingPull(false)
     }
   }
 
   // Modal for file-level conflict resolution
   const handleResolveConflicts = async () => {
     setShowConflictModal(false)
-    setPendingPull(true)
     resolveConflicts({
       projectId,
       conflictResolutions: fileResolutions,
@@ -523,10 +472,10 @@ export function GitHubSync({ userId }: { userId: string }) {
                 className="w-full font-normal"
                 onClick={handlePull}
                 disabled={
-                  pendingPull || isChangedFilesLoading || isChangedFilesFetching
+                  isPulling || isChangedFilesLoading || isChangedFilesFetching
                 }
               >
-                {pendingPull ? (
+                {isPulling ? (
                   <Loader2 className="animate-spin mr-2 size-3" />
                 ) : (
                   <Download className="size-3 mr-2" />
@@ -587,7 +536,6 @@ export function GitHubSync({ userId }: { userId: string }) {
     handlePull,
     isPulling,
     pullStatus,
-    pendingPull,
     handleSyncToGithub,
     isChangedFilesLoading,
     isChangedFilesFetching,
@@ -616,7 +564,7 @@ export function GitHubSync({ userId }: { userId: string }) {
         onResolve={handleResolveConflicts}
         onCancel={handleConflictCancel}
         open={showConflictModal}
-        pendingPull={pendingPull}
+        pendingPull={isPulling}
       />
     </ScrollArea>
   )
@@ -631,17 +579,15 @@ function GithubUserButton({
   ...githubUser
 }: GithubUserButtonProps & GithubUser) {
   const queryClient = useQueryClient()
-  const { mutate: handleGithubLogout, isPending: isLoggingOut } =
-    githubRouter.logout.useMutation({
-      onSuccess: () => {
-        return queryClient.invalidateQueries(
-          githubRouter.githubUser.getOptions()
-        )
-      },
-      onError: () => {
-        toast.error("Failed to logout from GitHub")
-      },
-    })
+  const { isLoggingOut } = useGitHubLoadingStates()
+  const { mutate: handleGithubLogout } = githubRouter.logout.useMutation({
+    onSuccess: () => {
+      return queryClient.invalidateQueries(githubRouter.githubUser.getOptions())
+    },
+    onError: () => {
+      toast.error("Failed to logout from GitHub")
+    },
+  })
 
   return (
     <DropdownMenu>
