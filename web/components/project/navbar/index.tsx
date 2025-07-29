@@ -25,7 +25,6 @@ export default function Navbar({
 }) {
   const [isEditOpen, setIsEditOpen] = useState(false)
   const [isShareOpen, setIsShareOpen] = useState(false)
-  const [isRunning, setIsRunning] = useState(false)
 
   const isOwner = sandboxData.userId === userData.id
 
@@ -62,11 +61,7 @@ export default function Navbar({
             ) : null}
           </div>
         </div>
-        <RunButtonModal
-          isRunning={isRunning}
-          setIsRunning={setIsRunning}
-          sandboxData={sandboxData}
-        />
+        <RunButtonModal sandboxData={sandboxData} />
         <div className="flex items-center h-full space-x-4">
           {/* <Avatars /> */}
 
