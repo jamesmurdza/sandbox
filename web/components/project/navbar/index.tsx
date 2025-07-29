@@ -45,7 +45,7 @@ export default function Navbar({
       <div className="h-14 shrink-0 px-2 w-full flex items-center justify-between border-b border-border">
         <div className="flex items-center space-x-4">
           <Link
-            href="/"
+            href="/dashboard"
             className="ring-offset-2 transition-all ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md"
           >
             <Logo />
