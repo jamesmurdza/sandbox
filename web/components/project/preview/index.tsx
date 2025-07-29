@@ -2,12 +2,6 @@
 
 import { Button } from "@/components/ui/button"
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
@@ -19,7 +13,6 @@ import {
   AppWindowIcon,
   ArrowDownToLine,
   ArrowRightToLine,
-  Columns3CogIcon,
   Link,
   Maximize,
   Minimize,
@@ -178,50 +171,32 @@ function PreviewHeader({
   return (
     <motion.div
       layout
-      className={cn(
-        "flex gap-2 items-center justify-between",
-        previewMaximized && "px-2 pt-2"
-      )}
+      className={cn("flex gap-2 items-center", previewMaximized && "px-2 pt-2")}
     >
-      <div className="flex gap-2 items-center">
-        <DropdownMenu>
-          <Tooltip>
-            <TooltipTrigger disabled={previewMaximized} asChild>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  size="smIcon"
-                  variant="outline"
-                  className="h-8 w-8 rounded-md"
-                >
-                  <Columns3CogIcon className="size-4" />
-                </Button>
-              </DropdownMenuTrigger>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Layout Options</p>
-            </TooltipContent>
-          </Tooltip>
-          <DropdownMenuContent>
-            <DropdownMenuItem onClick={toggleLayout}>
+      <div className={cn(previewMaximized && "hidden")}>
+        <Tooltip>
+          <TooltipTrigger disabled={previewMaximized} asChild>
+            <Button
+              size="smIcon"
+              variant="outline"
+              className="size-8 rounded-md"
+              onClick={toggleLayout}
+            >
               {isHorizontal ? (
-                <ArrowRightToLine className="size-4 mr-2 opacity-80" />
+                <ArrowRightToLine className="size-4 opacity-80" />
               ) : (
-                <ArrowDownToLine className="size-4 mr-2 opacity-80" />
+                <ArrowDownToLine className="size-4 opacity-80" />
               )}
-              Toggle Layout
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={open}>
-              <UnfoldVertical className="size-4 mr-2 opacity-80" />
-              {(isHorizontal ? !collapsed : collapsed)
-                ? "Expand Preview"
-                : "Collapse Preview"}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Toggle Layout</p>
+          </TooltipContent>
+        </Tooltip>
       </div>
       <motion.div
         layout
-        className="h-8 rounded-md bg-secondary px-1 flex gap-2 items-center w-full justify-between"
+        className="h-8 rounded-md bg-secondary px-1 flex gap-2 items-center w-full"
       >
         <PreviewButton label="Reload" onClick={refreshIframe}>
           <RotateCw className="size-3" />
@@ -249,6 +224,25 @@ function PreviewHeader({
           )}
         </div>
       </motion.div>
+      <div className={cn(previewMaximized && "hidden")}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              size="smIcon"
+              variant="outline"
+              className="size-8 rounded-md"
+              onClick={open}
+            >
+              <UnfoldVertical className="size-4 opacity-80" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            {(isHorizontal ? !collapsed : collapsed)
+              ? "Expand Preview"
+              : "Collapse Preview"}
+          </TooltipContent>
+        </Tooltip>
+      </div>
     </motion.div>
   )
 }
@@ -267,14 +261,15 @@ function PreviewButton({
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <button
+        <motion.button
+          layout
           className={`${
             disabled ? "pointer-events-none opacity-50" : ""
           } p-0.5 size-6  flex items-center justify-center transition-colors bg-transparent hover:bg-muted-foreground/25 cursor-pointer rounded-sm`}
           onClick={onClick}
         >
           {children}
-        </button>
+        </motion.button>
       </TooltipTrigger>
       <TooltipContent>
         <p>{label}</p>
