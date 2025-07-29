@@ -33,25 +33,12 @@ const TerminalContext = createContext<TerminalContextType | undefined>(
 export const TerminalProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const { socket } = useSocket()
+  const { socket, isSocketReady } = useSocket()
   const [terminals, setTerminals] = useState<
     { id: string; terminal: Terminal | null }[]
   >([])
   const [activeTerminalId, setActiveTerminalId] = useState<string>("")
   const [creatingTerminal, setCreatingTerminal] = useState<boolean>(false)
-  const [isSocketReady, setIsSocketReady] = useState<boolean>(false)
-
-  // Listen for the "ready" signal from the socket
-  React.useEffect(() => {
-    if (socket) {
-      socket.on("ready", () => {
-        setIsSocketReady(true)
-      })
-    }
-    return () => {
-      if (socket) socket.off("ready")
-    }
-  }, [socket])
 
   const createNewTerminal = async (command?: string): Promise<void> => {
     if (!socket) return
