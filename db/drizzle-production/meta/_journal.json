@@ -5,8 +5,15 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1752166685509,
-      "tag": "0000_misty_rumiko_fujikawa",
+      "when": 1753623789275,
+      "tag": "0000_calm_pyro",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1753624289753,
+      "tag": "0001_spicy_vertigo",
       "breakpoints": true
     }
   ]

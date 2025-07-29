@@ -6,10 +6,11 @@
     "server",
     "db",
     "lib",
-    "templates"
+    "templates",
+    "ai"
   ],
   "scripts": {
-    "build:deps": "npm run build -w lib && npm run build -w db && npm run build -w templates",
+    "build:deps": "npm run build -w lib && npm run build -w db && npm run build -w templates && npm run build -w ai",
     "build": "npm run build:deps && npm run build -w web && npm run build -w server",
     "build:web": "npm run build:deps && npm run build -w web",
     "build:server": "npm run build:deps && npm run build -w server",
@@ -17,6 +18,8 @@
     "db:migrate:prod": "NODE_ENV=production npm run migrate -w db",
     "db:generate": "npm run generate -w db",
     "db:generate:prod": "NODE_ENV=production npm run generate -w db",
+    "db:studio": "npm run studio -w db",
+    "db:studio:prod": "NODE_ENV=production npm run studio -w db",
     "dev:deps": "concurrently -k -n LIB,DB -c yellow,magenta \"npm run dev -w lib\" \"npm run dev -w db\"",
     "dev": "npm run build:deps && concurrently -k -n WEB,SERVER -c blue,green \"npm run dev -w web\" \"npm run dev -w server\"",
     "dev:web": "npm run build:deps && npm run dev -w web",

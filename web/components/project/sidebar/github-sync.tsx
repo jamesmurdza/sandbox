@@ -18,6 +18,7 @@ import { githubRouter, type GithubUser } from "@/lib/api"
 import { cn, createPopupTracker } from "@/lib/utils"
 import { useQueryClient } from "@tanstack/react-query"
 import {
+  Download,
   GitBranch,
   GithubIcon,
   Loader2,
@@ -27,13 +28,19 @@ import {
 } from "lucide-react"
 import { useParams } from "next/navigation"
 import * as React from "react"
+import { useState } from "react"
 import { toast } from "sonner"
+import { ConflictResolution } from "./conflict-resolution"
 
 const REDIRECT_URI = "/loading"
 
 export function GitHubSync({ userId }: { userId: string }) {
   const { id: projectId } = useParams<{ id: string }>()
   const [commitMessage, setCommitMessage] = React.useState("")
+  const [showConflictModal, setShowConflictModal] = useState(false)
+  const [conflictFiles, setConflictFiles] = useState<any[]>([])
+  const [fileResolutions, setFileResolutions] = useState<any[]>([])
+  const [pendingPull, setPendingPull] = useState(false)
   const queryClient = useQueryClient()
   const {
     mutate: handleGithubLogin,
@@ -108,6 +115,33 @@ export function GitHubSync({ userId }: { userId: string }) {
         toast.error(error.message || "Failed to commit changes")
       },
     })
+
+  // Handle sync with pull check
+  const handleSyncToGithub = async () => {
+    // Check if pull is needed before pushing
+    const pullStatus = await githubRouter.checkPullStatus.fetcher({
+      projectId,
+    })
+    if (pullStatus?.data?.needsPull) {
+      toast.warning(
+        "Please pull latest changes from GitHub before pushing. This ensures you don't overwrite other people's work.",
+        {
+          duration: 5000,
+          action: {
+            label: "Pull Now",
+            onClick: () => handlePull(),
+          },
+        }
+      )
+      return
+    }
+
+    // Proceed with sync
+    syncToGithub({
+      projectId: projectId,
+      message: commitMessage || "Update from GitWit",
+    })
+  }
   const { mutate: deleteRepo, isPending: isDeletingRepo } =
     githubRouter.removeRepo.useMutation({
       onSuccess() {
@@ -146,6 +180,195 @@ export function GitHubSync({ userId }: { userId: string }) {
         toast.error(error.message || "Failed to create repository")
       },
     })
+
+  // Pull-related queries and mutations
+  const { data: pullStatus } = githubRouter.checkPullStatus.useQuery({
+    variables: { projectId: projectId },
+    select(data) {
+      return data?.data
+    },
+    enabled: hasRepo, // Only check if repo exists
+  })
+
+  const { mutate: pullFromGithub, isPending: isPulling } =
+    githubRouter.pullFromGithub.useMutation({
+      onSuccess(data: any) {
+        const result = data?.data
+
+        if (result?.conflicts && result.conflicts.length > 0) {
+          // Show toast and modal for file-level conflict resolution
+          toast.warning(
+            `${result.conflicts.length} file${
+              result.conflicts.length !== 1 ? "s" : ""
+            } have conflicts that need to be resolved.`,
+            {
+              duration: 4000,
+            }
+          )
+          setConflictFiles(result.conflicts)
+          setShowConflictModal(true)
+        } else {
+          // No conflicts, show success message
+          const messages = []
+          if (result?.newFiles?.length > 0) {
+            messages.push(
+              `${result.newFiles.length} new file${
+                result.newFiles.length !== 1 ? "s" : ""
+              } added`
+            )
+          }
+          if (result?.updatedFiles?.length > 0) {
+            messages.push(
+              `${result.updatedFiles.length} file${
+                result.updatedFiles.length !== 1 ? "s" : ""
+              } updated`
+            )
+          }
+          if (result?.deletedFiles?.length > 0) {
+            messages.push(
+              `${result.deletedFiles.length} file${
+                result.deletedFiles.length !== 1 ? "s" : ""
+              } deleted`
+            )
+          }
+
+          const message =
+            messages.length > 0
+              ? messages.join(", ")
+              : "Pull completed successfully"
+          toast.success(message)
+
+          // Refresh file tree
+          queryClient.invalidateQueries()
+        }
+      },
+      onError: (error: any) => {
+        toast.error(error.message || "Failed to pull from GitHub")
+      },
+    })
+
+  const { mutate: resolveConflicts, isPending: isResolving } =
+    githubRouter.resolveConflicts.useMutation({
+      onSuccess() {
+        setPendingPull(false)
+        setFileResolutions([])
+        setConflictFiles([])
+        toast.success("Conflicts resolved successfully")
+        queryClient.invalidateQueries()
+      },
+      onError: (error: any) => {
+        toast.error(error.message || "Failed to resolve conflicts")
+        setPendingPull(false)
+      },
+    })
+
+  // Always enabled pull button
+  const handlePull = async () => {
+    setPendingPull(true)
+    try {
+      // Always check if pull is needed
+      const pullStatus = await githubRouter.checkPullStatus.fetcher({
+        projectId,
+      })
+      console.log("pullStatus", pullStatus)
+      if (!pullStatus?.data?.needsPull) {
+        toast.info("Already up to date with GitHub")
+        setPendingPull(false)
+        return
+      }
+      // If pull is needed, perform the pull
+      githubRouter.pullFromGithub
+        .mutationFn({ projectId })
+        .then((data: any) => {
+          const result = data?.data
+          if (result?.conflicts && result.conflicts.length > 0) {
+            // Show toast and modal for file-level conflict resolution
+            toast.warning(
+              `${result.conflicts.length} file${
+                result.conflicts.length !== 1 ? "s" : ""
+              } have conflicts that need to be resolved.`,
+              {
+                duration: 4000,
+              }
+            )
+            setConflictFiles(result.conflicts)
+            setShowConflictModal(true)
+          } else {
+            // No conflicts, show success message
+            const messages = []
+            if (result?.newFiles?.length > 0)
+              messages.push(
+                `${result.newFiles.length} new file${
+                  result.newFiles.length !== 1 ? "s" : ""
+                } added`
+              )
+            if (result?.updatedFiles?.length > 0)
+              messages.push(
+                `${result.updatedFiles.length} file${
+                  result.updatedFiles.length !== 1 ? "s" : ""
+                } updated`
+              )
+            if (result?.deletedFiles?.length > 0)
+              messages.push(
+                `${result.deletedFiles.length} file${
+                  result.deletedFiles.length !== 1 ? "s" : ""
+                } deleted`
+              )
+            toast.success(
+              messages.length > 0
+                ? messages.join(", ")
+                : "Pull completed successfully"
+            )
+            queryClient.invalidateQueries()
+          }
+          setPendingPull(false)
+        })
+        .catch((error: any) => {
+          toast.error(error.message || "Failed to pull from GitHub")
+          setPendingPull(false)
+        })
+    } catch (error: any) {
+      toast.error(error.message || "Failed to check pull status")
+      setPendingPull(false)
+    }
+  }
+
+  // Modal for file-level conflict resolution
+  const handleResolveConflicts = async () => {
+    setShowConflictModal(false)
+    setPendingPull(true)
+    resolveConflicts({
+      projectId,
+      conflictResolutions: fileResolutions,
+    })
+  }
+
+  const handleFileResolutionChange = (
+    fileIdx: number,
+    resolution: "local" | "incoming"
+  ) => {
+    setFileResolutions((prev) => {
+      const updated = [...prev]
+      updated[fileIdx] = {
+        path: conflictFiles[fileIdx].path,
+        resolutions: [
+          {
+            conflictIndex: 0, // required by backend
+            resolution,
+            localContent: conflictFiles[fileIdx].localContent,
+            incomingContent: conflictFiles[fileIdx].incomingContent,
+          },
+        ],
+      }
+      return updated
+    })
+  }
+
+  const handleConflictCancel = () => {
+    setShowConflictModal(false)
+    setConflictFiles([])
+    setFileResolutions([])
+  }
 
   const content = React.useMemo(() => {
     if (!githubUser) {
@@ -231,15 +454,11 @@ export function GitHubSync({ userId }: { userId: string }) {
                 onChange={(e) => setCommitMessage(e.target.value)}
               />
               <Button
-                variant="secondary"
+                variant="outline"
                 size="xs"
                 className="w-full font-normal"
-                onClick={() =>
-                  syncToGithub({
-                    projectId: projectId,
-                    message: commitMessage,
-                  })
-                }
+                onClick={handleSyncToGithub}
+                disabled={isSyncingToGithub}
               >
                 {isSyncingToGithub ? (
                   <Loader2 className="animate-spin mr-2 size-3" />
@@ -247,6 +466,24 @@ export function GitHubSync({ userId }: { userId: string }) {
                   <RefreshCw className="size-3 mr-2" />
                 )}
                 Sync code
+              </Button>
+            </div>
+
+            {/* Pull button */}
+            <div className="flex gap-1 mt-2">
+              <Button
+                variant="outline"
+                size="xs"
+                className="w-full font-normal"
+                onClick={handlePull}
+                disabled={pendingPull}
+              >
+                {pendingPull ? (
+                  <Loader2 className="animate-spin mr-2 size-3" />
+                ) : (
+                  <Download className="size-3 mr-2" />
+                )}
+                Pull from GitHub
               </Button>
             </div>
           </>
@@ -297,6 +534,11 @@ export function GitHubSync({ userId }: { userId: string }) {
     syncToGithub,
     deleteRepo,
     getAuthUrl,
+    handlePull,
+    isPulling,
+    pullStatus,
+    pendingPull,
+    handleSyncToGithub,
   ])
 
   React.useEffect(() => {
@@ -313,6 +555,17 @@ export function GitHubSync({ userId }: { userId: string }) {
         </div>
         {content}
       </div>
+
+      {/* Conflict Resolution Modal */}
+      <ConflictResolution
+        conflictFiles={conflictFiles}
+        fileResolutions={fileResolutions}
+        onFileResolutionChange={handleFileResolutionChange}
+        onResolve={handleResolveConflicts}
+        onCancel={handleConflictCancel}
+        open={showConflictModal}
+        pendingPull={pendingPull}
+      />
     </ScrollArea>
   )
 }

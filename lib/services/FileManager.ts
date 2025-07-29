@@ -33,14 +33,8 @@ export class FileManager {
   }
 
   async getFileTree(): Promise<(TFolder | TFile)[]> {
-    // Run the command to retrieve paths
-    // Ignore node_modules until we make this faster
-    const result = await this.container.commands.run(
-      `cd /home/user/project && find * \\( -path 'node_modules' -prune \\) -o \\( -type d -exec echo {}/ \\; -o -type f -exec echo {} \\; \\)`
-    )
-
-    // Process the stdout into an array of paths
-    const paths = result.stdout.trim().split("\n")
+    // Get project paths
+    const paths = await this.getProjectPaths()
 
     // Root folder structure
     const root: TFolder = { id: "/", type: "folder", name: "/", children: [] }
@@ -82,6 +76,21 @@ export class FileManager {
     })
 
     return root.children
+  }
+
+  /**
+   * Execute command to get project file paths and process the output
+   * @returns Array of file and folder paths
+   */
+  async getProjectPaths(): Promise<string[]> {
+    // Run the command to retrieve paths
+    // Ignore node_modules until we make this faster
+    const result = await this.container.commands.run(
+      `cd /home/user/project && find * \\( -path 'node_modules' -prune \\) -o \\( -type d -exec echo {}/ \\; -o -type f -exec echo {} \\; \\)`
+    )
+
+    // Process the stdout into an array of paths
+    return result.stdout.trim().split("\n")
   }
 
   // Start watching the filesystem for changes
@@ -262,5 +271,26 @@ export class FileManager {
         await handle.stop()
       })
     )
+  }
+
+  /**
+   * Safely read file content, returns null if file doesn't exist
+   * @param filePath - Full path to the file
+   * @returns File content or null if file doesn't exist
+   */
+  async safeReadFile(filePath: string): Promise<string | null> {
+    try {
+      const content = await this.container.files.read(filePath)
+      return content || null
+    } catch (error: any) {
+      if (
+        error.name === "NotFoundError" ||
+        error.message?.includes("does not exist")
+      ) {
+        return null
+      }
+      // Re-throw other errors
+      throw error
+    }
   }
 }

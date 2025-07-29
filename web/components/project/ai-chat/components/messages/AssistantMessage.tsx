@@ -20,6 +20,8 @@ interface AssistantMessageProps {
   mergeDecorationsCollection?: any
   setMergeDecorationsCollection?: (collection: undefined) => void
   askAboutCode: (code: any) => void
+  templateType?: string
+  projectName?: string
 }
 
 /**
@@ -38,6 +40,8 @@ export default function AssistantMessage({
   mergeDecorationsCollection,
   setMergeDecorationsCollection,
   askAboutCode,
+  templateType,
+  projectName,
 }: AssistantMessageProps) {
   const { resolvedTheme: theme } = useTheme()
   const [copiedText, setCopiedText] = useState<string | null>(null)
@@ -70,7 +74,9 @@ export default function AssistantMessage({
     tabs,
     projectId,
     mergeDecorationsCollection,
-    setMergeDecorationsCollection
+    setMergeDecorationsCollection,
+    templateType,
+    projectName
   )
 
   return (

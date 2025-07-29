@@ -6,7 +6,8 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "migrate": "npx drizzle-kit migrate",
-    "generate": "npx drizzle-kit generate"
+    "generate": "npx drizzle-kit generate",
+    "studio": "npx drizzle-kit studio"
   },
   "dependencies": {
     "drizzle-orm": "^0.44.2",
