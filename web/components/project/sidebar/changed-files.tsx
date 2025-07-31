@@ -9,8 +9,26 @@ interface ChangedFilesProps {
   className?: string
 }
 
+// Helper function to extract filename from path
+const getFileName = (path: string): string => {
+  return path.split("/").pop() || path
+}
+
 export function ChangedFiles({ className }: ChangedFilesProps) {
   const { id: projectId } = useParams<{ id: string }>()
+
+  // Get repository status to determine if we should query changed files
+  const { data: repoStatus } = githubRouter.repoStatus.useQuery({
+    variables: { projectId },
+    select(data) {
+      return data?.data
+    },
+  })
+
+  // Calculate if we have a repository
+  const hasRepo = repoStatus
+    ? repoStatus.existsInDB && repoStatus.existsInGitHub
+    : false
 
   const {
     data: changedFilesData,
@@ -18,6 +36,10 @@ export function ChangedFiles({ className }: ChangedFilesProps) {
     isFetching,
   } = githubRouter.getChangedFiles.useQuery({
     variables: { projectId },
+    enabled: hasRepo && !!repoStatus?.existsInGitHub,
+    staleTime: Infinity, // Don't refetch automatically - we'll manage this manually
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   })
 
   const changedFiles = changedFilesData?.data
@@ -68,7 +90,9 @@ export function ChangedFiles({ className }: ChangedFilesProps) {
             className="flex items-center gap-2 text-sm py-1"
           >
             <FileEdit className="w-4 h-4 text-yellow-500 flex-shrink-0" />
-            <span className="text-foreground truncate">{file.path}</span>
+            <span className="text-foreground truncate">
+              {getFileName(file.path)}
+            </span>
             <span className="text-xs text-muted-foreground flex-shrink-0">
               (modified)
             </span>
@@ -82,7 +106,9 @@ export function ChangedFiles({ className }: ChangedFilesProps) {
             className="flex items-center gap-2 text-sm py-1"
           >
             <FilePlus className="w-4 h-4 text-green-500 flex-shrink-0" />
-            <span className="text-foreground truncate">{file.path}</span>
+            <span className="text-foreground truncate">
+              {getFileName(file.path)}
+            </span>
             <span className="text-xs text-muted-foreground flex-shrink-0">
               (created)
             </span>
@@ -96,7 +122,9 @@ export function ChangedFiles({ className }: ChangedFilesProps) {
             className="flex items-center gap-2 text-sm py-1"
           >
             <FileX className="w-4 h-4 text-red-500 flex-shrink-0" />
-            <span className="text-foreground truncate">{file.path}</span>
+            <span className="text-foreground truncate">
+              {getFileName(file.path)}
+            </span>
             <span className="text-xs text-muted-foreground flex-shrink-0">
               (deleted)
             </span>

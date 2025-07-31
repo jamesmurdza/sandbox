@@ -1,6 +1,6 @@
 // import { Room } from "@/components/editor/live/room"
-import { ProjectWrapper as Project } from "@/components/project/project-wrapper"
 import Navbar from "@/components/project/navbar"
+import { ProjectWrapper as Project } from "@/components/project/project-wrapper"
 import { EditorLayoutProvider } from "@/context/EditorLayoutContext"
 import { SocketProvider } from "@/context/SocketContext"
 import { TerminalProvider } from "@/context/TerminalContext"
@@ -95,6 +95,24 @@ export default async function CodePage({
       })
     ),
   ])
+
+  // Check if repo exists and conditionally prefetch changed files
+  const repoStatus = await queryClient.fetchQuery(
+    githubRouter.repoStatus.getOptions({
+      projectId: sandboxData.id,
+    })
+  )
+
+  const hasRepo =
+    repoStatus?.data?.existsInDB && repoStatus?.data?.existsInGitHub
+
+  if (hasRepo) {
+    await queryClient.prefetchQuery(
+      githubRouter.getChangedFiles.getOptions({
+        projectId: sandboxData.id,
+      })
+    )
+  }
 
   const isOwner = sandboxData.userId === user.id
   const isSharedUser = shared.some((uts) => uts.id === user.id)

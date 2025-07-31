@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Textarea } from "@/components/ui/textarea"
+import { useChangedFilesOptimistic } from "@/hooks/useChangedFilesOptimistic"
 import { useGitHubLoadingStates } from "@/hooks/useGitHubLoadingStates"
 import { githubRouter, type GithubUser } from "@/lib/api"
 import { cn, createPopupTracker } from "@/lib/utils"
@@ -52,6 +53,7 @@ export function GitHubSync({ userId }: { userId: string }) {
     isDeletingRepo,
     isPulling,
   } = useGitHubLoadingStates()
+  const { clearChangedFiles } = useChangedFilesOptimistic()
 
   const { mutate: handleGithubLogin, reset: resetGithubLogin } =
     githubRouter.login.useMutation({
@@ -64,6 +66,27 @@ export function GitHubSync({ userId }: { userId: string }) {
         toast.error("GitHub login failed")
       },
     })
+
+  // Get GitHub user data
+  const { data: githubUser } = githubRouter.githubUser.useQuery({
+    select(data) {
+      return data?.data
+    },
+  })
+
+  // Get repository status
+  const { data: repoStatus } = githubRouter.repoStatus.useQuery({
+    variables: { projectId },
+    select(data) {
+      return data?.data
+    },
+  })
+
+  // Calculate if we have a repository
+  const hasRepo = repoStatus
+    ? repoStatus.existsInDB && repoStatus.existsInGitHub
+    : false
+
   const { mutate: getAuthUrl } = githubRouter.gethAuthUrl.useMutation({
     onSuccess({ data: { auth_url } }) {
       const tracker = createPopupTracker()
@@ -101,50 +124,29 @@ export function GitHubSync({ userId }: { userId: string }) {
       toast.error("Failed to get GitHub authorization URL")
     },
   })
-  const { data: githubUser } = githubRouter.githubUser.useQuery({
-    select(data) {
-      return data?.data
-    },
-  })
-  const { data: repoStatus } = githubRouter.repoStatus.useQuery({
-    variables: {
-      projectId: projectId,
-    },
-    select(data) {
-      return data.data
-    },
-  })
   const { mutate: syncToGithub } = githubRouter.createCommit.useMutation({
-    onSuccess() {
-      setCommitMessage("")
+    onSuccess(data: any) {
       toast.success("Commit created successfully")
 
-      // Optimistically clear the changed files immediately after successful commit
-      const changedFilesKey = githubRouter.getChangedFiles.getKey({
-        projectId,
-      })
-      queryClient.setQueryData(changedFilesKey, {
-        success: true,
-        message: "Changed files retrieved successfully",
-        data: {
-          modified: [],
-          created: [],
-          deleted: [],
-        },
-      })
+      // Clear changed files after successful commit
+      clearChangedFiles()
     },
     onError: (error: any) => {
-      toast.error(error.message || "Failed to commit changes")
+      toast.error(error.message || "Failed to create commit")
     },
   })
 
-  // Get changed files for validation
+  // Get changed files for validation - ONLY when repo exists and on initial load
   const {
     data: changedFilesData,
     isLoading: isChangedFilesLoading,
     isFetching: isChangedFilesFetching,
   } = githubRouter.getChangedFiles.useQuery({
     variables: { projectId },
+    enabled: hasRepo && !!repoStatus?.existsInGitHub,
+    staleTime: Infinity, // Don't refetch automatically - we'll manage this manually
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   })
 
   // Handle sync with pull check
@@ -204,9 +206,6 @@ export function GitHubSync({ userId }: { userId: string }) {
       toast.error(error.message || "Failed to delete repository")
     },
   })
-  const hasRepo = repoStatus
-    ? repoStatus.existsInDB && repoStatus.existsInGitHub
-    : false
   const { mutate: handleCreateRepo } = githubRouter.createRepo.useMutation({
     onSuccess() {
       return queryClient
@@ -216,6 +215,12 @@ export function GitHubSync({ userId }: { userId: string }) {
           })
         )
         .then(() => {
+          // After repo creation, fetch changed files for the first time
+          queryClient.invalidateQueries(
+            githubRouter.getChangedFiles.getOptions({
+              projectId: projectId,
+            })
+          )
           toast.success("Repository created successfully")
         })
     },
@@ -539,6 +544,7 @@ export function GitHubSync({ userId }: { userId: string }) {
     handleSyncToGithub,
     isChangedFilesLoading,
     isChangedFilesFetching,
+    clearChangedFiles,
   ])
 
   React.useEffect(() => {

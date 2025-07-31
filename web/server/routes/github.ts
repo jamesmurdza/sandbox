@@ -977,7 +977,8 @@ export const githubRouter = createRouter()
 
           try {
             const content = await project.fileManager.getFile(`/${filePath}`)
-            if (content !== undefined && content !== null) {
+
+            if (content !== undefined) {
               currentFilesWithContent.push({
                 path: filePath,
                 content: String(content),
@@ -1143,7 +1144,7 @@ function compareFiles(
       modified.push({
         path,
         localContent: content,
-        remoteContent: lastCommittedContent,
+        remoteContent: lastCommittedContent || "",
       })
     }
   }
@@ -1227,7 +1228,7 @@ async function collectFilesForCommit(project: Project) {
     try {
       // Add leading slash for getFile() call
       const content = await project.fileManager?.getFile(`/${filePath}`)
-      if (content) {
+      if (content !== undefined) {
         // Use filePath with leading slash as id for GitHub API
         files.push({ id: `/${filePath}`, data: content })
       }
@@ -1239,7 +1240,7 @@ async function collectFilesForCommit(project: Project) {
   // Apply .gitignore filtering to the collected files
   if (gitignoreContent) {
     const filesWithPaths = files.map((file) => ({
-      path: file.id.replace(/^\/+/, ""), // Remove leading slash for filtering
+      path: file.id.replace(/^\/+/, ""),
       content: file.data,
     }))
 
@@ -1247,7 +1248,7 @@ async function collectFilesForCommit(project: Project) {
 
     // Convert back to the format expected by createCommit
     return filteredFiles.map((file) => ({
-      id: `/${file.path}`, // Add leading slash back for GitHub API
+      id: `/${file.path}`,
       data: file.content || "",
     }))
   }

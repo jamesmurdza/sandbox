@@ -361,7 +361,7 @@ export class GithubSyncManager {
               )
 
               const blob = blobResponse?.data
-              if (blob && blob.content) {
+              if (blob && blob.content !== undefined) {
                 // Decode base64 content
                 const content = Buffer.from(blob.content, "base64").toString(
                   "utf-8"

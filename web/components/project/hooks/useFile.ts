@@ -1,3 +1,4 @@
+import { useChangedFilesOptimistic } from "@/hooks/useChangedFilesOptimistic"
 import { fileRouter, FileTree, githubRouter } from "@/lib/api"
 import { sortFileExplorer } from "@/lib/utils"
 import { useAppStore } from "@/store/context"
@@ -10,6 +11,7 @@ export function useFileTree() {
   const { id: projectId } = useParams<{ id: string }>()
   const queryClient = useQueryClient()
   const setTabs = useAppStore((s) => s.setTabs)
+  const { updateChangedFilesOptimistically } = useChangedFilesOptimistic()
 
   const { data: fileTree = [], isLoading: isLoadingFileTree } =
     fileRouter.fileTree.useQuery({
@@ -30,12 +32,6 @@ export function useFileTree() {
             })
           )
           .then(() => {
-            // Invalidate changed files query to refresh the list
-            queryClient.invalidateQueries(
-              githubRouter.getChangedFiles.getOptions({
-                projectId,
-              })
-            )
             toast.success(message)
           })
       },
@@ -46,6 +42,10 @@ export function useFileTree() {
 
   const { mutate: deleteFile, isPending: isDeletingFile } =
     fileRouter.deleteFile.useMutation({
+      onMutate: async ({ fileId }) => {
+        // Optimistically update changed files
+        updateChangedFilesOptimistically("delete", fileId)
+      },
       onSuccess({ message }) {
         return queryClient
           .invalidateQueries(
@@ -54,12 +54,6 @@ export function useFileTree() {
             })
           )
           .then(() => {
-            // Invalidate changed files query to refresh the list
-            queryClient.invalidateQueries(
-              githubRouter.getChangedFiles.getOptions({
-                projectId,
-              })
-            )
             toast.success(message)
           })
       },
@@ -70,6 +64,10 @@ export function useFileTree() {
 
   const { mutate: renameFile, isPending: isRenamingFile } =
     fileRouter.rename.useMutation({
+      onMutate: async ({ fileId, newName }) => {
+        // Optimistically update changed files - treat rename as update
+        updateChangedFilesOptimistically("update", fileId, "")
+      },
       onSuccess({ message }, { newName }) {
         return queryClient
           .invalidateQueries(
@@ -78,12 +76,6 @@ export function useFileTree() {
             })
           )
           .then(() => {
-            // Invalidate changed files query to refresh the list
-            queryClient.invalidateQueries(
-              githubRouter.getChangedFiles.getOptions({
-                projectId,
-              })
-            )
             toast.success(message)
           })
       },
@@ -93,16 +85,17 @@ export function useFileTree() {
     })
 
   const { mutateAsync: rawSaveFile } = fileRouter.saveFile.useMutation({
+    onMutate: async ({ fileId, content }) => {
+      // Optimistically update changed files with the actual content
+      updateChangedFilesOptimistically("update", fileId, content)
+    },
     onSuccess(_, { fileId }) {
       setTabs((tabs) =>
         tabs.map((tab) => (tab.id === fileId ? { ...tab, saved: true } : tab))
       )
-      // Invalidate changed files query to refresh the list
-      queryClient.invalidateQueries(
-        githubRouter.getChangedFiles.getOptions({
-          projectId,
-        })
-      )
+    },
+    onError() {
+      toast.error("Error saving file")
     },
   })
 
