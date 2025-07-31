@@ -293,4 +293,21 @@ export class FileManager {
       throw error
     }
   }
+
+  /**
+   * Write file content by full path
+   * @param filePath - Full path to the file (e.g., "/home/user/project/README.md")
+   * @param content - Content to write to the file
+   */
+  async writeFileByPath(filePath: string, content: string): Promise<void> {
+    // if (Buffer.byteLength(content, "utf-8") > MAX_BODY_SIZE) {
+    //   throw new Error("File size too large. Please reduce the file size.")
+    // }
+
+    // Write to container filesystem using the full path
+    await this.container.files.write(filePath, content)
+
+    // Fix permissions after writing
+    await this.fixPermissions()
+  }
 }

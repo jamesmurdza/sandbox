@@ -49,7 +49,9 @@ export class GitHubManager {
       this._username = res.data.login
     } catch (error) {
       console.error("Error initializing Octokit:", error)
-      // throw error
+      this._octokit = null
+      this._username = null
+      throw error
     }
   }
   // Public getter guarantees octokit is available after init

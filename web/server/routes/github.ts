@@ -327,7 +327,7 @@ export const githubRouter = createRouter()
         // Check if repo exists and handle naming conflicts
         repoName = await resolveRepoNameConflict(
           repoName,
-          githubManager.repoExistsByName
+          githubManager.repoExistsByName.bind(githubManager)
         )
 
         // Create the repository
@@ -362,8 +362,13 @@ export const githubRouter = createRouter()
         const githubFiles = await githubSyncManager.getLatestFiles(id)
         const readmeFile = githubFiles.find((file) => file.path === "README.md")
 
-        if (readmeFile && project.fileManager) {
-          // Add the README.md to the local filesystem
+        // Check if user already has a README.md file locally
+        const localReadmeExists = await project.fileManager?.safeReadFile(
+          "/home/user/project/README.md"
+        )
+
+        if (readmeFile && project.fileManager && !localReadmeExists) {
+          // Only add GitHub's README.md if user doesn't have one locally
           await project.fileManager.writeFileByPath(
             "/home/user/project/README.md",
             readmeFile.content
