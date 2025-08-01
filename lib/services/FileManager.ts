@@ -281,7 +281,10 @@ export class FileManager {
   async safeReadFile(filePath: string): Promise<string | null> {
     try {
       const content = await this.container.files.read(filePath)
-      return content || null
+      if (content === undefined) {
+        return null
+      }
+      return content
     } catch (error: any) {
       if (
         error.name === "NotFoundError" ||

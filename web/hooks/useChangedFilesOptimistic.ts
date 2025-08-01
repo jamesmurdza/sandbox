@@ -12,20 +12,22 @@ interface ChangedFilesData {
   deleted?: Array<{ path: string }>
 }
 
-// Singleton to manage optimistic updates across all instances
+// Manager to handle optimistic updates for changed files
 class ChangedFilesOptimisticManager {
-  private static instance: ChangedFilesOptimisticManager
+  private static instances = new Map<string, ChangedFilesOptimisticManager>()
   private queryClient: any
   private projectId: string | null = null
 
   private constructor() {}
 
-  static getInstance(): ChangedFilesOptimisticManager {
-    if (!ChangedFilesOptimisticManager.instance) {
-      ChangedFilesOptimisticManager.instance =
+  static getInstance(projectId: string): ChangedFilesOptimisticManager {
+    if (!ChangedFilesOptimisticManager.instances.has(projectId)) {
+      ChangedFilesOptimisticManager.instances.set(
+        projectId,
         new ChangedFilesOptimisticManager()
+      )
     }
-    return ChangedFilesOptimisticManager.instance
+    return ChangedFilesOptimisticManager.instances.get(projectId)!
   }
 
   initialize(queryClient: any, projectId: string) {
@@ -38,9 +40,10 @@ class ChangedFilesOptimisticManager {
     return githubRouter.getChangedFiles.getKey({ projectId: this.projectId })
   }
 
-  // Helper function to normalize file paths (remove leading slash)
+  // Helper function to normalize file paths (ensure consistent format)
   private normalizePath(filePath: string): string {
-    return filePath.startsWith("/") ? filePath.slice(1) : filePath
+    // Remove leading slash and ensure consistent format
+    return filePath.replace(/^\/+/, "")
   }
 
   updateChangedFilesOptimistically(
@@ -49,13 +52,21 @@ class ChangedFilesOptimisticManager {
     content?: string
   ) {
     const queryKey = this.getChangedFilesKey()
-    if (!queryKey || !this.queryClient) return
+    if (!queryKey || !this.queryClient) {
+      console.warn(
+        "Cannot update changed files: missing query key or query client"
+      )
+      return
+    }
 
     const currentData = this.queryClient.getQueryData(queryKey) as
       | { data: ChangedFilesData }
       | undefined
 
-    if (!currentData?.data) return
+    if (!currentData?.data) {
+      console.warn("Cannot update changed files: no current data available")
+      return
+    }
 
     const newData = { ...currentData.data }
     const normalizedPath = this.normalizePath(filePath)
@@ -66,7 +77,7 @@ class ChangedFilesOptimisticManager {
         const deletedIndex = newData.deleted?.findIndex(
           (f) => this.normalizePath(f.path) === normalizedPath
         )
-        if (deletedIndex !== undefined && deletedIndex >= 0) {
+        if (deletedIndex !== undefined && deletedIndex !== -1) {
           // File was deleted and now recreated - treat as new file
           newData.deleted!.splice(deletedIndex, 1)
           if (!newData.created) newData.created = []
@@ -74,18 +85,19 @@ class ChangedFilesOptimisticManager {
         } else {
           // Add to created files (new file)
           if (!newData.created) newData.created = []
-          newData.created.push({ path: normalizedPath, content: content || "" })
+
+          // Add to deleted (only if not already there)
+          const alreadyCreated = newData.created.some(
+            (f) => this.normalizePath(f.path) === normalizedPath
+          )
+          if (!alreadyCreated) {
+            newData.created.push({
+              path: normalizedPath,
+              content: content || "",
+            })
+          }
         }
 
-        // Ensure no duplicates exist across arrays
-        newData.modified =
-          newData.modified?.filter(
-            (f) => this.normalizePath(f.path) !== normalizedPath
-          ) || []
-        newData.deleted =
-          newData.deleted?.filter(
-            (f) => this.normalizePath(f.path) !== normalizedPath
-          ) || []
         break
 
       case "update":
@@ -96,40 +108,39 @@ class ChangedFilesOptimisticManager {
         const createdIndex = newData.created?.findIndex(
           (f) => this.normalizePath(f.path) === normalizedPath
         )
-        if (createdIndex !== undefined && createdIndex >= 0) {
-          //keep in created
+
+        if (createdIndex !== undefined && createdIndex !== -1) {
+          // File is in created list - keep it there, just update content
+          newData.created![createdIndex].content = content || ""
         } else {
           // Check if file was previously deleted
           const deletedIndex = newData.deleted?.findIndex(
             (f) => this.normalizePath(f.path) === normalizedPath
           )
-          if (deletedIndex !== undefined && deletedIndex >= 0) {
-            // File was deleted and now modified - treat as new file
+          if (deletedIndex !== undefined && deletedIndex !== -1) {
+            // File was deleted and now modified
             newData.deleted!.splice(deletedIndex, 1)
-            if (!newData.created) newData.created = []
-            newData.created.push({
-              path: normalizedPath,
-              content: content || "",
-            })
-          } else {
-            // Add to modified files (existing file modified)
+            if (!newData.modified) newData.modified = []
             newData.modified.push({
               path: normalizedPath,
               localContent: content || "",
               remoteContent: "",
             })
+          } else {
+            // Add to modified files (existing file modified)
+            if (!newData.modified) newData.modified = []
+            const alreadyModified = newData.modified.some(
+              (f) => this.normalizePath(f.path) === normalizedPath
+            )
+            if (!alreadyModified) {
+              newData.modified.push({
+                path: normalizedPath,
+                localContent: content || "",
+                remoteContent: "",
+              })
+            }
           }
         }
-
-        // Ensure no duplicates exist across arrays
-        newData.created =
-          newData.created?.filter(
-            (f) => this.normalizePath(f.path) !== normalizedPath
-          ) || []
-        newData.deleted =
-          newData.deleted?.filter(
-            (f) => this.normalizePath(f.path) !== normalizedPath
-          ) || []
         break
 
       case "delete":
@@ -158,15 +169,6 @@ class ChangedFilesOptimisticManager {
           newData.deleted.push({ path: normalizedPath })
         }
 
-        // Ensure no duplicates exist across arrays
-        newData.created =
-          newData.created?.filter(
-            (f) => this.normalizePath(f.path) !== normalizedPath
-          ) || []
-        newData.modified =
-          newData.modified?.filter(
-            (f) => this.normalizePath(f.path) !== normalizedPath
-          ) || []
         break
     }
 
@@ -176,13 +178,23 @@ class ChangedFilesOptimisticManager {
 
   refreshChangedFiles() {
     const queryKey = this.getChangedFilesKey()
-    if (!queryKey || !this.queryClient) return
+    if (!queryKey || !this.queryClient) {
+      console.warn(
+        "Cannot refresh changed files: missing query key or query client"
+      )
+      return
+    }
     this.queryClient.invalidateQueries({ queryKey })
   }
 
   clearChangedFiles() {
     const queryKey = this.getChangedFilesKey()
-    if (!queryKey || !this.queryClient) return
+    if (!queryKey || !this.queryClient) {
+      console.warn(
+        "Cannot clear changed files: missing query key or query client"
+      )
+      return
+    }
     this.queryClient.setQueryData(queryKey, {
       data: { modified: [], created: [], deleted: [] },
     })
@@ -192,7 +204,7 @@ class ChangedFilesOptimisticManager {
 export function useChangedFilesOptimistic() {
   const { id: projectId } = useParams<{ id: string }>()
   const queryClient = useQueryClient()
-  const manager = ChangedFilesOptimisticManager.getInstance()
+  const manager = ChangedFilesOptimisticManager.getInstance(projectId)
 
   // Initialize the manager with current context
   manager.initialize(queryClient, projectId)

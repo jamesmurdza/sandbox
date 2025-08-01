@@ -1,5 +1,5 @@
 import { useChangedFilesOptimistic } from "@/hooks/useChangedFilesOptimistic"
-import { fileRouter, FileTree, githubRouter } from "@/lib/api"
+import { fileRouter, FileTree } from "@/lib/api"
 import { sortFileExplorer } from "@/lib/utils"
 import { useAppStore } from "@/store/context"
 import { useQueryClient } from "@tanstack/react-query"
@@ -117,6 +117,10 @@ export function useFileTree() {
           const rebased = rebaseNodeIds(movedNode, toBeMoved.folderId)
           // TODO: Further optimiztion: move queryCache value of file content to newId; move draft to new Id; account for if it's a activeTab;
           insertNode(newTree, toBeMoved.folderId, rebased)
+
+          // Optimistically update changed files - treat move as update with new path
+          const newPath = toBeMoved.folderId + "/" + movedNode.name
+          updateChangedFilesOptimistically("update", newPath, "")
         }
 
         queryClient.setQueryData(fileTreeKey, (old) =>
@@ -144,12 +148,6 @@ export function useFileTree() {
       // Always refetch after error or success
       queryClient.invalidateQueries(
         fileRouter.fileTree.getOptions({ projectId })
-      )
-      // Invalidate changed files query to refresh the list
-      queryClient.invalidateQueries(
-        githubRouter.getChangedFiles.getOptions({
-          projectId,
-        })
       )
     },
   })

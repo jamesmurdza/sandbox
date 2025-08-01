@@ -10,6 +10,7 @@ export function useGitHubLoadingStates() {
     isCreatingRepo: false,
     isDeletingRepo: false,
     isPulling: false,
+    isResolvingConflicts: false,
     isLoggingOut: false,
   })
 
@@ -54,6 +55,12 @@ export function useGitHubLoadingStates() {
           (m) =>
             m.options.mutationKey?.[0] === "github" &&
             m.options.mutationKey?.[1] === "pullFromGithub" &&
+            m.state.status === "pending"
+        ),
+        isResolvingConflicts: mutations.some(
+          (m) =>
+            m.options.mutationKey?.[0] === "github" &&
+            m.options.mutationKey?.[1] === "resolveConflicts" &&
             m.state.status === "pending"
         ),
         isLoggingOut: mutations.some(

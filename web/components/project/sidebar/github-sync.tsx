@@ -52,6 +52,7 @@ export function GitHubSync({ userId }: { userId: string }) {
     isCreatingRepo,
     isDeletingRepo,
     isPulling,
+    isResolvingConflicts,
   } = useGitHubLoadingStates()
   const { clearChangedFiles } = useChangedFilesOptimistic()
 
@@ -215,12 +216,8 @@ export function GitHubSync({ userId }: { userId: string }) {
           })
         )
         .then(() => {
-          // After repo creation, fetch changed files for the first time
-          queryClient.invalidateQueries(
-            githubRouter.getChangedFiles.getOptions({
-              projectId: projectId,
-            })
-          )
+          // Clear changed files optimistically after repo creation
+          clearChangedFiles()
           toast.success("Repository created successfully")
         })
     },
@@ -477,10 +474,13 @@ export function GitHubSync({ userId }: { userId: string }) {
                 className="w-full font-normal"
                 onClick={handlePull}
                 disabled={
-                  isPulling || isChangedFilesLoading || isChangedFilesFetching
+                  isPulling ||
+                  isResolvingConflicts ||
+                  isChangedFilesLoading ||
+                  isChangedFilesFetching
                 }
               >
-                {isPulling ? (
+                {isPulling || isResolvingConflicts ? (
                   <Loader2 className="animate-spin mr-2 size-3" />
                 ) : (
                   <Download className="size-3 mr-2" />
@@ -570,7 +570,7 @@ export function GitHubSync({ userId }: { userId: string }) {
         onResolve={handleResolveConflicts}
         onCancel={handleConflictCancel}
         open={showConflictModal}
-        pendingPull={isPulling}
+        pendingPull={isResolvingConflicts}
       />
     </ScrollArea>
   )

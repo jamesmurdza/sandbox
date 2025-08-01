@@ -359,7 +359,9 @@ export const githubRouter = createRouter()
         )
 
         // Get the README.md file that GitHub created
-        const githubFiles = await githubSyncManager.getLatestFiles(id)
+        const githubFiles = (await githubSyncManager.getFilesFromCommit(
+          id
+        )) as Array<{ path: string; content: string }>
         const readmeFile = githubFiles.find((file) => file.path === "README.md")
 
         // Check if user already has a README.md file locally
@@ -720,13 +722,10 @@ export const githubRouter = createRouter()
           project.container
         )
 
-        // Get latest files from GitHub
-        const githubFiles = await githubSyncManager.getLatestFiles(
+        // Pull files from GitHub using SHA-based comparison
+        const pullResult = await githubSyncManager.pullFromGitHub(
           sandbox.repositoryId
         )
-
-        // Pull files from GitHub
-        const pullResult = await githubSyncManager.pullFromGitHub(githubFiles)
 
         // Note: Conflict resolutions are now handled by the separate /repo/resolve-conflicts endpoint
         // This endpoint only pulls files and detects conflicts
@@ -957,87 +956,65 @@ export const githubRouter = createRouter()
           project.container
         )
 
-        // Get current local files
-        const currentFiles = await project.fileManager.getProjectPaths()
+        // Use the new efficient SHA-based comparison
+        const changes = await githubSyncManager.getChangedFilesEfficiently(
+          sandbox.repositoryId,
+          sandbox.lastCommit
+        )
 
-        // Get file contents for current files
-        const currentFilesWithContent: Array<{
-          path: string
-          content: string
-        }> = []
-        for (const filePath of currentFiles) {
-          // Skip hidden files (files that start with '.')
-          if (
-            filePath.includes("/.") ||
-            filePath.startsWith(".") ||
-            filePath.endsWith("/")
-          ) {
-            continue
-          }
-
-          try {
-            const content = await project.fileManager.getFile(`/${filePath}`)
-
-            if (content !== undefined) {
-              currentFilesWithContent.push({
-                path: filePath,
-                content: String(content),
-              })
-            }
-          } catch (error) {
-            console.error(`Error reading file ${filePath}:`, error)
-          }
+        // Filter out hidden files and apply .gitignore rules
+        const filteredChanges = {
+          modified: changes.modified.filter(
+            (file) => !file.path.includes("/.") && !file.path.startsWith(".")
+          ),
+          created: changes.created.filter(
+            (file) => !file.path.includes("/.") && !file.path.startsWith(".")
+          ),
+          deleted: changes.deleted.filter(
+            (file) => !file.path.includes("/.") && !file.path.startsWith(".")
+          ),
         }
 
-        // Get .gitignore content to filter ignored files
+        // Apply .gitignore filtering if .gitignore exists
         let gitignoreContent: string | undefined
         try {
           const gitignoreFile = await project.fileManager.getFile("/.gitignore")
           if (gitignoreFile !== undefined && gitignoreFile !== null) {
             gitignoreContent = String(gitignoreFile)
+
+            // Filter out ignored files
+            const allFiles = [
+              ...filteredChanges.modified.map((f) => ({
+                path: f.path,
+                content: f.localContent,
+              })),
+              ...filteredChanges.created,
+              ...filteredChanges.deleted.map((f) => ({ path: f.path })),
+            ]
+
+            const filteredFiles = filterIgnoredFiles(allFiles, gitignoreContent)
+            const filteredPaths = new Set(filteredFiles.map((f) => f.path))
+
+            filteredChanges.modified = filteredChanges.modified.filter((f) =>
+              filteredPaths.has(f.path)
+            )
+            filteredChanges.created = filteredChanges.created.filter((f) =>
+              filteredPaths.has(f.path)
+            )
+            filteredChanges.deleted = filteredChanges.deleted.filter((f) =>
+              filteredPaths.has(f.path)
+            )
           }
         } catch (error) {
           // .gitignore doesn't exist, which is fine
           console.log("No .gitignore file found")
         }
 
-        // Filter out ignored files from current files
-        const filteredCurrentFiles = filterIgnoredFiles(
-          currentFilesWithContent,
-          gitignoreContent
-        ).filter((file) => file.content !== undefined) as Array<{
-          path: string
-          content: string
-        }>
-
-        // Get last committed files from GitHub
-        const lastCommittedFiles = await githubSyncManager.getFilesFromCommit(
-          sandbox.repositoryId,
-          sandbox.lastCommit
-        )
-
-        // Filter out hidden files and ignored files from last committed files
-        const filteredLastCommittedFiles = filterIgnoredFiles(
-          lastCommittedFiles.filter(
-            (file) => !file.path.includes("/.") && !file.path.startsWith(".")
-          ),
-          gitignoreContent
-        ).filter((file) => file.content !== undefined) as Array<{
-          path: string
-          content: string
-        }>
-
-        // Compare and categorize changes
-        const changes = compareFiles(
-          filteredCurrentFiles,
-          filteredLastCommittedFiles
-        )
-
         return c.json(
           {
             success: true,
             message: "Changed files retrieved successfully",
-            data: changes,
+            data: filteredChanges,
           },
           200
         )
@@ -1106,62 +1083,6 @@ function filterIgnoredFiles(
       }
     })
   })
-}
-
-/**
- * Compares current files with last committed files and categorizes changes
- * @param currentFiles - Current local files with content
- * @param lastCommittedFiles - Last committed files from GitHub
- * @returns Object with categorized changes
- */
-function compareFiles(
-  currentFiles: Array<{ path: string; content: string }>,
-  lastCommittedFiles: Array<{ path: string; content: string }>
-) {
-  const currentFileMap = new Map(
-    currentFiles.map((file) => [file.path, file.content])
-  )
-  const lastCommittedFileMap = new Map(
-    lastCommittedFiles.map((file) => [file.path, file.content])
-  )
-
-  const modified: Array<{
-    path: string
-    localContent: string
-    remoteContent: string
-  }> = []
-  const created: Array<{ path: string; content: string }> = []
-  const deleted: Array<{ path: string }> = []
-
-  // Find modified and created files
-  for (const [path, content] of currentFileMap) {
-    const lastCommittedContent = lastCommittedFileMap.get(path)
-    if (lastCommittedContent === undefined) {
-      // File exists locally but not in last commit
-      created.push({ path, content })
-    } else if (lastCommittedContent !== content) {
-      // File exists in both but content differs
-      modified.push({
-        path,
-        localContent: content,
-        remoteContent: lastCommittedContent || "",
-      })
-    }
-  }
-
-  // Find deleted files
-  for (const [path] of lastCommittedFileMap) {
-    if (!currentFileMap.has(path)) {
-      // File exists in last commit but not locally
-      deleted.push({ path })
-    }
-  }
-
-  return {
-    modified,
-    created,
-    deleted,
-  }
 }
 
 /**
