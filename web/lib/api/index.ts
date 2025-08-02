@@ -176,6 +176,18 @@ export const githubRouter = router("github", {
       return data
     },
   }),
+  getChangedFiles: router.query({
+    fetcher: async ({ projectId }: { projectId: string }) => {
+      const res = await (apiClient.github.repo as any)["changed-files"].$get({
+        query: { projectId },
+      })
+      if (!res.ok) {
+        throw new Error("Failed to get changed files")
+      }
+      const data = await res.json()
+      return data
+    },
+  }),
   pullFromGithub: router.mutation({
     mutationFn: async ({ projectId }: { projectId: string }) => {
       const res = await apiClient.github.repo.pull.$post({

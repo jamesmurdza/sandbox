@@ -1,6 +1,7 @@
 "use client"
 
-import { fileRouter } from "@/lib/api"
+import { useChangedFilesOptimistic } from "@/hooks/useChangedFilesOptimistic"
+import { fileRouter, githubRouter } from "@/lib/api"
 import { validateName } from "@/lib/utils"
 import { useQueryClient } from "@tanstack/react-query"
 import { Loader2 } from "lucide-react"
@@ -25,8 +26,14 @@ export default function New({
 }) {
   const [value, setValue] = useState("")
   const queryClient = useQueryClient()
+  const { updateChangedFilesOptimistically } = useChangedFilesOptimistic()
   const { mutate: createFile, isPending: isCreatingFile } =
     fileRouter.createFile.useMutation({
+      onMutate: async ({ name }) => {
+        // Optimistically update changed files
+        const filePath = name // For new files, the path is just the name
+        updateChangedFilesOptimistically("create", filePath, "")
+      },
       onSuccess() {
         return queryClient
           .invalidateQueries(
@@ -52,6 +59,12 @@ export default function New({
             })
           )
           .then(() => {
+            // Invalidate changed files query to refresh the list
+            queryClient.invalidateQueries(
+              githubRouter.getChangedFiles.getOptions({
+                projectId,
+              })
+            )
             stopEditing()
           })
       },

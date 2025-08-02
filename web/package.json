@@ -105,6 +105,7 @@
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18",
     "@types/three": "^0.164.0",
+    "@types/minimatch": "^5.1.2",
     "autoprefixer": "^10.0.1",
     "drizzle-kit": "^0.31.1",
     "postcss": "^8",

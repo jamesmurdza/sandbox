@@ -49,7 +49,9 @@ export class GitHubManager {
       this._username = res.data.login
     } catch (error) {
       console.error("Error initializing Octokit:", error)
-      // throw error
+      this._octokit = null
+      this._username = null
+      throw error
     }
   }
   // Public getter guarantees octokit is available after init
@@ -273,7 +275,6 @@ export class GitHubManager {
       {
         owner: username,
         repo: repoName,
-        base_tree: baseTree.tree.sha,
         tree: blobs as any,
       }
     )

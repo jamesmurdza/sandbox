@@ -1,3 +1,4 @@
+import { useChangedFilesOptimistic } from "@/hooks/useChangedFilesOptimistic"
 import { fileRouter, FileTree } from "@/lib/api"
 import { sortFileExplorer } from "@/lib/utils"
 import { useAppStore } from "@/store/context"
@@ -10,6 +11,7 @@ export function useFileTree() {
   const { id: projectId } = useParams<{ id: string }>()
   const queryClient = useQueryClient()
   const setTabs = useAppStore((s) => s.setTabs)
+  const { updateChangedFilesOptimistically } = useChangedFilesOptimistic()
 
   const { data: fileTree = [], isLoading: isLoadingFileTree } =
     fileRouter.fileTree.useQuery({
@@ -40,6 +42,10 @@ export function useFileTree() {
 
   const { mutate: deleteFile, isPending: isDeletingFile } =
     fileRouter.deleteFile.useMutation({
+      onMutate: async ({ fileId }) => {
+        // Optimistically update changed files
+        updateChangedFilesOptimistically("delete", fileId)
+      },
       onSuccess({ message }) {
         return queryClient
           .invalidateQueries(
@@ -58,6 +64,10 @@ export function useFileTree() {
 
   const { mutate: renameFile, isPending: isRenamingFile } =
     fileRouter.rename.useMutation({
+      onMutate: async ({ fileId, newName }) => {
+        // Optimistically update changed files - treat rename as update
+        updateChangedFilesOptimistically("update", fileId, "")
+      },
       onSuccess({ message }, { newName }) {
         return queryClient
           .invalidateQueries(
@@ -75,10 +85,17 @@ export function useFileTree() {
     })
 
   const { mutateAsync: rawSaveFile } = fileRouter.saveFile.useMutation({
+    onMutate: async ({ fileId, content }) => {
+      // Optimistically update changed files with the actual content
+      updateChangedFilesOptimistically("update", fileId, content)
+    },
     onSuccess(_, { fileId }) {
       setTabs((tabs) =>
         tabs.map((tab) => (tab.id === fileId ? { ...tab, saved: true } : tab))
       )
+    },
+    onError() {
+      toast.error("Error saving file")
     },
   })
 
@@ -100,6 +117,10 @@ export function useFileTree() {
           const rebased = rebaseNodeIds(movedNode, toBeMoved.folderId)
           // TODO: Further optimiztion: move queryCache value of file content to newId; move draft to new Id; account for if it's a activeTab;
           insertNode(newTree, toBeMoved.folderId, rebased)
+
+          // Optimistically update changed files - treat move as update with new path
+          const newPath = toBeMoved.folderId + "/" + movedNode.name
+          updateChangedFilesOptimistically("update", newPath, "")
         }
 
         queryClient.setQueryData(fileTreeKey, (old) =>
