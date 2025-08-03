@@ -156,6 +156,10 @@ export const githubRouter = router("github", {
         query: { projectId },
       })
       if (!res.ok) {
+        if ((res.status as number) === 403) {
+          // User not authenticated with GitHub
+          return null
+        }
         throw new Error("Failed to get repo status")
       }
       const data = await res.json()
@@ -167,12 +171,14 @@ export const githubRouter = router("github", {
       const res = await (apiClient.github.repo as any)["pull/check"].$get({
         query: { projectId },
       })
-      console.log(res)
       if (!res.ok) {
+        if (res.status === 403) {
+          // User not authenticated with GitHub
+          return null
+        }
         throw new Error("Failed to check pull status")
       }
       const data = await res.json()
-      console.log(data)
       return data
     },
   }),
