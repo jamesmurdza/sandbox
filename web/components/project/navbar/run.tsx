@@ -50,13 +50,6 @@ export default function RunButton({ sandboxData }: { sandboxData: Sandbox }) {
     setIsRunning(!isRunning)
   }
 
-  // Effect to handle the run action on component mount
-  useEffect(() => {
-    if (!isSocketReady) return
-    // If the socket is ready, we can handle the run action
-    handleRun()
-  }, [isSocketReady])
-
   // Effect to update the lastCreatedTerminalRef when a new terminal is added
   useEffect(() => {
     if (terminals.length > 0 && !isRunning) {
