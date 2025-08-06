@@ -268,9 +268,9 @@ export default function ProjectLayout({
               {/* Preview Panel */}
               <ResizablePanel
                 ref={previewPanelRef}
-                defaultSize={isPreviewCollapsed ? 4 : 40}
+                defaultSize={isPreviewCollapsed ? 4 : 50}
                 minSize={25}
-                collapsedSize={isHorizontalLayout ? 40 : 4}
+                collapsedSize={isHorizontalLayout ? 50 : 4}
                 className="preview-panel p-2 transition-all duration-300 ease-in-out"
                 collapsible
                 {...previewPanelProps}
