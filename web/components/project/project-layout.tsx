@@ -16,7 +16,7 @@ import { FileJson, TerminalSquare } from "lucide-react"
 import * as monaco from "monaco-editor"
 import { useTheme } from "next-themes"
 import { useParams } from "next/navigation"
-import { useCallback, useRef, useState } from "react"
+import { useCallback, useMemo, useRef, useState } from "react"
 import { ImperativePanelHandle } from "react-resizable-panels"
 import Tab from "../ui/tab"
 import AIChat from "./ai-chat"
@@ -25,7 +25,7 @@ import { SessionTimeoutDialog } from "./alerts/session-timeout-dialog"
 import { useCodeDiffer } from "./hooks/useCodeDiffer"
 import { useEditorSocket } from "./hooks/useEditorSocket"
 import { useMonacoEditor } from "./hooks/useMonacoEditor"
-import PreviewWindow from "./preview"
+import { PreviewWindow } from "./preview"
 import Terminals from "./terminals"
 export interface ProjectLayoutProps {
   isOwner: boolean
@@ -81,9 +81,6 @@ export default function ProjectLayout({
     isHorizontalLayout,
     isPreviewCollapsed,
     isAIChatOpen,
-    previewURL,
-    togglePreviewPanel,
-    toggleLayout,
     toggleAIChat,
     loadPreviewURL,
     setIsAIChatOpen,
@@ -146,6 +143,39 @@ export default function ProjectLayout({
     }
     setDraft(activeTab.id, content ?? "")
   }
+
+  const previewPanelProps = useMemo(
+    () => ({
+      onCollapse: () => {
+        setIsPreviewCollapsed(true)
+        const previewPanel = document.querySelector(
+          ".preview-panel"
+        ) as HTMLDivElement
+        if (previewPanel) {
+          previewPanel.style.transition = ""
+        }
+      },
+
+      onExpand: () => {
+        setIsPreviewCollapsed(false)
+        const previewPanel = document.querySelector(
+          ".preview-panel"
+        ) as HTMLDivElement
+        if (previewPanel) {
+          previewPanel.style.transition = ""
+        }
+      },
+      onResize: () => {
+        const previewPanel = document.querySelector(
+          ".preview-panel"
+        ) as HTMLDivElement
+        if (previewPanel) {
+          previewPanel.style.transition = "none"
+        }
+      },
+    }),
+    [setIsPreviewCollapsed]
+  )
   return (
     <ResizablePanelGroup
       direction={isHorizontalLayout ? "horizontal" : "vertical"}
@@ -238,23 +268,14 @@ export default function ProjectLayout({
               {/* Preview Panel */}
               <ResizablePanel
                 ref={previewPanelRef}
-                defaultSize={isPreviewCollapsed ? 4 : 20}
+                defaultSize={isPreviewCollapsed ? 4 : 50}
                 minSize={25}
-                collapsedSize={isHorizontalLayout ? 20 : 4}
-                className="p-2 flex flex-col gap-2"
+                collapsedSize={isHorizontalLayout ? 50 : 4}
+                className="preview-panel p-2 transition-all duration-300 ease-in-out"
                 collapsible
-                onCollapse={() => setIsPreviewCollapsed(true)}
-                onExpand={() => setIsPreviewCollapsed(false)}
+                {...previewPanelProps}
               >
-                <PreviewWindow
-                  open={togglePreviewPanel}
-                  collapsed={isPreviewCollapsed}
-                  src={previewURL}
-                  ref={previewWindowRef}
-                  toggleLayout={toggleLayout}
-                  isHorizontal={isHorizontalLayout}
-                  isAIChatOpen={isAIChatOpen}
-                />
+                <PreviewWindow ref={previewWindowRef} />
               </ResizablePanel>
 
               <ResizableHandle />

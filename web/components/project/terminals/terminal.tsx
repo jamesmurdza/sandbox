@@ -34,7 +34,7 @@ export default function EditorTerminal({
       cursorBlink: true,
       theme: theme === "light" ? lightTheme : darkTheme,
       fontFamily: "var(--font-geist-mono)",
-      fontSize: 14,
+      fontSize: 12,
       lineHeight: 1.5,
       letterSpacing: 0,
       allowTransparency: true,
